@@ -21,6 +21,7 @@ class PipelineConfig:
     glossary_path: Path | None = None
     qwen_model_path: Path | None = None
     qwen_fallback_model_path: Path | None = None
+    qwen_critic_model_path: Path | None = None
     vision_enabled: bool = False
     vision_facts_enabled: bool = False
     vision_mode: str = "numbered_page"

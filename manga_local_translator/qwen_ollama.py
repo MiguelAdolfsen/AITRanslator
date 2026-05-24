@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 from .logging_utils import shorten
-from .qwen_types import QwenGenerationSettings
+from .qwen_types import QWEN_TRANSLATION_SETTINGS, QwenGenerationSettings
 
 logger = logging.getLogger(__name__)
 QWEN_MODEL_DIR = Path(".models") / "qwen"

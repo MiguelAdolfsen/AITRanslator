@@ -36,6 +36,9 @@ class QualityEvalTests(unittest.TestCase):
                     "vision_facts_json_repair_attempted": True,
                     "vision_facts_json_repair_used": True,
                     "vision_facts_reject_reason": "contains_translation_field",
+                    "qwen_critic_attempted": True,
+                    "qwen_critic_flagged": True,
+                    "qwen_critic_issues": ["awkward_literal"],
                 },
                 {
                     "translated_text": "Okay.",
@@ -61,9 +64,13 @@ class QualityEvalTests(unittest.TestCase):
         self.assertEqual(rows[0]["vision_facts_json_repair_used"], 1)
         self.assertEqual(json.loads(rows[0]["vision_facts_reject_reasons"]), {"contains_translation_field": 1})
         self.assertEqual(json.loads(rows[0]["layout_warning_types"]), {"text_clipped": 1, "tiny_font": 2})
+        self.assertEqual(rows[0]["qwen_critic_attempted"], 1)
+        self.assertEqual(rows[0]["qwen_critic_flagged"], 1)
+        self.assertEqual(json.loads(rows[0]["qwen_critic_issue_types"]), {"awkward_literal": 1})
         self.assertEqual(json.loads(rows[1]["vision_reject_reasons"]), {"invalid_visual_evidence": 1})
         self.assertEqual(json.loads(rows[1]["vision_facts_reject_reasons"]), {"contains_translation_field": 1})
         self.assertEqual(json.loads(rows[1]["layout_warning_types"]), {"text_clipped": 1, "tiny_font": 2})
+        self.assertEqual(json.loads(rows[1]["qwen_critic_issue_types"]), {"awkward_literal": 1})
 
 
 if __name__ == "__main__":

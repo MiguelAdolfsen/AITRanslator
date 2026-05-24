@@ -24,6 +24,9 @@ try {
     & $python @pythonPrefix -m manga_local_translator.quality_eval --help | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $python @pythonPrefix -m manga_local_translator.review_report --help | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $python @pythonPrefix -m unittest discover -s .testing\tests -p "test_*.py"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

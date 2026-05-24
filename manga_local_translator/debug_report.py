@@ -284,6 +284,9 @@ def build_page_debug_summary(
         "qwen_repairs_accepted": sum(1 for context in contexts if context.get("qwen_repair_accepted") is True),
         "qwen_fallback_attempted": sum(1 for context in contexts if context.get("qwen_fallback_attempted") is True),
         "qwen_fallback_accepted": sum(1 for context in contexts if context.get("qwen_fallback_accepted") is True),
+        "qwen_critic_attempted": sum(1 for context in contexts if context.get("qwen_critic_attempted") is True),
+        "qwen_critic_flagged": sum(1 for context in contexts if context.get("qwen_critic_flagged") is True),
+        "qwen_critic_issue_types": dict(count_split_values(issue for context in contexts for issue in context.get("qwen_critic_issues", []))),
         "suspected_bad_translations": sum(
             1
             for block in blocks

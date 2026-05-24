@@ -100,6 +100,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional second Qwen text GGUF used only for rejected/repaired/suspicious blocks.",
     )
     parser.add_argument(
+        "--qwen-critic-model",
+        type=Path,
+        default=None,
+        help="Optional Qwen text GGUF used only as a critic/verifier for suspicious accepted blocks.",
+    )
+    parser.add_argument(
         "--qwen-mode",
         choices=["block", "page"],
         default="block",
@@ -195,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         glossary_path=args.glossary,
         qwen_model_path=args.qwen_model,
         qwen_fallback_model_path=args.qwen_fallback_model,
+        qwen_critic_model_path=args.qwen_critic_model,
         qwen_mode=args.qwen_mode,
         vision_enabled=args.vision,
         vision_facts_enabled=args.vision_facts,

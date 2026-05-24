@@ -69,7 +69,11 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             logger.error("No supported images found in %s", input_path)
             raise SystemExit(f"No supported images found in {input_path}")
 
-        if config.translator == "qwen" and (config.qwen_fallback_model_path is not None or config.vision_facts_enabled):
+        if config.translator == "qwen" and (
+            config.qwen_fallback_model_path is not None
+            or config.qwen_critic_model_path is not None
+            or config.vision_facts_enabled
+        ):
             process_folder_qwen_hybrid_batch(input_path, output_path, image_paths, config)
             return
 
@@ -117,8 +121,9 @@ def process_folder_qwen_hybrid_batch(
     from .translate import build_translator
 
     logger.info(
-        "Starting batched Qwen hybrid flow: primary=%s fallback=%s",
+        "Starting batched Qwen hybrid flow: primary=%s critic=%s fallback=%s",
         config.qwen_model_path,
+        config.qwen_critic_model_path,
         config.qwen_fallback_model_path,
     )
     work_dir = resolve_work_dir(output_path, config)
@@ -159,13 +164,19 @@ def process_folder_qwen_hybrid_batch(
 
     primary_jobs: list[tuple[int, PreparedPage, Path]] = []
     hybrid_cached_pages: set[int] = set()
+    critic_cached_pages: set[int] = set()
     for page_index, page in enumerate(prepared_pages, start=1):
         hybrid_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "hybrid"))
+        critic_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "critic"))
         primary_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "primary"))
         if config.resume and hybrid_cache.exists():
             load_translation_cache(page, hybrid_cache)
             hybrid_cached_pages.add(page_index)
             logger.info("Loaded hybrid translation cache: %s", hybrid_cache)
+        elif config.resume and config.qwen_critic_model_path is not None and critic_cache.exists():
+            load_translation_cache(page, critic_cache)
+            critic_cached_pages.add(page_index)
+            logger.info("Loaded critic translation cache: %s", critic_cache)
         elif config.resume and primary_cache.exists():
             load_translation_cache(page, primary_cache)
             logger.info("Loaded primary translation cache: %s", primary_cache)
@@ -190,6 +201,44 @@ def process_folder_qwen_hybrid_batch(
         del primary_translator
     else:
         logger.info("Primary Qwen pass skipped; all pages loaded from cache")
+
+    critic_jobs = []
+    if config.qwen_critic_model_path is not None:
+        critic_jobs = [
+            (page_index, page, cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "critic")))
+            for page_index, page in enumerate(prepared_pages, start=1)
+            if page_index not in hybrid_cached_pages and page_index not in critic_cached_pages
+        ]
+    total_critic_attempted = 0
+    total_critic_flagged = 0
+    if critic_jobs:
+        logger.info("Primary Qwen pass complete; building critic Qwen translator for %d pending page(s)", len(critic_jobs))
+        critic_translator = build_translator(
+            "qwen",
+            glossary_path=config.glossary_path,
+            qwen_model_path=config.qwen_critic_model_path,
+        )
+        for _page_index, page, critic_cache in tqdm(critic_jobs, desc="Qwen critic pass", unit="page"):
+            attempted, flagged = apply_qwen_critic_reviews(
+                page.render_blocks,
+                page.translations,
+                page.translation_contexts,
+                page.page_order_report,
+                critic_translator,
+                config,
+            )
+            save_translation_cache(page, critic_cache)
+            total_critic_attempted += attempted
+            total_critic_flagged += flagged
+        release_qwen_translator(critic_translator)
+        del critic_translator
+    elif config.qwen_critic_model_path is not None:
+        logger.info("Critic Qwen pass skipped; all pages loaded from cache")
+    logger.info(
+        "Critic Qwen pass complete: attempted=%d flagged=%d",
+        total_critic_attempted,
+        total_critic_flagged,
+    )
 
     fallback_jobs = []
     if config.qwen_fallback_model_path is not None:
@@ -280,6 +329,8 @@ def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
         suffix = f"{stage}-{config.qwen_mode}"
         if config.vision_facts_enabled:
             suffix += "-vision-facts"
+        if config.qwen_critic_model_path is not None:
+            suffix += "-critic"
         return suffix
     return stage
 
@@ -1002,11 +1053,125 @@ def apply_qwen_fallback_translations(
     return attempted, accepted
 
 
+def apply_qwen_critic_reviews(
+    blocks: list[TextBlock],
+    translations: dict[str, str],
+    translation_contexts: dict[str, dict[str, object]],
+    page_order_report: list[dict[str, object]],
+    qwen_critic_translator,
+    config: PipelineConfig,
+) -> tuple[int, int]:
+    attempted = 0
+    flagged = 0
+    for block in blocks:
+        current_translation = translations.get(block.text, "")
+        primary_context = translation_contexts.get(block.text, {})
+        trigger_reasons = qwen_critic_trigger_reasons(block.text, current_translation, primary_context)
+        if not trigger_reasons:
+            continue
+
+        attempted += 1
+        context = context_for_block(block, page_order_report)
+        logger.info(
+            "Trying Qwen critic model: reasons=%s source=%s current=%s",
+            ",".join(trigger_reasons),
+            shorten(block.text),
+            shorten(current_translation),
+        )
+        decision, critic_debug = qwen_critic_translator.critique_translation(
+            block.text,
+            current_translation=current_translation,
+            before=str(context.get("context_before") or "") or None,
+            after=str(context.get("context_after") or "") or None,
+            before_contexts=tuple(str(value) for value in context.get("context_before_window") or []),
+            after_contexts=tuple(str(value) for value in context.get("context_after_window") or []),
+            baseline=str(primary_context.get("qwen_baseline") or ""),
+            trigger_reasons=trigger_reasons,
+            visual_facts=visual_facts_for_context(primary_context),
+        )
+        should_repair = qwen_critic_should_trigger_repair(decision)
+        if should_repair:
+            flagged += 1
+        primary_context.update(
+            {
+                **critic_debug,
+                "qwen_critic_flagged": should_repair,
+                "qwen_critic_should_repair": should_repair,
+            }
+        )
+        translation_contexts[block.text] = primary_context
+        logger.info(
+            "Qwen critic result: severity=%s issues=%s should_repair=%s source=%s reason=%s",
+            decision.severity,
+            ",".join(decision.issues),
+            should_repair,
+            shorten(block.text),
+            shorten(decision.reason),
+        )
+
+    if attempted:
+        logger.info("Qwen critic pass finished: attempted=%d flagged=%d", attempted, flagged)
+    return attempted, flagged
+
+
+def qwen_critic_trigger_reasons(
+    source_text: str,
+    translated_text: str,
+    primary_context: dict[str, object],
+) -> tuple[str, ...]:
+    if primary_context.get("qwen_rejected") is True:
+        return ()
+    if unusable_translation_reason(source_text, translated_text, translator_name="qwen") is not None:
+        return ()
+
+    reasons: list[str] = []
+    if suspected_bad_translation(translated_text):
+        reasons.append("suspected_bad_translation")
+    if primary_context.get("qwen_repair_used") is True:
+        reasons.append("qwen_repair_used")
+    if primary_context.get("qwen_unsupported_terms"):
+        reasons.append("qwen_unsupported_terms")
+    if has_critic_risk_source_terms(source_text):
+        reasons.append("risk_source_terms")
+    if has_awkward_english_pattern(translated_text):
+        reasons.append("awkward_english_pattern")
+    return tuple(dict.fromkeys(reasons))
+
+
+def has_critic_risk_source_terms(source_text: str) -> bool:
+    if ("\u7236" in source_text and "\u6bcd" in source_text) or "\u3061\u3061\u3082\u306f\u306f\u3082" in source_text:
+        return True
+    risk_terms = (
+        "\u7d44\u7e54",
+        "\u5b50\u5206",
+        "\u30aa\u30da\u30ec\u30fc\u30b7\u30e7\u30f3",
+        "\u3008",
+    )
+    return any(term in source_text for term in risk_terms)
+
+
+def has_awkward_english_pattern(translated_text: str) -> bool:
+    normalized = translated_text.lower()
+    patterns = (
+        r"\b(?:father|mother|dad|mom|papa|mama)\s+and\s+(?:father|mother|dad|mom|papa|mama)\s+are\s+hated\b",
+        r"\b[a-z]+ and [a-z]+ are hated\b",
+        r"\bwatch my organization\b",
+        r"\bson of a bitch\b",
+    )
+    return any(re.search(pattern, normalized) for pattern in patterns)
+
+
+def qwen_critic_should_trigger_repair(decision) -> bool:
+    return not bool(getattr(decision, "ok", False)) and str(getattr(decision, "severity", "")) in {"medium", "high"}
+
+
 def should_try_qwen_fallback(
     source_text: str,
     translated_text: str,
     primary_context: dict[str, object],
 ) -> bool:
+    if primary_context.get("qwen_critic_should_repair") is True:
+        return True
     if primary_context.get("qwen_rejected") is True:
         return True
     if primary_context.get("qwen_repair_used") is True and primary_context.get("qwen_repair_accepted") is not True:

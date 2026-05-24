@@ -115,6 +115,52 @@ def build_qwen_verification_prompt(
     return "\n".join(lines)
 
 
+def build_qwen_critic_prompt(
+    target: str,
+    *,
+    before: str | None,
+    after: str | None,
+    before_contexts: tuple[str, ...] = (),
+    after_contexts: tuple[str, ...] = (),
+    baseline: str,
+    current_translation: str,
+    trigger_reasons: tuple[str, ...] = (),
+    visual_facts: tuple[str, ...] = (),
+) -> str:
+    lines = [
+        "/no_think",
+        "Task: Critique one accepted manga bubble translation. Do not translate or rewrite it.",
+        *ANTI_HALLUCINATION_RULES,
+        "Return issue labels only. Do not provide a replacement translation.",
+        "Use severity none when the current translation is acceptable.",
+        "Use severity low for minor style concerns that should not trigger repair.",
+        "Use severity medium or high only when the line should be repaired by another model.",
+        "Allowed issues: awkward_literal, context_mismatch, omitted_term, invented_detail, name_drift, tone_mismatch, untranslated_text, glossary_conflict, grammar_problem.",
+        "Reject unsupported additions and missing target terms. Do not demand extra detail not present in Japanese.",
+        "Return only compact JSON: {\"ok\":true,\"severity\":\"none|low|medium|high\",\"issues\":[],\"reason\":\"...\"}",
+    ]
+    if before_contexts:
+        lines.append("Earlier context window:")
+        for index, value in enumerate(before_contexts, start=1):
+            lines.append(f"  - {index}: {normalize_japanese_for_translation(value)}")
+    if before:
+        lines.append(f"Previous bubble context: {normalize_japanese_for_translation(before)}")
+    lines.append(f"Target Japanese bubble: {target}")
+    if after:
+        lines.append(f"Next bubble context: {normalize_japanese_for_translation(after)}")
+    if after_contexts:
+        lines.append("Later context window:")
+        for index, value in enumerate(after_contexts, start=1):
+            lines.append(f"  - {index}: {normalize_japanese_for_translation(value)}")
+    append_visual_facts(lines, visual_facts)
+    if trigger_reasons:
+        lines.append(f"Why this line was selected for critique: {', '.join(trigger_reasons)}")
+    lines.append(f"Baseline English translation: {baseline}")
+    lines.append(f"Current accepted English translation: {current_translation}")
+    lines.append("JSON:")
+    return "\n".join(lines)
+
+
 def build_qwen_repair_prompt(
     target: str,
     *,

@@ -31,6 +31,7 @@ class MangaTranslatorGui(tk.Tk):
         self.qwen_mode_var = tk.StringVar(value="block")
         self.qwen_model_var = tk.StringVar()
         self.qwen_fallback_var = tk.StringVar()
+        self.qwen_critic_var = tk.StringVar()
         self.vision_var = tk.BooleanVar(value=False)
         self.vision_facts_var = tk.BooleanVar(value=False)
         self.vision_mode_var = tk.StringVar(value="numbered_page")
@@ -58,7 +59,7 @@ class MangaTranslatorGui(tk.Tk):
         root = ttk.Frame(self, padding=14)
         root.pack(fill=tk.BOTH, expand=True)
         root.columnconfigure(1, weight=1)
-        root.rowconfigure(18, weight=1)
+        root.rowconfigure(19, weight=1)
 
         ttk.Label(root, text="Image folder").grid(row=0, column=0, sticky="w", pady=(0, 8))
         ttk.Entry(root, textvariable=self.input_var).grid(row=0, column=1, sticky="ew", padx=8, pady=(0, 8))
@@ -121,9 +122,13 @@ class MangaTranslatorGui(tk.Tk):
         ttk.Entry(root, textvariable=self.qwen_fallback_var).grid(row=8, column=1, sticky="ew", padx=8, pady=(0, 8))
         ttk.Button(root, text="Browse", command=self._choose_qwen_fallback).grid(row=8, column=2, pady=(0, 8))
 
-        ttk.Label(root, text="Vision repair").grid(row=9, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(root, text="Qwen critic model").grid(row=9, column=0, sticky="w", pady=(0, 8))
+        ttk.Entry(root, textvariable=self.qwen_critic_var).grid(row=9, column=1, sticky="ew", padx=8, pady=(0, 8))
+        ttk.Button(root, text="Browse", command=self._choose_qwen_critic).grid(row=9, column=2, pady=(0, 8))
+
+        ttk.Label(root, text="Vision repair").grid(row=10, column=0, sticky="w", pady=(0, 8))
         vision_options = ttk.Frame(root)
-        vision_options.grid(row=9, column=1, sticky="w", padx=8, pady=(0, 8))
+        vision_options.grid(row=10, column=1, sticky="w", padx=8, pady=(0, 8))
         ttk.Checkbutton(vision_options, text="Enable", variable=self.vision_var).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Checkbutton(vision_options, text="Facts", variable=self.vision_facts_var).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Combobox(
@@ -141,41 +146,41 @@ class MangaTranslatorGui(tk.Tk):
             width=12,
         ).pack(side=tk.LEFT)
 
-        ttk.Label(root, text="Glossary").grid(row=10, column=0, sticky="w", pady=(0, 8))
-        ttk.Entry(root, textvariable=self.glossary_var).grid(row=10, column=1, sticky="ew", padx=8, pady=(0, 8))
-        ttk.Button(root, text="Browse", command=self._choose_glossary).grid(row=10, column=2, pady=(0, 8))
+        ttk.Label(root, text="Glossary").grid(row=11, column=0, sticky="w", pady=(0, 8))
+        ttk.Entry(root, textvariable=self.glossary_var).grid(row=11, column=1, sticky="ew", padx=8, pady=(0, 8))
+        ttk.Button(root, text="Browse", command=self._choose_glossary).grid(row=11, column=2, pady=(0, 8))
 
-        ttk.Label(root, text="Font").grid(row=11, column=0, sticky="w", pady=(0, 8))
-        ttk.Entry(root, textvariable=self.font_var).grid(row=11, column=1, sticky="ew", padx=8, pady=(0, 8))
-        ttk.Button(root, text="Browse", command=self._choose_font).grid(row=11, column=2, pady=(0, 8))
+        ttk.Label(root, text="Font").grid(row=12, column=0, sticky="w", pady=(0, 8))
+        ttk.Entry(root, textvariable=self.font_var).grid(row=12, column=1, sticky="ew", padx=8, pady=(0, 8))
+        ttk.Button(root, text="Browse", command=self._choose_font).grid(row=12, column=2, pady=(0, 8))
 
-        ttk.Label(root, text="Typesetting").grid(row=12, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(root, text="Typesetting").grid(row=13, column=0, sticky="w", pady=(0, 8))
         type_options = ttk.Frame(root)
-        type_options.grid(row=12, column=1, sticky="w", padx=8, pady=(0, 8))
+        type_options.grid(row=13, column=1, sticky="w", padx=8, pady=(0, 8))
         ttk.Label(type_options, text="Font size").pack(side=tk.LEFT)
         ttk.Spinbox(type_options, from_=10, to=72, textvariable=self.font_size_var, width=6).pack(side=tk.LEFT, padx=(6, 18))
         ttk.Label(type_options, text="Box expand").pack(side=tk.LEFT)
         ttk.Spinbox(type_options, from_=1.0, to=4.0, increment=0.1, textvariable=self.render_expand_var, width=6).pack(side=tk.LEFT, padx=(6, 0))
 
-        ttk.Label(root, text="Work cache folder").grid(row=13, column=0, sticky="w", pady=(0, 8))
-        ttk.Entry(root, textvariable=self.work_dir_var).grid(row=13, column=1, sticky="ew", padx=8, pady=(0, 8))
-        ttk.Button(root, text="Browse", command=self._choose_work_dir).grid(row=13, column=2, pady=(0, 8))
+        ttk.Label(root, text="Work cache folder").grid(row=14, column=0, sticky="w", pady=(0, 8))
+        ttk.Entry(root, textvariable=self.work_dir_var).grid(row=14, column=1, sticky="ew", padx=8, pady=(0, 8))
+        ttk.Button(root, text="Browse", command=self._choose_work_dir).grid(row=14, column=2, pady=(0, 8))
 
-        ttk.Label(root, text="Tesseract path").grid(row=14, column=0, sticky="w", pady=(0, 8))
-        ttk.Entry(root, textvariable=self.tesseract_var).grid(row=14, column=1, sticky="ew", padx=8, pady=(0, 8))
+        ttk.Label(root, text="Tesseract path").grid(row=15, column=0, sticky="w", pady=(0, 8))
+        ttk.Entry(root, textvariable=self.tesseract_var).grid(row=15, column=1, sticky="ew", padx=8, pady=(0, 8))
         tesseract_buttons = ttk.Frame(root)
-        tesseract_buttons.grid(row=14, column=2, pady=(0, 8))
+        tesseract_buttons.grid(row=15, column=2, pady=(0, 8))
         ttk.Button(tesseract_buttons, text="Browse", command=self._choose_tesseract).pack(side=tk.LEFT)
         ttk.Button(tesseract_buttons, text="Help", command=self._show_tesseract_help).pack(side=tk.LEFT, padx=(6, 0))
 
         options = ttk.Frame(root)
-        options.grid(row=15, column=1, sticky="w", padx=8, pady=(0, 10))
+        options.grid(row=16, column=1, sticky="w", padx=8, pady=(0, 10))
         ttk.Checkbutton(options, text="Debug boxes", variable=self.debug_var).pack(side=tk.LEFT, padx=(0, 16))
         ttk.Checkbutton(options, text="Overwrite existing", variable=self.overwrite_var).pack(side=tk.LEFT, padx=(0, 16))
         ttk.Checkbutton(options, text="Resume cached work", variable=self.resume_var).pack(side=tk.LEFT)
 
         actions = ttk.Frame(root)
-        actions.grid(row=16, column=0, columnspan=3, sticky="ew", pady=(2, 10))
+        actions.grid(row=17, column=0, columnspan=3, sticky="ew", pady=(2, 10))
         self.start_button = ttk.Button(actions, text="Start", command=self._start)
         self.start_button.pack(side=tk.LEFT)
         ttk.Button(actions, text="Install CTD detector", command=self._install_ctd).pack(side=tk.LEFT, padx=(8, 0))
@@ -184,9 +189,9 @@ class MangaTranslatorGui(tk.Tk):
         ttk.Button(actions, text="Install Argos JA->EN", command=self._install_argos).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Label(actions, textvariable=self.status_var).pack(side=tk.LEFT, padx=12)
 
-        ttk.Label(root, text="Log").grid(row=17, column=0, sticky="w")
+        ttk.Label(root, text="Log").grid(row=18, column=0, sticky="w")
         self.log = tk.Text(root, height=10, wrap="word", state="disabled")
-        self.log.grid(row=18, column=0, columnspan=3, sticky="nsew")
+        self.log.grid(row=19, column=0, columnspan=3, sticky="nsew")
 
     def _choose_input(self) -> None:
         selected = filedialog.askdirectory(title="Choose folder with manga images")
@@ -248,6 +253,17 @@ class MangaTranslatorGui(tk.Tk):
             logger.info("Selected Qwen primary model: %s", selected)
         else:
             logger.debug("Qwen primary model selection cancelled")
+
+    def _choose_qwen_critic(self) -> None:
+        selected = filedialog.askopenfilename(
+            title="Choose critic Qwen GGUF model",
+            filetypes=(("GGUF model", "*.gguf"), ("All files", "*.*")),
+        )
+        if selected:
+            self.qwen_critic_var.set(selected)
+            logger.info("Selected Qwen critic model: %s", selected)
+        else:
+            logger.debug("Qwen critic model selection cancelled")
 
     def _choose_glossary(self) -> None:
         selected = filedialog.askopenfilename(
@@ -311,6 +327,7 @@ class MangaTranslatorGui(tk.Tk):
             glossary_path=Path(self.glossary_var.get().strip()) if self.glossary_var.get().strip() else None,
             qwen_model_path=Path(self.qwen_model_var.get().strip()) if self.qwen_model_var.get().strip() else None,
             qwen_fallback_model_path=Path(self.qwen_fallback_var.get().strip()) if self.qwen_fallback_var.get().strip() else None,
+            qwen_critic_model_path=Path(self.qwen_critic_var.get().strip()) if self.qwen_critic_var.get().strip() else None,
             vision_enabled=self.vision_var.get(),
             vision_facts_enabled=self.vision_facts_var.get(),
             vision_mode=self.vision_mode_var.get(),

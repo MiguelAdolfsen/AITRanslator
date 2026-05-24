@@ -62,6 +62,32 @@ class TranslationRulesTests(unittest.TestCase):
             "I'll go save them.",
         )
 
+    def test_postprocess_cleans_broad_bad_patterns(self) -> None:
+        cases = [
+            (
+                "\u7d44\u7e54",
+                "\u7d44\u7e54",
+                "If you do that, you'll be able to watch my organization for what it is.",
+                "If you do that, you can be recognized as a member of my organization.",
+            ),
+            (
+                "\u7acb\u6d3e\u306a\u5b50\u5206",
+                "\u7acb\u6d3e\u306a\u5b50\u5206",
+                "You're both a good son of a bitch.",
+                "You're both a good subordinate.",
+            ),
+            (
+                "\u30a2\u30fc\u30cb\u30e3\u3055\u3093",
+                "\u30a2\u30fc\u30cb\u30e3 san",
+                "Anja san liked it.",
+                "Anya san liked it.",
+            ),
+        ]
+
+        for source, prepared, translated, expected in cases:
+            with self.subTest(translated=translated):
+                self.assertEqual(postprocess_translation(source, prepared, translated), expected)
+
     def test_translation_debug_reports_source_and_target_replacements(self) -> None:
         debug = translation_debug_info("アーニャさん", "Mr. Anya")
 

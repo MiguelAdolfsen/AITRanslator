@@ -69,6 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional second Qwen text GGUF for rejected/repaired/suspicious blocks.",
     )
     parser.add_argument(
+        "--qwen-critic-model",
+        type=Path,
+        default=None,
+        help="Optional Qwen text GGUF used as a critic/verifier for suspicious accepted blocks.",
+    )
+    parser.add_argument(
         "--qwen-mode",
         choices=["block", "page"],
         default="block",
@@ -133,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
                 profile,
                 qwen_model=args.qwen_model,
                 qwen_fallback_model=args.qwen_fallback_model,
+                qwen_critic_model=args.qwen_critic_model,
                 qwen_mode=args.qwen_mode,
                 vision=vision_enabled,
                 vision_facts=args.vision_facts,
@@ -173,6 +180,7 @@ def run_profile(
     *,
     qwen_model: Path | None,
     qwen_fallback_model: Path | None,
+    qwen_critic_model: Path | None,
     qwen_mode: str,
     vision: bool,
     vision_facts: bool,
@@ -203,6 +211,8 @@ def run_profile(
         command.extend(["--qwen-model", str(qwen_model)])
     if qwen_fallback_model is not None:
         command.extend(["--qwen-fallback-model", str(qwen_fallback_model)])
+    if qwen_critic_model is not None:
+        command.extend(["--qwen-critic-model", str(qwen_critic_model)])
     if vision:
         command.extend(["--vision", "--vision-trigger", vision_trigger])
     if vision_facts:
@@ -235,6 +245,9 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "qwen_repairs_accepted": count_blocks(kept_blocks, lambda block: block.get("qwen_repair_accepted") is True),
                 "qwen_fallback_attempted": count_blocks(kept_blocks, lambda block: block.get("qwen_fallback_attempted") is True),
                 "qwen_fallback_accepted": count_blocks(kept_blocks, lambda block: block.get("qwen_fallback_accepted") is True),
+                "qwen_critic_attempted": count_blocks(kept_blocks, lambda block: block.get("qwen_critic_attempted") is True),
+                "qwen_critic_flagged": count_blocks(kept_blocks, lambda block: block.get("qwen_critic_flagged") is True),
+                "qwen_critic_issue_types": json.dumps(count_split_values(issue for block in kept_blocks for issue in block.get("qwen_critic_issues", [])), ensure_ascii=False, sort_keys=True),
                 "qwen_page_used": count_blocks(kept_blocks, lambda block: block.get("qwen_page_used") is True),
                 "qwen_page_rejected": count_blocks(kept_blocks, lambda block: block.get("qwen_page_rejected") is True),
                 "layout_warning_blocks": count_blocks(kept_blocks, lambda block: bool(block.get("layout_warnings"))),
@@ -306,6 +319,8 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "qwen_repairs_accepted",
         "qwen_fallback_attempted",
         "qwen_fallback_accepted",
+        "qwen_critic_attempted",
+        "qwen_critic_flagged",
         "qwen_page_used",
         "qwen_page_rejected",
         "layout_warning_blocks",
@@ -330,6 +345,7 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
     for key in numeric_keys:
         total[key] = sum(int(row.get(key, 0)) for row in rows)
     total["layout_warning_types"] = json.dumps(aggregate_json_counts(rows, "layout_warning_types"), ensure_ascii=False, sort_keys=True)
+    total["qwen_critic_issue_types"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_issue_types"), ensure_ascii=False, sort_keys=True)
     total["vision_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "vision_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["vision_facts_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "vision_facts_reject_reasons"), ensure_ascii=False, sort_keys=True)
     return total
@@ -374,6 +390,9 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "qwen_repairs_accepted",
         "qwen_fallback_attempted",
         "qwen_fallback_accepted",
+        "qwen_critic_attempted",
+        "qwen_critic_flagged",
+        "qwen_critic_issue_types",
         "qwen_page_used",
         "qwen_page_rejected",
         "layout_warning_blocks",

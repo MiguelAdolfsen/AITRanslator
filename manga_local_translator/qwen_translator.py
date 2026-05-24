@@ -8,22 +8,26 @@ from .hf_translators import OpusTranslator
 from .logging_utils import shorten
 from .qwen_ollama import ensure_ollama_model, find_ollama_executable, find_qwen_model_path, qwen_ollama_model_name, run_ollama_prompt
 from .qwen_prompts import (
+    build_qwen_critic_prompt,
     build_qwen_page_translation_prompt,
     build_qwen_repair_prompt,
     build_qwen_translation_prompt,
     build_qwen_verification_prompt,
 )
 from .qwen_types import (
+    QWEN_CRITIC_SETTINGS,
     QWEN_REPAIR_SETTINGS,
     QWEN_PAGE_SETTINGS,
     QWEN_TRANSLATION_SETTINGS,
     QWEN_VERIFICATION_SETTINGS,
     QwenGenerationSettings,
+    QwenCriticDecision,
     QwenVerificationDecision,
     qwen_settings_to_debug_dict,
 )
 from .qwen_validation import (
     accept_qwen_translation,
+    parse_qwen_critic,
     parse_qwen_page_translations,
     parse_qwen_translation,
     parse_qwen_verification,
@@ -132,6 +136,51 @@ class QwenTranslator(Translator):
             self._cache[cache_key] = translated
             self._debug[normalize_japanese_for_translation(text)] = debug
         return self._cache[cache_key]
+
+    def critique_translation(
+        self,
+        text: str,
+        *,
+        current_translation: str,
+        before: str | None = None,
+        after: str | None = None,
+        before_contexts: tuple[str, ...] = (),
+        after_contexts: tuple[str, ...] = (),
+        baseline: str | None = None,
+        trigger_reasons: tuple[str, ...] = (),
+        visual_facts: tuple[str, ...] = (),
+    ) -> tuple[QwenCriticDecision, dict[str, object]]:
+        normalized = normalize_japanese_for_translation(text)
+        prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
+        baseline_text = baseline if baseline is not None else self._baseline_translate(text)
+        prompt = build_qwen_critic_prompt(
+            prepared,
+            before=before,
+            after=after,
+            before_contexts=before_contexts,
+            after_contexts=after_contexts,
+            baseline=baseline_text,
+            current_translation=current_translation,
+            trigger_reasons=trigger_reasons,
+            visual_facts=visual_facts,
+        )
+        logger.debug("Qwen critic reviewing: source=%s current=%s", shorten(prepared), shorten(current_translation))
+        raw = self._run_prompt(prompt, settings=QWEN_CRITIC_SETTINGS)
+        decision = parse_qwen_critic(raw)
+        debug = {
+            "qwen_critic_attempted": True,
+            "qwen_critic_model": self._ollama_model_name,
+            "qwen_critic_backend": self._backend,
+            "qwen_critic_settings": qwen_settings_to_debug_dict(QWEN_CRITIC_SETTINGS),
+            "qwen_critic_trigger_reasons": list(trigger_reasons),
+            "qwen_raw_critic_prompt": prompt,
+            "qwen_raw_critic_response": raw,
+            "qwen_critic_ok": decision.ok,
+            "qwen_critic_severity": decision.severity,
+            "qwen_critic_issues": list(decision.issues),
+            "qwen_critic_reason": decision.reason,
+        }
+        return decision, debug
 
     def debug_info_for(self, text: str) -> dict[str, object]:
         return self._debug.get(normalize_japanese_for_translation(text), {})

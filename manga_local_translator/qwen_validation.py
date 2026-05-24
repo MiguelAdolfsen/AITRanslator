@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 
-from .qwen_types import QwenPageTranslation, QwenVerificationDecision
+from .qwen_types import QwenCriticDecision, QwenPageTranslation, QwenVerificationDecision
 
 
 def clean_qwen_output(text: str) -> str:
@@ -202,6 +202,101 @@ def parse_qwen_verification(text: str) -> QwenVerificationDecision:
     return decisions[-1]
 
 
+def parse_qwen_critic(text: str) -> QwenCriticDecision:
+    payloads = extract_qwen_json_payloads(text)
+    if not payloads:
+        loose_payload = extract_qwen_critic_loose_payload(text)
+        payloads = [loose_payload] if loose_payload is not None else []
+    if not payloads:
+        return QwenCriticDecision(
+            ok=False,
+            severity="high",
+            issues=("invalid_json",),
+            reason="invalid_critic_json",
+            raw_response=text,
+        )
+    decisions = [qwen_critic_decision_from_payload(payload, raw_response=text) for payload in payloads]
+    for decision in decisions:
+        if decision.ok:
+            return decision
+    return decisions[-1]
+
+
+def qwen_critic_decision_from_payload(
+    payload: dict[str, object],
+    *,
+    raw_response: str,
+) -> QwenCriticDecision:
+    severity = clean_qwen_output(str(payload.get("severity", "") or "")).lower()
+    if severity not in {"none", "low", "medium", "high"}:
+        severity = "medium" if bool(payload.get("ok")) is False else "none"
+    raw_issues = payload.get("issues", [])
+    if not isinstance(raw_issues, list):
+        raw_issues = []
+    issues = tuple(
+        normalize_critic_issue(str(issue))
+        for issue in raw_issues
+        if normalize_critic_issue(str(issue))
+    )
+    reason = clean_qwen_output(str(payload.get("reason", "") or "")).strip()
+    if not reason or is_placeholder_qwen_value(reason):
+        reason = "accepted" if severity in {"none", "low"} else "flagged"
+    if severity == "none" and issues:
+        severity = "medium"
+    ok = bool(payload.get("ok", severity in {"none", "low"}))
+    if severity in {"medium", "high"}:
+        ok = False
+    if re.search(r"\b(json|schema|prompt)\b", reason, flags=re.IGNORECASE):
+        ok = False
+        if "critic_schema_talk" not in issues:
+            issues = (*issues, "critic_schema_talk")
+        severity = "medium"
+    return QwenCriticDecision(
+        ok=ok,
+        severity=severity,
+        issues=issues,
+        reason=reason,
+        raw_response=raw_response,
+    )
+
+
+def extract_qwen_critic_loose_payload(text: str) -> dict[str, object] | None:
+    severity = extract_qwen_string_field(text, "severity")
+    reason = extract_qwen_string_field(text, "reason")
+    ok = extract_qwen_bool_field(text, "ok")
+    issues = extract_qwen_array_strings(text, "issues")
+    if severity is None and reason is None and ok is None and issues is None:
+        return None
+    payload: dict[str, object] = {}
+    if severity is not None:
+        payload["severity"] = severity
+    if reason is not None:
+        payload["reason"] = reason
+    if ok is not None:
+        payload["ok"] = ok
+    if issues is not None:
+        payload["issues"] = issues
+    return payload
+
+
+def normalize_critic_issue(issue: str) -> str:
+    normalized = re.sub(r"[^a-z0-9_]+", "_", issue.strip().lower()).strip("_")
+    allowed = {
+        "awkward_literal",
+        "context_mismatch",
+        "omitted_term",
+        "invented_detail",
+        "name_drift",
+        "tone_mismatch",
+        "untranslated_text",
+        "glossary_conflict",
+        "grammar_problem",
+        "invalid_json",
+        "critic_schema_talk",
+    }
+    return normalized if normalized in allowed else ""
+
+
 def qwen_verification_decision_from_payload(
     payload: dict[str, object],
     *,
@@ -339,6 +434,16 @@ def accept_qwen_translation(
         return False, "malformed_hyphen_chain"
     if re.search(r"\b(second-way|two-and-a-half|freaks?|candy store,\s*san)\b", candidate, flags=re.IGNORECASE):
         return False, "known_hallucination_artifact"
+    if "\u7d44\u7e54" in source_text and re.search(r"\bwatch my organization\b", candidate, flags=re.IGNORECASE):
+        return False, "organization_membership_drift"
+    if "\u5b50\u5206" in source_text and re.search(r"\bson of a bitch\b", candidate, flags=re.IGNORECASE):
+        return False, "kobun_offensive_mistranslation"
+    if source_mentions_anya(source_text) and re.search(r"\b(?:Anja|Aniya|Anni)\b", candidate, flags=re.IGNORECASE):
+        return False, "anya_name_drift"
+    if source_mentions_father_and_mother(source_text) and not translation_mentions_father_and_mother(candidate):
+        return False, "dropped_father_or_mother"
+    if source_has_bracket_term(source_text) and not translation_preserves_bracket_term(source_text, candidate):
+        return False, "dropped_bracket_term"
     if source_uses_gender_neutral_group_address(source_text) and re.search(
         r"\b(boys|girls|men|women|ladies|gentlemen)\b",
         candidate,
@@ -375,6 +480,11 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "stage_direction_only",
         "malformed_hyphen_chain",
         "known_hallucination_artifact",
+        "organization_membership_drift",
+        "kobun_offensive_mistranslation",
+        "anya_name_drift",
+        "dropped_father_or_mother",
+        "dropped_bracket_term",
         "unnecessary_gendering",
         "operation_collapse_mismatch",
         "much_longer_than_baseline",
@@ -387,6 +497,65 @@ def should_try_qwen_repair(reason: str | None) -> bool:
 def source_uses_gender_neutral_group_address(source_text: str) -> bool:
     compact = re.sub(r"\s+", "", source_text)
     return any(marker in compact for marker in ("\u304a\u307e\u3048\u3089", "\u304a\u524d\u3089", "\u30aa\u30de\u30a8\u3089"))
+
+
+def source_mentions_anya(source_text: str) -> bool:
+    return any(marker in source_text for marker in ("\u30a2\u30fc\u30cb\u30e3", "\u30a2\u30fc\u30cb\u3055", "\u3042\u30fc\u306b\u3083"))
+
+
+def source_mentions_father_and_mother(source_text: str) -> bool:
+    return ("\u7236" in source_text and "\u6bcd" in source_text) or "\u3061\u3061\u3082\u306f\u306f\u3082" in source_text
+
+
+def translation_mentions_father_and_mother(candidate: str) -> bool:
+    normalized = candidate.lower()
+    father = bool(re.search(r"\b(father|dad|papa)\b", normalized))
+    mother = bool(re.search(r"\b(mother|mom|mama)\b", normalized))
+    return father and mother
+
+
+def source_has_bracket_term(source_text: str) -> bool:
+    return enforced_bracket_term_kind(source_text) is not None
+
+
+def translation_preserves_bracket_term(source_text: str, candidate: str) -> bool:
+    normalized = candidate.lower()
+    kind = enforced_bracket_term_kind(source_text)
+    if kind is None:
+        return True
+    if kind == "anya":
+        return "anya" in normalized
+    if kind == "p2":
+        return bool(re.search(r"\b(p[- ]?two|p2)\b", normalized))
+    if kind == "operation_connect":
+        return bool(re.search(r"\b(connect|strix|operation)\b", normalized))
+    if kind == "penguin":
+        return "penguin" in normalized
+    return True
+
+
+def enforced_bracket_term_kind(source_text: str) -> str | None:
+    terms = bracket_terms(source_text)
+    if not terms:
+        return None
+    for term in terms:
+        if term in {"\u30a2\u30fc\u30cb\u30e3", "\u3042\u30fc\u306b\u3083"}:
+            return "anya"
+        if term in {"\u3074\u30fc\u3064\u30fc", "\u30d4\u30fc\u30c4\u30fc", "P2", "p2"}:
+            return "p2"
+        if term in {"\u7e4b", "\u30b9\u30c8\u30ea\u30af\u30b9"}:
+            return "operation_connect"
+        if "\u30da\u30f3\u30ae\u30f3" in term:
+            return "penguin"
+    return None
+
+
+def bracket_terms(source_text: str) -> list[str]:
+    return [
+        match.group(1).strip()
+        for match in re.finditer(r"\u3008([^>\u3009]{1,20})\u3009", source_text)
+        if match.group(1).strip()
+    ]
 
 
 def verifier_reason_says_reject(reason: str) -> bool:

@@ -25,6 +25,7 @@ from .qwen_validation import (
     extract_qwen_string_literal,
     has_repeated_ngram,
     is_placeholder_qwen_value,
+    parse_qwen_critic,
     parse_qwen_translation,
     parse_qwen_page_translations,
     parse_qwen_verification,
@@ -37,10 +38,12 @@ from .qwen_validation import (
 from .qwen_translator import QwenTranslator
 from .qwen_types import (
     QWEN_REPAIR_SETTINGS,
+    QWEN_CRITIC_SETTINGS,
     QWEN_PAGE_SETTINGS,
     QWEN_TRANSLATION_SETTINGS,
     QWEN_VERIFICATION_SETTINGS,
     QwenGenerationSettings,
+    QwenCriticDecision,
     QwenPageTranslation,
     QwenVerificationDecision,
     qwen_settings_to_debug_dict,
@@ -59,6 +62,7 @@ from .qwen_ollama import (
     select_preferred_qwen_text_model,
 )
 from .qwen_prompts import (
+    build_qwen_critic_prompt,
     build_qwen_repair_prompt,
     build_qwen_page_translation_prompt,
     build_qwen_translation_prompt,

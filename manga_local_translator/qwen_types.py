@@ -24,6 +24,15 @@ class QwenVerificationDecision:
 
 
 @dataclass(frozen=True)
+class QwenCriticDecision:
+    ok: bool
+    severity: str
+    issues: tuple[str, ...] = ()
+    reason: str = ""
+    raw_response: str = ""
+
+
+@dataclass(frozen=True)
 class QwenPageTranslation:
     page_id: int
     translation: str
@@ -61,6 +70,10 @@ QWEN_PAGE_SETTINGS = qwen_settings_from_env(
 )
 QWEN_VERIFICATION_SETTINGS = qwen_settings_from_env(
     "MANGA_QWEN_VERIFICATION",
+    QwenGenerationSettings(temperature=0.1, top_p=0.8, num_predict=192),
+)
+QWEN_CRITIC_SETTINGS = qwen_settings_from_env(
+    "MANGA_QWEN_CRITIC",
     QwenGenerationSettings(temperature=0.1, top_p=0.8, num_predict=192),
 )
 QWEN_REPAIR_SETTINGS = qwen_settings_from_env(
