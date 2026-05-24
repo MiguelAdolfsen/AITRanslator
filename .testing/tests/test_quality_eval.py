@@ -39,6 +39,11 @@ class QualityEvalTests(unittest.TestCase):
                     "qwen_critic_attempted": True,
                     "qwen_critic_flagged": True,
                     "qwen_critic_issues": ["awkward_literal"],
+                    "qwen_critic_evidence_gate_reason": "no_local_repair_evidence",
+                    "evidence_risk_flags": ["translation_evidence_failure"],
+                    "evidence_repair_reasons": ["broken_english"],
+                    "qwen_fallback_attempted": True,
+                    "qwen_fallback_reject_reason": "fallback_evidence_failure:broken_english",
                 },
                 {
                     "translated_text": "Okay.",
@@ -67,10 +72,40 @@ class QualityEvalTests(unittest.TestCase):
         self.assertEqual(rows[0]["qwen_critic_attempted"], 1)
         self.assertEqual(rows[0]["qwen_critic_flagged"], 1)
         self.assertEqual(json.loads(rows[0]["qwen_critic_issue_types"]), {"awkward_literal": 1})
+        self.assertEqual(rows[0]["evidence_risk_blocks"], 1)
+        self.assertEqual(rows[0]["evidence_repair_reason_blocks"], 1)
+        self.assertEqual(json.loads(rows[0]["evidence_risk_types"]), {"translation_evidence_failure": 1})
+        self.assertEqual(json.loads(rows[0]["evidence_repair_reason_types"]), {"broken_english": 1})
+        self.assertEqual(json.loads(rows[0]["qwen_critic_evidence_gate_reasons"]), {"no_local_repair_evidence": 1})
+        self.assertEqual(json.loads(rows[0]["qwen_fallback_reject_reasons"]), {"fallback_evidence_failure:broken_english": 1})
         self.assertEqual(json.loads(rows[1]["vision_reject_reasons"]), {"invalid_visual_evidence": 1})
         self.assertEqual(json.loads(rows[1]["vision_facts_reject_reasons"]), {"contains_translation_field": 1})
         self.assertEqual(json.loads(rows[1]["layout_warning_types"]), {"text_clipped": 1, "tiny_font": 2})
         self.assertEqual(json.loads(rows[1]["qwen_critic_issue_types"]), {"awkward_literal": 1})
+        self.assertEqual(json.loads(rows[1]["evidence_repair_reason_types"]), {"broken_english": 1})
+
+    def test_summary_recurses_into_chapter_folders(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            report_dir = root / "chapter-a"
+            report_dir.mkdir()
+            report_path = report_dir / "001.ocr.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "kept_blocks": [{"translated_text": "Hello."}],
+                        "skipped_blocks": [],
+                        "fallback_blocks": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            rows = summarize_debug_reports(root, profile="quality")
+
+        self.assertEqual(rows[0]["page"], "chapter-a/001")
+        self.assertEqual(rows[0]["kept_blocks"], 1)
+        self.assertEqual(rows[1]["kept_blocks"], 1)
 
 
 if __name__ == "__main__":

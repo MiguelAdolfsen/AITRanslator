@@ -62,6 +62,8 @@ class QwenValidationTests(unittest.TestCase):
 
         self.assertIn("Do not translate or rewrite", prompt)
         self.assertIn("Return issue labels only", prompt)
+        self.assertIn("source_evidence", prompt)
+        self.assertIn("translation_evidence", prompt)
         self.assertIn("awkward_literal", prompt)
         self.assertIn("Father and Mother are hated!!", prompt)
 
@@ -81,6 +83,11 @@ class QwenValidationTests(unittest.TestCase):
             reject_reason="critic:omitted_term",
             critic_issues=("omitted_term",),
             critic_reason="missing mother term",
+            source_features={"bracket_terms": ["PII2"]},
+            translation_evidence={"preservation_failures": ["dropped_bracket_term"]},
+            consistency_memory=({"source_term": "母", "best_translation": "Mother", "count": 2},),
+            critic_source_evidence=("source has 母",),
+            critic_translation_evidence=("translation omitted mother",),
         )
 
         self.assertIn("Accepted English before target", prompt)
@@ -88,7 +95,12 @@ class QwenValidationTests(unittest.TestCase):
         self.assertIn("Accepted English after target", prompt)
         self.assertIn("Let's go save them.", prompt)
         self.assertIn("Critic issue labels to fix: omitted_term", prompt)
-        self.assertIn("Repair only the listed issue", prompt)
+        self.assertIn("Deterministic evidence packet", prompt)
+        self.assertIn("Critic source evidence", prompt)
+        self.assertIn("source has 母", prompt)
+        self.assertIn("Repair only label-backed issue", prompt)
+        self.assertIn("advisory only and possibly wrong", prompt)
+        self.assertIn("Ignore critic reasoning if it contradicts", prompt)
 
     def test_qwen_default_settings_are_conservative(self) -> None:
         self.assertLessEqual(QWEN_TRANSLATION_SETTINGS.temperature, 0.2)
@@ -159,13 +171,16 @@ class QwenValidationTests(unittest.TestCase):
         self.assertEqual(parsed[0].translation, "Good first.")
 
     def test_parse_qwen_critic_accepts_clean_json(self) -> None:
-        raw = '{"ok":false,"severity":"medium","issues":["awkward_literal"],"reason":"passive wording is unnatural"}'
+        raw = '{"ok":false,"severity":"medium","issues":["awkward_literal"],"source_evidence":["target passive"],"translation_evidence":["awkward English"],"repair_recommended":true,"reason":"passive wording is unnatural"}'
 
         decision = parse_qwen_critic(raw)
 
         self.assertFalse(decision.ok)
         self.assertEqual(decision.severity, "medium")
         self.assertEqual(decision.issues, ("awkward_literal",))
+        self.assertEqual(decision.source_evidence, ("target passive",))
+        self.assertEqual(decision.translation_evidence, ("awkward English",))
+        self.assertTrue(decision.repair_recommended)
         self.assertEqual(decision.reason, "passive wording is unnatural")
 
     def test_parse_qwen_critic_allows_low_severity_style_issue(self) -> None:
@@ -189,9 +204,6 @@ class QwenValidationTests(unittest.TestCase):
         cases = [
             ("こんにちは", "Hello.", "こんにちは", "contains_japanese"),
             ("くっ", "Ngh.", "This means he is probably angry.", "hedging_or_explanation"),
-            ("罠だ", "It's a trap.", "the second-way candy store, san", "known_hallucination_artifact"),
-            ("〈アーニさ〉の部屋だ", "It's Ani-san's room.", "It's a room for a man named Zheng He.", "known_hallucination_artifact"),
-            ("\u306c\u3044\u3050\u308b\u307f\u6c17\u306b\u5165\u3063\u3066\u304f\u308c\u305f", "You liked the plushie.", "It's as if you've been pleased with Anya san.", "dropped_plushie_term"),
             ("\u304a\u307e\u3048\u3089", "You guys.", "Come on, boys!", "unnecessary_gendering"),
             ("\u305d\u306e\u5f8c\u304a\u83d3\u5b50\u3092\u8cb7\u3063\u3066\u3082\u3089\u3063\u305f", "Afterward, she bought sweets.", "(Laughter)", "stage_direction_only"),
             ("あ", "Ah.", "one-two-three-four-five-six", "malformed_hyphen_chain"),
@@ -210,11 +222,7 @@ class QwenValidationTests(unittest.TestCase):
 
     def test_candidate_rejects_common_manga_drift_patterns(self) -> None:
         cases = [
-            ("\u7d44\u7e54", "my organization", "watch my organization for what it is", "organization_membership_drift"),
-            ("\u7acb\u6d3e\u306a\u5b50\u5206", "fine subordinates", "a good son of a bitch", "kobun_offensive_mistranslation"),
-            ("\u30a2\u30fc\u30cb\u30e3\u3055\u3093", "Anya san", "Anja san", "anya_name_drift"),
-            ("\u7236\u3082\u6bcd\u3082\u304d\u3089\u3044", "I hate my father and mother.", "I hate my mother!", "dropped_father_or_mother"),
-            ("\u3072\u307f\u3064\u305d\u3057\u304d\u3008\u3074\u30fc\u3064\u30fc\u3009\u306e\u30dc\u30b9", "boss of P2", "I'm the boss of the secret organization.", "dropped_bracket_term"),
+            ("\u3072\u307f\u3064\u305d\u3057\u304d\u3008PII2\u3009\u306e\u30dc\u30b9", "boss of PII2", "I'm the boss of the secret organization.", "dropped_bracket_term"),
         ]
 
         for source, baseline, candidate, reason in cases:

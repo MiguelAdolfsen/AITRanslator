@@ -49,55 +49,15 @@ class TranslationRulesTests(unittest.TestCase):
 
         self.assertEqual(postprocess_translation(source, source, "Come on, boys!"), "Come on, you guys!")
 
-    def test_postprocess_fixes_kotonaki_idiom(self) -> None:
-        source = "\u30d5\u30a9\u30fc\u30b8\u30e3\u30fc\u5bb6\u306f\u4e8b\u306a\u304d\u3092\u5f97\u305f"
-
-        self.assertEqual(
-            postprocess_translation(source, source, "The Forger family has won everything for this smile!"),
-            "The Forger family got through without incident for this smile!",
-        )
-
     def test_postprocess_compacts_common_verbose_phrases(self) -> None:
         self.assertEqual(
-            postprocess_translation("いく", "いく", "I'm going to go save them."),
+            postprocess_translation("\u3044\u304f", "\u3044\u304f", "I'm going to go save them."),
             "I'll go save them.",
         )
-
-    def test_postprocess_fixes_common_contextual_literal_phrases(self) -> None:
         self.assertEqual(
-            postprocess_translation("\u52a9\u3051\u306b\u884c\u304f", "\u52a9\u3051\u306b\u884c\u304f", "I'm going to get you."),
-            "Let's go save them.",
+            postprocess_translation("\u3044\u3051\u308b", "\u3044\u3051\u308b", "You'll be able to do it."),
+            "you can do it.",
         )
-        self.assertEqual(
-            postprocess_translation("\u6a5f\u5acc\u3092\u76f4\u3057", "\u6a5f\u5acc\u3092\u76f4\u3057", "Anya fixed her mood."),
-            "Anya cheered up.",
-        )
-
-    def test_postprocess_cleans_broad_bad_patterns(self) -> None:
-        cases = [
-            (
-                "\u7d44\u7e54",
-                "\u7d44\u7e54",
-                "If you do that, you'll be able to watch my organization for what it is.",
-                "If you do that, you can be recognized as a member of my organization.",
-            ),
-            (
-                "\u7acb\u6d3e\u306a\u5b50\u5206",
-                "\u7acb\u6d3e\u306a\u5b50\u5206",
-                "You're both a good son of a bitch.",
-                "You're both a good subordinate.",
-            ),
-            (
-                "\u30a2\u30fc\u30cb\u30e3\u3055\u3093",
-                "\u30a2\u30fc\u30cb\u30e3 san",
-                "Anja san liked it.",
-                "Anya san liked it.",
-            ),
-        ]
-
-        for source, prepared, translated, expected in cases:
-            with self.subTest(translated=translated):
-                self.assertEqual(postprocess_translation(source, prepared, translated), expected)
 
     def test_translation_debug_reports_source_and_target_replacements(self) -> None:
         debug = translation_debug_info("アーニャさん", "Mr. Anya")

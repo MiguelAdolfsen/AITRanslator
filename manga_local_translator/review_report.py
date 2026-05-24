@@ -32,6 +32,10 @@ class ReviewRow:
     qwen_critic_severity: str = ""
     qwen_critic_issues: tuple[str, ...] = ()
     qwen_critic_reason: str = ""
+    qwen_critic_source_evidence: tuple[str, ...] = ()
+    qwen_critic_translation_evidence: tuple[str, ...] = ()
+    evidence_risk_flags: tuple[str, ...] = ()
+    evidence_repair_reasons: tuple[str, ...] = ()
     context_before: str = ""
     context_after: str = ""
     visual_facts: tuple[str, ...] = ()
@@ -140,6 +144,10 @@ def row_from_block(run: str, page: str, block: dict[str, Any], report_path: Path
         qwen_critic_severity=text_value(block.get("qwen_critic_severity")),
         qwen_critic_issues=tuple(str(value) for value in block.get("qwen_critic_issues") or [] if str(value).strip()),
         qwen_critic_reason=text_value(block.get("qwen_critic_reason")),
+        qwen_critic_source_evidence=tuple(str(value) for value in block.get("qwen_critic_source_evidence") or [] if str(value).strip()),
+        qwen_critic_translation_evidence=tuple(str(value) for value in block.get("qwen_critic_translation_evidence") or [] if str(value).strip()),
+        evidence_risk_flags=tuple(str(value) for value in block.get("evidence_risk_flags") or [] if str(value).strip()),
+        evidence_repair_reasons=tuple(str(value) for value in block.get("evidence_repair_reasons") or [] if str(value).strip()),
         context_before=text_value(block.get("context_before")),
         context_after=text_value(block.get("context_after")),
         visual_facts=visual_facts,
@@ -170,6 +178,10 @@ def detect_review_issues(
     if block.get("qwen_critic_flagged") is True:
         severity = block.get("qwen_critic_severity") or "flagged"
         issues.append(f"qwen_critic:{severity}")
+    if block.get("evidence_risk_flags"):
+        issues.append("evidence_risk")
+    if block.get("evidence_repair_reasons"):
+        issues.append("evidence_repair_reason")
     if block.get("vision_accepted") is True:
         issues.append("vision_changed_text")
     if block.get("vision_facts_accepted") is True:
@@ -183,17 +195,13 @@ def detect_review_issues(
 
 
 def pattern_issues(source: str, translated: str) -> list[str]:
-    lower = translated.lower()
     issues: list[str] = []
-    if "watch my organization" in lower:
-        issues.append("known_bad_pattern:watch_my_organization")
-    if "son of a bitch" in lower:
-        issues.append("known_bad_pattern:kobun_offensive")
-    if re.search(r"\b(an[iyj]a|anni|aniya|anja)\b", lower) and "anya" not in lower:
-        issues.append("name_consistency:anya")
-    if "ちちもははも" in source and not (re.search(r"\b(father|dad|papa)\b", lower) and re.search(r"\b(mother|mom|mama)\b", lower)):
-        issues.append("dropped_pair:father_mother")
-    if "〈" in source and "〉" in source and not re.search(r"\b(operation|connect|strix|stella|agent|penguin|anya|p[- ]?two|p2)\b", lower):
+    code_terms = [
+        term
+        for term in re.findall(r"\u3008([^>\u3009]{1,20})\u3009", source)
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{1,}", term) and (re.search(r"\d", term) or term.upper() == term)
+    ]
+    if code_terms and not any(term.lower() in translated.lower() for term in code_terms):
         issues.append("possibly_dropped_bracket_term")
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", translated):
         issues.append("malformed_hyphen_chain")
@@ -229,6 +237,10 @@ def csv_row(row: ReviewRow) -> dict[str, str | int]:
         "qwen_critic_severity": row.qwen_critic_severity,
         "qwen_critic_issues": "; ".join(row.qwen_critic_issues),
         "qwen_critic_reason": row.qwen_critic_reason,
+        "qwen_critic_source_evidence": " | ".join(row.qwen_critic_source_evidence),
+        "qwen_critic_translation_evidence": " | ".join(row.qwen_critic_translation_evidence),
+        "evidence_risk_flags": "; ".join(row.evidence_risk_flags),
+        "evidence_repair_reasons": "; ".join(row.evidence_repair_reasons),
         "context_before": row.context_before,
         "context_after": row.context_after,
         "visual_facts": " | ".join(row.visual_facts),
@@ -312,6 +324,8 @@ def render_row(row: ReviewRow) -> str:
         label_value("Q8 fallback", row.qwen_fallback_translation),
         label_value("Critic severity", row.qwen_critic_severity),
         label_value("Critic issues", "; ".join(row.qwen_critic_issues)),
+        label_value("Evidence risks", "; ".join(row.evidence_risk_flags)),
+        label_value("Evidence repair", "; ".join(row.evidence_repair_reasons)),
     ]
     verifier_bits = [
         label_value("Choice", row.qwen_verify_choice),
@@ -319,6 +333,8 @@ def render_row(row: ReviewRow) -> str:
         label_value("Repair reject", row.qwen_repair_reject_reason),
         label_value("Fallback reject", row.qwen_fallback_reject_reason),
         label_value("Critic reason", row.qwen_critic_reason),
+        label_value("Critic source evidence", " | ".join(row.qwen_critic_source_evidence)),
+        label_value("Critic translation evidence", " | ".join(row.qwen_critic_translation_evidence)),
     ]
     context_bits = [
         label_value("Before", row.context_before),

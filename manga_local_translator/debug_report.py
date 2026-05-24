@@ -287,6 +287,12 @@ def build_page_debug_summary(
         "qwen_critic_attempted": sum(1 for context in contexts if context.get("qwen_critic_attempted") is True),
         "qwen_critic_flagged": sum(1 for context in contexts if context.get("qwen_critic_flagged") is True),
         "qwen_critic_issue_types": dict(count_split_values(issue for context in contexts for issue in context.get("qwen_critic_issues", []))),
+        "evidence_risk_blocks": sum(1 for context in contexts if context.get("evidence_risk_flags")),
+        "evidence_repair_reason_blocks": sum(1 for context in contexts if context.get("evidence_repair_reasons")),
+        "evidence_risk_types": dict(count_split_values(flag for context in contexts for flag in context.get("evidence_risk_flags", []))),
+        "evidence_repair_reason_types": dict(count_split_values(reason for context in contexts for reason in context.get("evidence_repair_reasons", []))),
+        "qwen_critic_evidence_gate_reasons": dict(count_values(context.get("qwen_critic_evidence_gate_reason") for context in contexts)),
+        "qwen_fallback_reject_reasons": dict(count_values(context.get("qwen_fallback_reject_reason") for context in contexts)),
         "suspected_bad_translations": sum(
             1
             for block in blocks

@@ -35,11 +35,22 @@ from .page_cache import (
 from .page_types import PreparedPage
 from .text_filter import (
     block_to_debug_dict,
+    count_japanese_chars,
     fallback_translation,
     filter_text_blocks,
     is_box_like,
     suspected_bad_translation,
     unusable_translation_reason,
+)
+from .translation_evidence import (
+    ConsistencyMemory,
+    analyze_translation_evidence,
+    build_consistency_memory,
+    build_evidence_context,
+)
+from .qwen_validation import (
+    source_has_bracket_term,
+    translation_preserves_bracket_term,
 )
 
 logger = logging.getLogger(__name__)
@@ -202,6 +213,10 @@ def process_folder_qwen_hybrid_batch(
     else:
         logger.info("Primary Qwen pass skipped; all pages loaded from cache")
 
+    evidence_memory = None
+    if config.translator == "qwen" and (config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None):
+        evidence_memory = apply_translation_evidence_to_pages(prepared_pages)
+
     critic_jobs = []
     if config.qwen_critic_model_path is not None:
         critic_jobs = [
@@ -226,6 +241,7 @@ def process_folder_qwen_hybrid_batch(
                 page.page_order_report,
                 critic_translator,
                 config,
+                evidence_memory=evidence_memory,
             )
             save_translation_cache(page, critic_cache)
             total_critic_attempted += attempted
@@ -269,6 +285,7 @@ def process_folder_qwen_hybrid_batch(
                 page.page_order_report,
                 fallback_translator,
                 config,
+                evidence_memory=evidence_memory,
             )
             save_translation_cache(page, hybrid_cache)
             total_attempted += attempted
@@ -327,6 +344,8 @@ def release_qwen_translator(translator) -> None:
 def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
     if config.translator == "qwen":
         suffix = f"{stage}-{config.qwen_mode}"
+        if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
+            suffix += "-evidence"
         if config.vision_facts_enabled:
             suffix += "-vision-facts"
         if config.qwen_critic_model_path is not None:
@@ -350,6 +369,46 @@ def apply_vision_facts_to_pages(pages: list[PreparedPage], config: PipelineConfi
             )
     finally:
         release_qwen_vision_clients()
+
+
+def apply_translation_evidence_to_pages(pages: list[PreparedPage]) -> ConsistencyMemory:
+    memory = build_consistency_memory(
+        (block.text, page.translations.get(block.text, ""))
+        for page in pages
+        for block in page.render_blocks
+    )
+    total_risks = 0
+    total_repairs = 0
+    for page in pages:
+        apply_translation_evidence(
+            page.render_blocks,
+            page.translations,
+            page.translation_contexts,
+            memory,
+        )
+        total_risks += sum(1 for context in page.translation_contexts.values() if context.get("evidence_risk_flags"))
+        total_repairs += sum(1 for context in page.translation_contexts.values() if context.get("evidence_repair_reasons"))
+    logger.info(
+        "Translation evidence prepared: pages=%d memory_terms=%d risk_blocks=%d repair_reason_blocks=%d",
+        len(pages),
+        len(memory.entries),
+        total_risks,
+        total_repairs,
+    )
+    return memory
+
+
+def apply_translation_evidence(
+    blocks: list[TextBlock],
+    translations: dict[str, str],
+    translation_contexts: dict[str, dict[str, object]],
+    memory: ConsistencyMemory | None,
+) -> None:
+    for block in blocks:
+        translated = translations.get(block.text, "")
+        context = translation_contexts.get(block.text, {})
+        context.update(build_evidence_context(block.text, translated, memory))
+        translation_contexts[block.text] = context
 
 
 def prepare_page_for_translation(
@@ -808,6 +867,8 @@ def process_image(
                 block_to_debug_dict(block, status="fallback", reason=reason, translated_text=translated)
             )
     if config.translator == "qwen" and qwen_fallback_translator is not None:
+        evidence_memory = build_consistency_memory((block.text, translations.get(block.text, "")) for block in render_blocks)
+        apply_translation_evidence(render_blocks, translations, translation_contexts, evidence_memory)
         apply_qwen_fallback_translations(
             render_blocks,
             translations,
@@ -815,6 +876,7 @@ def process_image(
             page_order_report,
             qwen_fallback_translator,
             config,
+            evidence_memory=evidence_memory,
         )
     logger.debug("Translation map contains %d unique source string(s)", len(translations))
     render_layouts = plan_render_layouts(
@@ -979,6 +1041,8 @@ def apply_qwen_fallback_translations(
     page_order_report: list[dict[str, object]],
     qwen_fallback_translator,
     config: PipelineConfig,
+    *,
+    evidence_memory: ConsistencyMemory | None = None,
 ) -> tuple[int, int]:
     from .translate import translation_debug_info
 
@@ -1001,11 +1065,10 @@ def apply_qwen_fallback_translations(
         before_contexts = tuple(str(value) for value in context.get("context_before_window") or [])
         after_contexts = tuple(str(value) for value in context.get("context_after_window") or [])
         before_translations, after_translations = english_context_for_block(block, translations, page_order_report)
-        guided_by_critic = (
-            primary_context.get("qwen_critic_should_repair") is True
-            and hasattr(qwen_fallback_translator, "repair_translation_with_guidance")
-        )
-        if guided_by_critic:
+        guided_by_critic = primary_context.get("qwen_critic_should_repair") is True
+        guided_by_evidence = bool(primary_context.get("evidence_repair_reasons"))
+        use_guided_repair = (guided_by_critic or guided_by_evidence) and hasattr(qwen_fallback_translator, "repair_translation_with_guidance")
+        if use_guided_repair:
             fallback_translation = qwen_fallback_translator.repair_translation_with_guidance(
                 block.text,
                 current_translation=primary_translation,
@@ -1019,6 +1082,13 @@ def apply_qwen_fallback_translations(
                 critic_issues=tuple(str(value) for value in primary_context.get("qwen_critic_issues") or []),
                 critic_reason=str(primary_context.get("qwen_critic_reason") or ""),
                 visual_facts=visual_facts_for_context(primary_context),
+                source_features=primary_context.get("source_features") if isinstance(primary_context.get("source_features"), dict) else None,
+                translation_evidence=primary_context.get("translation_evidence") if isinstance(primary_context.get("translation_evidence"), dict) else None,
+                consistency_memory=tuple(
+                    entry for entry in primary_context.get("consistency_memory_entries", []) if isinstance(entry, dict)
+                ),
+                critic_source_evidence=tuple(str(value) for value in primary_context.get("qwen_critic_source_evidence") or []),
+                critic_translation_evidence=tuple(str(value) for value in primary_context.get("qwen_critic_translation_evidence") or []),
             )
         else:
             fallback_translation = qwen_fallback_translator.translate_with_context(
@@ -1034,7 +1104,9 @@ def apply_qwen_fallback_translations(
             if hasattr(qwen_fallback_translator, "debug_info_for")
             else {}
         )
-        reject_reason = fallback_reject_reason(block.text, fallback_translation, fallback_debug)
+        fallback_memory_entries = evidence_memory.entries_for_source(block.text, fallback_translation) if evidence_memory is not None else []
+        fallback_evidence = analyze_translation_evidence(block.text, fallback_translation, memory_entries=fallback_memory_entries)
+        reject_reason = fallback_reject_reason(block.text, fallback_translation, fallback_debug, fallback_evidence=fallback_evidence)
         primary_context.update(
             {
                 "qwen_fallback_attempted": True,
@@ -1043,8 +1115,11 @@ def apply_qwen_fallback_translations(
                 "qwen_fallback_debug": fallback_debug,
                 "qwen_fallback_accepted": reject_reason is None,
                 "qwen_fallback_guided_by_critic": guided_by_critic,
+                "qwen_fallback_guided_by_evidence": guided_by_evidence,
                 "qwen_fallback_before_translations": list(before_translations),
                 "qwen_fallback_after_translations": list(after_translations),
+                "qwen_fallback_translation_evidence": fallback_evidence,
+                "qwen_fallback_consistency_memory_entries": fallback_memory_entries,
             }
         )
         if reject_reason is not None:
@@ -1116,12 +1191,17 @@ def apply_qwen_critic_reviews(
     page_order_report: list[dict[str, object]],
     qwen_critic_translator,
     config: PipelineConfig,
+    *,
+    evidence_memory: ConsistencyMemory | None = None,
 ) -> tuple[int, int]:
     attempted = 0
     flagged = 0
     for block in blocks:
         current_translation = translations.get(block.text, "")
         primary_context = translation_contexts.get(block.text, {})
+        if "source_features" not in primary_context or "translation_evidence" not in primary_context:
+            primary_context.update(build_evidence_context(block.text, current_translation, evidence_memory))
+            translation_contexts[block.text] = primary_context
         trigger_reasons = qwen_critic_trigger_reasons(block.text, current_translation, primary_context)
         if not trigger_reasons:
             continue
@@ -1144,8 +1224,19 @@ def apply_qwen_critic_reviews(
             baseline=str(primary_context.get("qwen_baseline") or ""),
             trigger_reasons=trigger_reasons,
             visual_facts=visual_facts_for_context(primary_context),
+            source_features=primary_context.get("source_features") if isinstance(primary_context.get("source_features"), dict) else None,
+            translation_evidence=primary_context.get("translation_evidence") if isinstance(primary_context.get("translation_evidence"), dict) else None,
+            consistency_memory=tuple(
+                entry for entry in primary_context.get("consistency_memory_entries", []) if isinstance(entry, dict)
+            ),
         )
-        should_repair = qwen_critic_should_trigger_repair(decision)
+        repair_gate = qwen_critic_repair_decision(
+            decision,
+            source_text=block.text,
+            translated_text=current_translation,
+            translation_evidence=primary_context.get("translation_evidence") if isinstance(primary_context.get("translation_evidence"), dict) else None,
+        )
+        should_repair = bool(repair_gate["should_repair"])
         if should_repair:
             flagged += 1
         primary_context.update(
@@ -1153,6 +1244,9 @@ def apply_qwen_critic_reviews(
                 **critic_debug,
                 "qwen_critic_flagged": should_repair,
                 "qwen_critic_should_repair": should_repair,
+                "qwen_critic_effective_issues": repair_gate["effective_issues"],
+                "qwen_critic_repair_gate_reason": repair_gate["reason"],
+                "qwen_critic_evidence_gate_reason": repair_gate["reason"],
             }
         )
         translation_contexts[block.text] = primary_context
@@ -1195,6 +1289,10 @@ def qwen_critic_trigger_reasons(
         reasons.append("qwen_repair_used")
     if primary_context.get("qwen_unsupported_terms"):
         reasons.append("qwen_unsupported_terms")
+    if primary_context.get("evidence_risk_flags"):
+        reasons.append("evidence_risk")
+    if primary_context.get("evidence_repair_reasons"):
+        reasons.append("evidence_repair_reason")
     if has_critic_risk_source_terms(source_text):
         reasons.append("risk_source_terms")
     if has_awkward_english_pattern(translated_text):
@@ -1203,15 +1301,7 @@ def qwen_critic_trigger_reasons(
 
 
 def has_critic_risk_source_terms(source_text: str) -> bool:
-    if ("\u7236" in source_text and "\u6bcd" in source_text) or "\u3061\u3061\u3082\u306f\u306f\u3082" in source_text:
-        return True
-    risk_terms = (
-        "\u7d44\u7e54",
-        "\u5b50\u5206",
-        "\u30aa\u30da\u30ec\u30fc\u30b7\u30e7\u30f3",
-        "\u3008",
-    )
-    return any(term in source_text for term in risk_terms)
+    return "\u3008" in source_text
 
 
 def is_probable_standalone_japanese_name_or_credit(source_text: str) -> bool:
@@ -1232,15 +1322,36 @@ def has_awkward_english_pattern(translated_text: str) -> bool:
     patterns = (
         r"\b(?:father|mother|dad|mom|papa|mama)\s+and\s+(?:father|mother|dad|mom|papa|mama)\s+are\s+hated\b",
         r"\b[a-z]+ and [a-z]+ are hated\b",
-        r"\bwatch my organization\b",
-        r"\bson of a bitch\b",
     )
     return any(re.search(pattern, normalized) for pattern in patterns)
 
 
-def qwen_critic_should_trigger_repair(decision) -> bool:
+def qwen_critic_should_trigger_repair(
+    decision,
+    *,
+    source_text: str = "",
+    translated_text: str = "",
+    translation_evidence: dict[str, object] | None = None,
+) -> bool:
+    return bool(
+        qwen_critic_repair_decision(
+            decision,
+            source_text=source_text,
+            translated_text=translated_text,
+            translation_evidence=translation_evidence,
+        )["should_repair"]
+    )
+
+
+def qwen_critic_repair_decision(
+    decision,
+    *,
+    source_text: str = "",
+    translated_text: str = "",
+    translation_evidence: dict[str, object] | None = None,
+) -> dict[str, object]:
     if bool(getattr(decision, "ok", False)):
-        return False
+        return {"should_repair": False, "effective_issues": [], "reason": "critic_ok"}
     severity = str(getattr(decision, "severity", ""))
     issues = set(getattr(decision, "issues", ()) or ())
     hard_issues = {
@@ -1252,7 +1363,72 @@ def qwen_critic_should_trigger_repair(decision) -> bool:
         "glossary_conflict",
         "grammar_problem",
     }
-    return severity == "high" or bool(issues & hard_issues)
+    effective_issues = [
+        issue
+        for issue in sorted(issues & hard_issues)
+        if critic_issue_has_local_repair_evidence(
+            issue,
+            source_text=source_text,
+            translated_text=translated_text,
+            translation_evidence=translation_evidence,
+        )
+    ]
+    should_repair = bool(effective_issues)
+    reason = "hard_issue_supported" if should_repair else "no_local_repair_evidence"
+    if severity == "high" and effective_issues:
+        reason = "high_severity_supported"
+    return {
+        "should_repair": should_repair,
+        "effective_issues": effective_issues,
+        "reason": reason,
+    }
+
+
+def critic_issue_has_local_repair_evidence(
+    issue: str,
+    *,
+    source_text: str,
+    translated_text: str,
+    translation_evidence: dict[str, object] | None = None,
+) -> bool:
+    evidence_failures = set(str(value) for value in (translation_evidence or {}).get("preservation_failures", []))
+    if issue == "omitted_term":
+        return has_local_omission_evidence(source_text, translated_text) or bool(
+            evidence_failures & {"dropped_number", "dropped_bracket_term"}
+        )
+    if issue == "invented_detail":
+        return has_local_invention_evidence(translated_text) or "invented_english_name_on_noisy_source" in evidence_failures
+    if issue == "name_drift":
+        return has_local_name_drift_evidence(source_text, translated_text) or "consistency_conflict" in evidence_failures
+    if issue == "untranslated_text":
+        return has_local_untranslated_text_evidence(translated_text) or "untranslated_japanese" in evidence_failures
+    if issue == "context_mismatch":
+        return "consistency_conflict" in evidence_failures
+    if issue == "grammar_problem":
+        return "broken_english" in evidence_failures
+    if issue in {"glossary_conflict", "grammar_problem"}:
+        return True
+    return False
+
+
+def has_local_omission_evidence(source_text: str, translated_text: str) -> bool:
+    if source_has_bracket_term(source_text) and not translation_preserves_bracket_term(source_text, translated_text):
+        return True
+    return False
+
+
+def has_local_invention_evidence(translated_text: str) -> bool:
+    return suspected_bad_translation(translated_text)
+
+
+def has_local_name_drift_evidence(source_text: str, translated_text: str) -> bool:
+    return False
+
+
+def has_local_untranslated_text_evidence(translated_text: str) -> bool:
+    if count_japanese_chars(translated_text) > 0:
+        return True
+    return bool(re.search(r"\b(?:wo|wa|ga|desu|kudasai|mite|shite|suru)\b", translated_text, flags=re.IGNORECASE))
 
 
 def should_try_qwen_fallback(
@@ -1261,6 +1437,8 @@ def should_try_qwen_fallback(
     primary_context: dict[str, object],
 ) -> bool:
     if primary_context.get("qwen_critic_should_repair") is True:
+        return True
+    if primary_context.get("evidence_repair_reasons"):
         return True
     if primary_context.get("qwen_rejected") is True:
         return True
@@ -1275,6 +1453,8 @@ def fallback_reject_reason(
     source_text: str,
     translated_text: str,
     fallback_debug: dict[str, object],
+    *,
+    fallback_evidence: dict[str, object] | None = None,
 ) -> str | None:
     if fallback_debug.get("qwen_rejected") is True:
         return f"fallback_qwen_rejected:{fallback_debug.get('qwen_reject_reason', 'unknown')}"
@@ -1283,6 +1463,18 @@ def fallback_reject_reason(
     unusable_reason = unusable_translation_reason(source_text, translated_text, translator_name="qwen")
     if unusable_reason:
         return f"fallback_unusable:{unusable_reason}"
+    evidence_failures = set(str(value) for value in (fallback_evidence or {}).get("preservation_failures", []))
+    blocking_failures = {
+        "dropped_number",
+        "dropped_bracket_term",
+        "invented_english_name_on_noisy_source",
+        "consistency_conflict",
+        "broken_english",
+        "untranslated_japanese",
+    }
+    blocking = sorted(evidence_failures & blocking_failures)
+    if blocking:
+        return f"fallback_evidence_failure:{','.join(blocking)}"
     return None
 
 

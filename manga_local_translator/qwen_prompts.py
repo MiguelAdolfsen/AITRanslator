@@ -126,12 +126,17 @@ def build_qwen_critic_prompt(
     current_translation: str,
     trigger_reasons: tuple[str, ...] = (),
     visual_facts: tuple[str, ...] = (),
+    source_features: dict[str, object] | None = None,
+    translation_evidence: dict[str, object] | None = None,
+    consistency_memory: tuple[dict[str, object], ...] = (),
 ) -> str:
     lines = [
         "/no_think",
         "Task: Critique one accepted manga bubble translation. Do not translate or rewrite it.",
         *ANTI_HALLUCINATION_RULES,
         "Return issue labels only. Do not provide a replacement translation.",
+        "The target Japanese bubble is the authority. The baseline can be wrong.",
+        "Do not prefer the baseline unless the target Japanese supports it.",
         "Use severity none when the current translation is acceptable.",
         "Use severity low for minor style concerns that should not trigger repair.",
         "Use severity medium or high only when the line should be repaired by another model.",
@@ -139,7 +144,8 @@ def build_qwen_critic_prompt(
         "Use medium/high only for concrete translation failures: omission, invention, wrong name, context mismatch, untranslated text, glossary conflict, or broken grammar.",
         "Allowed issues: awkward_literal, context_mismatch, omitted_term, invented_detail, name_drift, tone_mismatch, untranslated_text, glossary_conflict, grammar_problem.",
         "Reject unsupported additions and missing target terms. Do not demand extra detail not present in Japanese.",
-        "Return only compact JSON: {\"ok\":true,\"severity\":\"none|low|medium|high\",\"issues\":[],\"reason\":\"...\"}",
+        "Cite concrete source_evidence and translation_evidence for every medium/high issue.",
+        "Return only compact JSON: {\"ok\":true,\"severity\":\"none|low|medium|high\",\"issues\":[],\"source_evidence\":[],\"translation_evidence\":[],\"repair_recommended\":false,\"reason\":\"...\"}",
     ]
     if before_contexts:
         lines.append("Earlier context window:")
@@ -155,6 +161,7 @@ def build_qwen_critic_prompt(
         for index, value in enumerate(after_contexts, start=1):
             lines.append(f"  - {index}: {normalize_japanese_for_translation(value)}")
     append_visual_facts(lines, visual_facts)
+    append_evidence_packet(lines, source_features, translation_evidence, consistency_memory)
     if trigger_reasons:
         lines.append(f"Why this line was selected for critique: {', '.join(trigger_reasons)}")
     lines.append(f"Baseline English translation: {baseline}")
@@ -178,6 +185,11 @@ def build_qwen_repair_prompt(
     critic_issues: tuple[str, ...] = (),
     critic_reason: str | None = None,
     visual_facts: tuple[str, ...] = (),
+    source_features: dict[str, object] | None = None,
+    translation_evidence: dict[str, object] | None = None,
+    consistency_memory: tuple[dict[str, object], ...] = (),
+    critic_source_evidence: tuple[str, ...] = (),
+    critic_translation_evidence: tuple[str, ...] = (),
 ) -> str:
     before_items = normalize_context_window(before_contexts, fallback=before)
     after_items = normalize_context_window(after_contexts, fallback=after)
@@ -207,6 +219,7 @@ def build_qwen_repair_prompt(
         lines.append("Accepted English after target, nearest to farthest:")
         lines.extend(f"{index}. {value}" for index, value in enumerate(after_english, start=1))
     append_visual_facts(lines, visual_facts)
+    append_evidence_packet(lines, source_features, translation_evidence, consistency_memory)
     lines.append(f"Rejected baseline English: {baseline}")
     lines.append(f"Rejected candidate English: {candidate}")
     if reject_reason:
@@ -214,10 +227,19 @@ def build_qwen_repair_prompt(
     clean_critic_issues = [issue for issue in critic_issues if issue]
     if clean_critic_issues:
         lines.append(f"Critic issue labels to fix: {', '.join(clean_critic_issues)}")
+    if critic_source_evidence:
+        lines.append("Critic source evidence:")
+        lines.extend(f"- {value}" for value in critic_source_evidence if value)
+    if critic_translation_evidence:
+        lines.append("Critic translation evidence:")
+        lines.extend(f"- {value}" for value in critic_translation_evidence if value)
     if critic_reason:
-        lines.append(f"Critic reason: {critic_reason}")
+        lines.append(f"Critic reason, advisory only and possibly wrong: {critic_reason}")
     if clean_critic_issues or critic_reason:
-        lines.append("Repair only the listed issue(s). Do not rewrite a correct line just for style.")
+        lines.append("Repair only label-backed issue(s) that the TARGET Japanese supports.")
+        lines.append("Use source features and consistency memory as hard constraints.")
+        lines.append("Ignore critic reasoning if it contradicts the TARGET Japanese.")
+        lines.append("Do not rewrite a correct line just for style.")
     lines.append("Return only one-line compact JSON: {\"translation\":\"...\",\"confidence\":0.0}")
     lines.append("JSON:")
     return "\n".join(lines)
@@ -257,3 +279,33 @@ def append_visual_facts(lines: list[str], visual_facts: tuple[str, ...]) -> None
     lines.append("- Do not add facts to the translation unless the Japanese target text supports them.")
     for value in clean[:6]:
         lines.append(f"  - {value}")
+
+
+def append_evidence_packet(
+    lines: list[str],
+    source_features: dict[str, object] | None,
+    translation_evidence: dict[str, object] | None,
+    consistency_memory: tuple[dict[str, object], ...],
+) -> None:
+    if not source_features and not translation_evidence and not consistency_memory:
+        return
+    lines.append("Deterministic evidence packet:")
+    lines.append("- Evidence is machine-extracted and may be incomplete, but do not contradict it.")
+    if source_features:
+        for key in ("numbers", "bracket_terms", "katakana_terms", "honorific_names", "punctuation_intent", "risk_flags"):
+            value = source_features.get(key)
+            if value:
+                lines.append(f"- Source {key}: {value}")
+    if translation_evidence:
+        for key in ("preservation_failures", "risk_flags", "memory_conflicts", "broken_english", "invented_english_names"):
+            value = translation_evidence.get(key)
+            if value:
+                lines.append(f"- Translation {key}: {value}")
+    if consistency_memory:
+        lines.append("Relevant consistency memory:")
+        for entry in consistency_memory[:6]:
+            source_term = entry.get("source_term", "")
+            best = entry.get("best_translation", "")
+            count = entry.get("count", 0)
+            if source_term and best:
+                lines.append(f"  - {source_term} => {best} (count {count})")

@@ -226,14 +226,14 @@ def run_profile(
 
 def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for report_path in sorted(output_dir.glob("*.ocr.json"), key=lambda path: path.name):
+    for report_path in sorted(output_dir.rglob("*.ocr.json"), key=lambda path: natural_report_sort_key(output_dir, path)):
         report = json.loads(report_path.read_text(encoding="utf-8"))
         kept_blocks = report.get("kept_blocks", [])
         page_summary = report.get("page_summary", {})
         rows.append(
             {
                 "profile": profile,
-                "page": report_path.stem.removesuffix(".ocr"),
+                "page": report_page_label(output_dir, report_path),
                 "report": str(report_path),
                 "kept_blocks": len(kept_blocks),
                 "skipped_blocks": len(report.get("skipped_blocks", [])),
@@ -248,6 +248,12 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "qwen_critic_attempted": count_blocks(kept_blocks, lambda block: block.get("qwen_critic_attempted") is True),
                 "qwen_critic_flagged": count_blocks(kept_blocks, lambda block: block.get("qwen_critic_flagged") is True),
                 "qwen_critic_issue_types": json.dumps(count_split_values(issue for block in kept_blocks for issue in block.get("qwen_critic_issues", [])), ensure_ascii=False, sort_keys=True),
+                "qwen_critic_evidence_gate_reasons": json.dumps(count_values(block.get("qwen_critic_evidence_gate_reason") for block in kept_blocks if block.get("qwen_critic_attempted") is True), ensure_ascii=False, sort_keys=True),
+                "evidence_risk_blocks": count_blocks(kept_blocks, lambda block: bool(block.get("evidence_risk_flags"))),
+                "evidence_repair_reason_blocks": count_blocks(kept_blocks, lambda block: bool(block.get("evidence_repair_reasons"))),
+                "evidence_risk_types": json.dumps(count_split_values(flag for block in kept_blocks for flag in block.get("evidence_risk_flags", [])), ensure_ascii=False, sort_keys=True),
+                "evidence_repair_reason_types": json.dumps(count_split_values(reason for block in kept_blocks for reason in block.get("evidence_repair_reasons", [])), ensure_ascii=False, sort_keys=True),
+                "qwen_fallback_reject_reasons": json.dumps(count_values(block.get("qwen_fallback_reject_reason") for block in kept_blocks if block.get("qwen_fallback_attempted") is True), ensure_ascii=False, sort_keys=True),
                 "qwen_page_used": count_blocks(kept_blocks, lambda block: block.get("qwen_page_used") is True),
                 "qwen_page_rejected": count_blocks(kept_blocks, lambda block: block.get("qwen_page_rejected") is True),
                 "layout_warning_blocks": count_blocks(kept_blocks, lambda block: bool(block.get("layout_warnings"))),
@@ -270,6 +276,23 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
         )
     rows.append(build_total_row(rows, profile=profile, output_dir=output_dir))
     return rows
+
+
+def natural_report_sort_key(output_dir: Path, report_path: Path) -> list[object]:
+    try:
+        label = report_path.relative_to(output_dir).as_posix().lower()
+    except ValueError:
+        label = report_path.as_posix().lower()
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", label)]
+
+
+def report_page_label(output_dir: Path, report_path: Path) -> str:
+    try:
+        relative = report_path.relative_to(output_dir)
+    except ValueError:
+        relative = report_path.name
+    label = Path(relative).as_posix()
+    return label.removesuffix(".ocr.json")
 
 
 def count_blocks(blocks: list[dict[str, Any]], predicate) -> int:
@@ -321,6 +344,8 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "qwen_fallback_accepted",
         "qwen_critic_attempted",
         "qwen_critic_flagged",
+        "evidence_risk_blocks",
+        "evidence_repair_reason_blocks",
         "qwen_page_used",
         "qwen_page_rejected",
         "layout_warning_blocks",
@@ -346,6 +371,10 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         total[key] = sum(int(row.get(key, 0)) for row in rows)
     total["layout_warning_types"] = json.dumps(aggregate_json_counts(rows, "layout_warning_types"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_issue_types"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_issue_types"), ensure_ascii=False, sort_keys=True)
+    total["qwen_critic_evidence_gate_reasons"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_evidence_gate_reasons"), ensure_ascii=False, sort_keys=True)
+    total["evidence_risk_types"] = json.dumps(aggregate_json_counts(rows, "evidence_risk_types"), ensure_ascii=False, sort_keys=True)
+    total["evidence_repair_reason_types"] = json.dumps(aggregate_json_counts(rows, "evidence_repair_reason_types"), ensure_ascii=False, sort_keys=True)
+    total["qwen_fallback_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "qwen_fallback_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["vision_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "vision_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["vision_facts_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "vision_facts_reject_reasons"), ensure_ascii=False, sort_keys=True)
     return total
@@ -393,6 +422,12 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "qwen_critic_attempted",
         "qwen_critic_flagged",
         "qwen_critic_issue_types",
+        "qwen_critic_evidence_gate_reasons",
+        "evidence_risk_blocks",
+        "evidence_repair_reason_blocks",
+        "evidence_risk_types",
+        "evidence_repair_reason_types",
+        "qwen_fallback_reject_reasons",
         "qwen_page_used",
         "qwen_page_rejected",
         "layout_warning_blocks",

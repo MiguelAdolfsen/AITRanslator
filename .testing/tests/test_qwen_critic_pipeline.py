@@ -1,17 +1,20 @@
 import unittest
 
 from manga_local_translator.pipeline import (
+    apply_translation_evidence,
     apply_qwen_fallback_translations,
     english_context_for_block,
     is_probable_standalone_japanese_name_or_credit,
     is_probable_short_sfx_or_reaction,
     qwen_critic_trigger_reasons,
+    qwen_critic_repair_decision,
     qwen_critic_should_trigger_repair,
     should_try_qwen_fallback,
 )
 from manga_local_translator.config import PipelineConfig
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.qwen_types import QwenCriticDecision
+from manga_local_translator.translation_evidence import build_consistency_memory
 
 
 class QwenCriticPipelineTests(unittest.TestCase):
@@ -41,7 +44,6 @@ class QwenCriticPipelineTests(unittest.TestCase):
         )
 
         self.assertIn("accepted_line_review", reasons)
-        self.assertIn("risk_source_terms", reasons)
         self.assertIn("awkward_english_pattern", reasons)
 
     def test_critic_reviews_normal_accepted_dialogue(self) -> None:
@@ -52,6 +54,20 @@ class QwenCriticPipelineTests(unittest.TestCase):
         )
 
         self.assertEqual(reasons, ("accepted_line_review",))
+
+    def test_critic_trigger_includes_evidence_risk(self) -> None:
+        reasons = qwen_critic_trigger_reasons(
+            "\u7b2c65\u8a71\u30fb\u6f2b\u753b\u30fb\u539f\u4f5c\u30fb\u30ad\u30e3\u30e9\u30af\u30bf\u30fc",
+            ">> Vic Gundotra:",
+            {
+                "qwen_used": True,
+                "evidence_risk_flags": ["ocr_noise"],
+                "evidence_repair_reasons": ["invented_english_name_on_noisy_source"],
+            },
+        )
+
+        self.assertIn("evidence_risk", reasons)
+        self.assertIn("evidence_repair_reason", reasons)
 
     def test_critic_does_not_review_rejected_or_unusable_lines(self) -> None:
         self.assertEqual(
@@ -99,9 +115,81 @@ class QwenCriticPipelineTests(unittest.TestCase):
         )
         self.assertTrue(
             qwen_critic_should_trigger_repair(
-                QwenCriticDecision(False, "medium", ("omitted_term",), "missing target term")
+                QwenCriticDecision(False, "medium", ("omitted_term",), "missing target term"),
+                source_text="\u3008PII2\u3009",
+                translated_text="the secret base",
+                translation_evidence={"preservation_failures": ["dropped_bracket_term"]},
             )
         )
+
+    def test_critic_repair_gate_requires_local_evidence_for_omission(self) -> None:
+        decision = qwen_critic_repair_decision(
+            QwenCriticDecision(False, "medium", ("omitted_term",), "critic prefers baseline"),
+            source_text="\u306f\u3044",
+            translated_text="Yes.",
+        )
+
+        self.assertFalse(decision["should_repair"])
+        self.assertEqual(decision["effective_issues"], [])
+        self.assertEqual(decision["reason"], "no_local_repair_evidence")
+
+    def test_context_mismatch_alone_is_report_only(self) -> None:
+        decision = qwen_critic_repair_decision(
+            QwenCriticDecision(False, "medium", ("context_mismatch",), "context concern"),
+            source_text="\u30a2\u30fc\u30cb\u30e3\u3044\u3048\u3067\u3059\u308b\u30fc",
+            translated_text="Anya, I'll do it, right?",
+        )
+
+        self.assertFalse(decision["should_repair"])
+        self.assertEqual(decision["effective_issues"], [])
+
+    def test_critic_repair_gate_ignores_bad_invented_detail_claim_for_supported_family_terms(self) -> None:
+        decision = qwen_critic_repair_decision(
+            QwenCriticDecision(False, "medium", ("invented_detail",), "father was not in source"),
+            source_text="\u3061\u3061\u3082\u306f\u306f\u3082\u304d\u3089\u3044",
+            translated_text="I hate father and mother!!",
+        )
+
+        self.assertFalse(decision["should_repair"])
+
+    def test_critic_repair_gate_keeps_hard_local_evidence(self) -> None:
+        decision = qwen_critic_repair_decision(
+            QwenCriticDecision(False, "medium", ("name_drift",), "wrong name"),
+            source_text="\u30de\u30ad\u3055\u3093",
+            translated_text="Macha san",
+            translation_evidence={"preservation_failures": ["consistency_conflict"]},
+        )
+
+        self.assertTrue(decision["should_repair"])
+        self.assertEqual(decision["effective_issues"], ["name_drift"])
+
+    def test_critic_repair_gate_uses_translation_evidence(self) -> None:
+        decision = qwen_critic_repair_decision(
+            QwenCriticDecision(False, "medium", ("omitted_term",), "knife omitted"),
+            source_text="\u3008PII2\u3009",
+            translated_text="A prank.",
+            translation_evidence={"preservation_failures": ["dropped_bracket_term"]},
+        )
+
+        self.assertTrue(decision["should_repair"])
+        self.assertEqual(decision["effective_issues"], ["omitted_term"])
+
+    def test_apply_translation_evidence_adds_debug_context(self) -> None:
+        block = TextBlock("\u30de\u30ad\u306f\u8a00\u3063\u305f", (0, 0, 10, 10), 90)
+        translations = {block.text: "Macha said it."}
+        contexts = {block.text: {"qwen_used": True}}
+        memory = build_consistency_memory(
+            [
+                ("\u30de\u30ad\u306f\u6765\u305f", "Maki came."),
+                ("\u30de\u30ad\u3092\u52b1\u307e\u3057\u3066", "Encourage Maki."),
+            ]
+        )
+
+        apply_translation_evidence([block], translations, contexts, memory)
+
+        self.assertIn("source_features", contexts[block.text])
+        self.assertIn("translation_evidence", contexts[block.text])
+        self.assertIn("consistency_conflict", contexts[block.text]["evidence_repair_reasons"])
 
     def test_fallback_uses_guided_repair_when_critic_flagged(self) -> None:
         class FakeFallback:
@@ -155,6 +243,43 @@ class QwenCriticPipelineTests(unittest.TestCase):
         self.assertEqual(contexts[block.text]["qwen_fallback_before_translations"], ["Before."])
         self.assertEqual(contexts[block.text]["qwen_fallback_after_translations"], ["After."])
         self.assertEqual(fake.guided_calls[0][1]["critic_issues"], ("omitted_term",))
+
+    def test_fallback_rejects_evidence_regression(self) -> None:
+        class FakeFallback:
+            def __init__(self) -> None:
+                self.debug = {}
+
+            def repair_translation_with_guidance(self, text, **kwargs):
+                self.debug[text] = {"qwen_model": "fake-q8"}
+                return "Let's go there."
+
+            def debug_info_for(self, text):
+                return self.debug.get(text, {})
+
+        block = TextBlock("\u3008PII2\u3009\u3078\u884c\u304f\uff1f", (0, 0, 10, 10), 90)
+        translations = {block.text: 'Are we going to "PII2"?'}
+        contexts = {
+            block.text: {
+                "qwen_critic_should_repair": True,
+                "qwen_critic_issues": ["omitted_term"],
+                "qwen_baseline": translations[block.text],
+            }
+        }
+        memory = build_consistency_memory([(block.text, translations[block.text])])
+        apply_translation_evidence([block], translations, contexts, memory)
+
+        attempted, accepted = apply_qwen_fallback_translations(
+            [block],
+            translations,
+            contexts,
+            [{"source_text": block.text, "box": block.box, "page_order": 1}],
+            FakeFallback(),
+            PipelineConfig(translator="qwen"),
+            evidence_memory=memory,
+        )
+
+        self.assertEqual((attempted, accepted), (1, 0))
+        self.assertIn("fallback_evidence_failure", contexts[block.text]["qwen_fallback_reject_reason"])
 
 
 if __name__ == "__main__":

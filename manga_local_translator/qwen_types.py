@@ -30,6 +30,9 @@ class QwenCriticDecision:
     issues: tuple[str, ...] = ()
     reason: str = ""
     raw_response: str = ""
+    source_evidence: tuple[str, ...] = ()
+    translation_evidence: tuple[str, ...] = ()
+    repair_recommended: bool | None = None
 
 
 @dataclass(frozen=True)

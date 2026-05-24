@@ -378,7 +378,6 @@ def proper_noun_tokens(text: str) -> set[str]:
         "Alright",
         "Dad",
         "Father",
-        "Forger",
         "Here",
         "Mom",
         "Mother",

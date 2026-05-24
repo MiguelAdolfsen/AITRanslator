@@ -257,6 +257,9 @@ def qwen_critic_decision_from_payload(
         issues=issues,
         reason=reason,
         raw_response=raw_response,
+        source_evidence=tuple(clean_qwen_output(str(value)) for value in list_string_payload(payload.get("source_evidence"))),
+        translation_evidence=tuple(clean_qwen_output(str(value)) for value in list_string_payload(payload.get("translation_evidence"))),
+        repair_recommended=payload.get("repair_recommended") if isinstance(payload.get("repair_recommended"), bool) else None,
     )
 
 
@@ -277,6 +280,14 @@ def extract_qwen_critic_loose_payload(text: str) -> dict[str, object] | None:
     if issues is not None:
         payload["issues"] = issues
     return payload
+
+
+def list_string_payload(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
 
 
 def normalize_critic_issue(issue: str) -> str:
@@ -432,18 +443,6 @@ def accept_qwen_translation(
         return False, "stage_direction_only"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", candidate):
         return False, "malformed_hyphen_chain"
-    if re.search(r"\b(second-way|two-and-a-half|freaks?|candy store,\s*san|zheng he)\b", candidate, flags=re.IGNORECASE):
-        return False, "known_hallucination_artifact"
-    if "\u7d44\u7e54" in source_text and re.search(r"\bwatch my organization\b", candidate, flags=re.IGNORECASE):
-        return False, "organization_membership_drift"
-    if "\u5b50\u5206" in source_text and re.search(r"\bson of a bitch\b", candidate, flags=re.IGNORECASE):
-        return False, "kobun_offensive_mistranslation"
-    if source_mentions_anya(source_text) and re.search(r"\b(?:Anja|Aniya|Anni)\b", candidate, flags=re.IGNORECASE):
-        return False, "anya_name_drift"
-    if source_mentions_father_and_mother(source_text) and not translation_mentions_father_and_mother(candidate):
-        return False, "dropped_father_or_mother"
-    if source_mentions_plushie(source_text) and not translation_mentions_plushie(candidate):
-        return False, "dropped_plushie_term"
     if source_has_bracket_term(source_text) and not translation_preserves_bracket_term(source_text, candidate):
         return False, "dropped_bracket_term"
     if source_uses_gender_neutral_group_address(source_text) and re.search(
@@ -452,12 +451,6 @@ def accept_qwen_translation(
         flags=re.IGNORECASE,
     ):
         return False, "unnecessary_gendering"
-    if (
-        "\u30aa\u30da\u30ec\u30fc\u30b7\u30e7\u30f3" in source_text
-        and "\u74e6\u89e3" in source_text
-        and re.search(r"\b(what are you doing|don't know what to do)\b", candidate, flags=re.IGNORECASE)
-    ):
-        return False, "operation_collapse_mismatch"
     candidate_words = candidate.split()
     baseline_words = baseline.split()
     if baseline_words and len(candidate_words) > max(18, len(baseline_words) * 2 + 6):
@@ -481,15 +474,8 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "too_long",
         "stage_direction_only",
         "malformed_hyphen_chain",
-        "known_hallucination_artifact",
-        "organization_membership_drift",
-        "kobun_offensive_mistranslation",
-        "anya_name_drift",
-        "dropped_father_or_mother",
-        "dropped_plushie_term",
         "dropped_bracket_term",
         "unnecessary_gendering",
-        "operation_collapse_mismatch",
         "much_longer_than_baseline",
         "short_source_long_translation",
         "hedging_or_explanation",
@@ -502,29 +488,6 @@ def source_uses_gender_neutral_group_address(source_text: str) -> bool:
     return any(marker in compact for marker in ("\u304a\u307e\u3048\u3089", "\u304a\u524d\u3089", "\u30aa\u30de\u30a8\u3089"))
 
 
-def source_mentions_anya(source_text: str) -> bool:
-    return any(marker in source_text for marker in ("\u30a2\u30fc\u30cb\u30e3", "\u30a2\u30fc\u30cb\u3055", "\u3042\u30fc\u306b\u3083"))
-
-
-def source_mentions_father_and_mother(source_text: str) -> bool:
-    return ("\u7236" in source_text and "\u6bcd" in source_text) or "\u3061\u3061\u3082\u306f\u306f\u3082" in source_text
-
-
-def translation_mentions_father_and_mother(candidate: str) -> bool:
-    normalized = candidate.lower()
-    father = bool(re.search(r"\b(father|dad|papa)\b", normalized))
-    mother = bool(re.search(r"\b(mother|mom|mama)\b", normalized))
-    return father and mother
-
-
-def source_mentions_plushie(source_text: str) -> bool:
-    return "\u306c\u3044\u3050\u308b\u307f" in source_text or "\u30cc\u30a4\u30b0\u30eb\u30df" in source_text
-
-
-def translation_mentions_plushie(candidate: str) -> bool:
-    return bool(re.search(r"\b(plush|plushie|stuffed|doll|toy)\b", candidate.lower()))
-
-
 def source_has_bracket_term(source_text: str) -> bool:
     return enforced_bracket_term_kind(source_text) is not None
 
@@ -534,14 +497,8 @@ def translation_preserves_bracket_term(source_text: str, candidate: str) -> bool
     kind = enforced_bracket_term_kind(source_text)
     if kind is None:
         return True
-    if kind == "anya":
-        return "anya" in normalized
-    if kind == "p2":
-        return bool(re.search(r"\b(p[- ]?two|p2)\b", normalized))
-    if kind == "operation_connect":
-        return bool(re.search(r"\b(connect|strix|operation)\b", normalized))
-    if kind == "penguin":
-        return "penguin" in normalized
+    if kind == "code":
+        return any(term.lower() in normalized for term in bracket_terms(source_text) if is_code_like_bracket_term(term))
     return True
 
 
@@ -550,15 +507,13 @@ def enforced_bracket_term_kind(source_text: str) -> str | None:
     if not terms:
         return None
     for term in terms:
-        if term in {"\u30a2\u30fc\u30cb\u30e3", "\u3042\u30fc\u306b\u3083"}:
-            return "anya"
-        if term in {"\u3074\u30fc\u3064\u30fc", "\u30d4\u30fc\u30c4\u30fc", "P2", "p2"}:
-            return "p2"
-        if term in {"\u7e4b", "\u30b9\u30c8\u30ea\u30af\u30b9"}:
-            return "operation_connect"
-        if "\u30da\u30f3\u30ae\u30f3" in term:
-            return "penguin"
+        if is_code_like_bracket_term(term):
+            return "code"
     return None
+
+
+def is_code_like_bracket_term(term: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{1,}", term) and (re.search(r"\d", term) or term.upper() == term))
 
 
 def bracket_terms(source_text: str) -> list[str]:

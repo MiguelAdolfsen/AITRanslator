@@ -31,27 +31,33 @@ The next quality work should focus on text-side review and targeted correction r
   - Avoid full page or chapter translation as the default.
 
 - **Small consistency memory**
-  - Track recurring names, bracket terms, organization/hideout/mission vocabulary, and honorific style within a run.
+  - Track recurring names, bracket/code terms, and honorific style within a run.
   - Use it as verifier context and sanity checks, not as unrestricted story memory.
 
 - **Bad-pattern rules**
-  - Add broad rejection/postprocess rules for recurring failures:
-    - `watch my organization` style drift for `組織`
-    - offensive mistranslation of `子分`
-    - dropping paired nouns like `父も母も`
-    - inconsistent Anya spellings
-    - dropping reliable bracket terms like `〈繋〉`, while allowing noisy ruby/bracket text
+  - Keep only generic rejection/postprocess rules in the default pipeline:
+    - malformed JSON, markup, thinking tags, non-English output, and Japanese fallback text
+    - malformed hyphen chains, repeated loops, stage-direction-only output, and overlong short-line translations
+    - unnecessary gendering for generic group address
+    - dropped code-like bracket terms such as `〈PII2〉`, while allowing noisy ruby/bracket text
+  - Move series-specific name fixes, plot vocabulary, and exact phrase rewrites into optional user glossaries instead of hidden defaults.
 
 ## Current Decision
-The review report, initial broad bad-pattern rules, optional critic pass, and critic-guided Q8 repair path are in place. The critic remains experimental/off by default, but when enabled it now runs in batches and can constrain Q8 repair with source text, nearby Japanese context, nearby accepted English context, baseline/current translations, and critic issue labels. The critic now reviews nearly all accepted dialogue/narration lines while skipping phrasebook/SFX, unusable outputs, and likely credit/name-only lines; Q8 repair is still gated by hard issue labels only.
+The review report, initial broad bad-pattern rules, optional critic pass, and critic-guided Q8 repair path are in place. The critic remains experimental/off by default, but when enabled it now runs in batches and can constrain Q8 repair with source text, nearby Japanese context, nearby accepted English context, baseline/current translations, and critic issue labels. The critic now reviews nearly all accepted dialogue/narration lines while skipping phrasebook/SFX, unusable outputs, and likely credit/name-only lines; Q8 repair is still gated by hard issue labels only. Critic freeform reasons are advisory only, and Q8 repair requires local source/text evidence for risky labels such as omitted terms, name drift, invented details, and untranslated text. Context mismatch alone is report-only until we have stronger local evidence.
+
+## Evidence-Guided Critic/Q8 Pass
+
+Implemented: critic and Q8 repair now receive deterministic evidence packets instead of relying only on broad prompt context. The evidence layer extracts source features, translation preservation failures, and run-local consistency memory. Debug reports, quality summaries, and review reports expose evidence risk flags, evidence repair reasons, critic evidence, and Q8 evidence rejection reasons. Q8 can be triggered by evidence-backed failures and is rejected if it worsens source-feature preservation, consistency, or basic English quality.
+
+The default guardrails were audited after the first evidence benchmark. Hidden sample-specific rules were removed from production code, including the Japanese-to-English semantic term dictionary, exact character-name spelling fixes, exact hallucination phrase rejects, exact target rewrites from the early test chapter, and genre-specific source cleanup vocabulary. The default evidence path now focuses on generic checks: numbers, code-like bracket terms, OCR-risk flags, consistency memory, broken English, untranslated Japanese, schema/JSON failures, and layout pressure.
 
 Next fitting steps:
 
-1. Run a full 8-page benchmark after critic-guided repair.
-2. Compare critic-guided Q8 repairs against the previous critic run in the review report.
-3. Tighten trigger rules if Q8 still rewrites style-only issues or worsens good lines.
-4. Decide whether Qwen3 Q4 is reliable enough as the critic, or whether Qwen3.5 Q4 should be used for criticism too.
-5. Keep vision facts experimental until text-only critic-guided repair is stable.
+1. Re-run the 12-page diverse smoke benchmark after the de-bias audit.
+2. Compare generic evidence-guided Q8 repairs against `quality-runs/diverse-smoke-20260524`.
+3. Tighten evidence rules only if failures recur across chapters.
+4. Keep series-specific fixes in optional glossaries, not default code.
+5. Keep vision facts experimental until text-only evidence-guided repair is stable.
 
 ## Open Questions
 - Whether Qwen3 Q4 is reliable enough as a critic compared with Qwen3.5 Q4.

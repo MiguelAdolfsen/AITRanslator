@@ -149,6 +149,9 @@ class QwenTranslator(Translator):
         baseline: str | None = None,
         trigger_reasons: tuple[str, ...] = (),
         visual_facts: tuple[str, ...] = (),
+        source_features: dict[str, object] | None = None,
+        translation_evidence: dict[str, object] | None = None,
+        consistency_memory: tuple[dict[str, object], ...] = (),
     ) -> tuple[QwenCriticDecision, dict[str, object]]:
         normalized = normalize_japanese_for_translation(text)
         prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
@@ -163,6 +166,9 @@ class QwenTranslator(Translator):
             current_translation=current_translation,
             trigger_reasons=trigger_reasons,
             visual_facts=visual_facts,
+            source_features=source_features,
+            translation_evidence=translation_evidence,
+            consistency_memory=consistency_memory,
         )
         logger.debug("Qwen critic reviewing: source=%s current=%s", shorten(prepared), shorten(current_translation))
         raw = self._run_prompt(prompt, settings=QWEN_CRITIC_SETTINGS)
@@ -179,6 +185,9 @@ class QwenTranslator(Translator):
             "qwen_critic_severity": decision.severity,
             "qwen_critic_issues": list(decision.issues),
             "qwen_critic_reason": decision.reason,
+            "qwen_critic_source_evidence": list(decision.source_evidence),
+            "qwen_critic_translation_evidence": list(decision.translation_evidence),
+            "qwen_critic_repair_recommended": decision.repair_recommended,
         }
         return decision, debug
 
@@ -197,6 +206,11 @@ class QwenTranslator(Translator):
         critic_issues: tuple[str, ...] = (),
         critic_reason: str | None = None,
         visual_facts: tuple[str, ...] = (),
+        source_features: dict[str, object] | None = None,
+        translation_evidence: dict[str, object] | None = None,
+        consistency_memory: tuple[dict[str, object], ...] = (),
+        critic_source_evidence: tuple[str, ...] = (),
+        critic_translation_evidence: tuple[str, ...] = (),
     ) -> str:
         normalized = normalize_japanese_for_translation(text)
         prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
@@ -204,6 +218,8 @@ class QwenTranslator(Translator):
         reject_reason = "critic"
         if critic_issues:
             reject_reason = f"critic:{', '.join(critic_issues)}"
+        elif translation_evidence and translation_evidence.get("preservation_failures"):
+            reject_reason = f"evidence:{', '.join(str(value) for value in translation_evidence.get('preservation_failures', []))}"
         repair_candidate, raw_repair = self._repair_qwen_translation(
             source_text=prepared,
             before=before,
@@ -218,6 +234,11 @@ class QwenTranslator(Translator):
             critic_issues=critic_issues,
             critic_reason=critic_reason,
             visual_facts=visual_facts,
+            source_features=source_features,
+            translation_evidence=translation_evidence,
+            consistency_memory=consistency_memory,
+            critic_source_evidence=critic_source_evidence,
+            critic_translation_evidence=critic_translation_evidence,
         )
         debug: dict[str, object] = {
             "qwen_used": True,
@@ -227,6 +248,8 @@ class QwenTranslator(Translator):
             "qwen_guided_repair_source_translation": current_translation,
             "qwen_guided_repair_critic_issues": list(critic_issues),
             "qwen_guided_repair_critic_reason": critic_reason or "",
+            "qwen_guided_repair_critic_source_evidence": list(critic_source_evidence),
+            "qwen_guided_repair_critic_translation_evidence": list(critic_translation_evidence),
             "qwen_guided_repair_before_translations": list(before_translations),
             "qwen_guided_repair_after_translations": list(after_translations),
             "qwen_repair_settings": qwen_settings_to_debug_dict(QWEN_REPAIR_SETTINGS),
@@ -665,6 +688,11 @@ class QwenTranslator(Translator):
         critic_issues: tuple[str, ...] = (),
         critic_reason: str | None = None,
         visual_facts: tuple[str, ...] = (),
+        source_features: dict[str, object] | None = None,
+        translation_evidence: dict[str, object] | None = None,
+        consistency_memory: tuple[dict[str, object], ...] = (),
+        critic_source_evidence: tuple[str, ...] = (),
+        critic_translation_evidence: tuple[str, ...] = (),
     ) -> tuple[str, str]:
         prompt = build_qwen_repair_prompt(
             source_text,
@@ -680,6 +708,11 @@ class QwenTranslator(Translator):
             critic_issues=critic_issues,
             critic_reason=critic_reason,
             visual_facts=visual_facts,
+            source_features=source_features,
+            translation_evidence=translation_evidence,
+            consistency_memory=consistency_memory,
+            critic_source_evidence=critic_source_evidence,
+            critic_translation_evidence=critic_translation_evidence,
         )
         raw = self._run_prompt(prompt, settings=QWEN_REPAIR_SETTINGS)
         return parse_qwen_translation(raw), raw

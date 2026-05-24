@@ -14,22 +14,22 @@ class ReviewReportTests(unittest.TestCase):
             "kept_blocks": [
                 {
                     "page_order": 1,
-                    "source_text": "ちちもははもきらいー！！",
-                    "translated_text": "I don't like my mother!",
-                    "qwen_baseline": "I hate my father and mother!",
-                    "qwen_candidate": "I don't like my mother!",
+                    "source_text": "\u3072\u307f\u3064\u305d\u3057\u304d\u3008PII2\u3009\u306e\u30dc\u30b9",
+                    "translated_text": "I'm the boss of the secret organization.",
+                    "qwen_baseline": "I'm the boss of PII2.",
+                    "qwen_candidate": "I'm the boss of the secret organization.",
                     "qwen_verify_reason": "target",
                 },
                 {
                     "page_order": 2,
-                    "source_text": "はんぶんこしたぴーなつをおたがいたべる",
-                    "translated_text": "If you do that, you can watch my organization.",
+                    "source_text": "\u3084\u3081\u308d",
+                    "translated_text": "Stop.",
                     "layout_warnings": ["tiny_font"],
                 },
                 {
                     "page_order": 3,
-                    "source_text": "ふたりとも〈アーニャ〉のりっぱなこぶんだ",
-                    "translated_text": "You're both a good son of a bitch.",
+                    "source_text": "\u3042",
+                    "translated_text": "one-two-three-four-five-six",
                 },
             ]
         }
@@ -39,19 +39,18 @@ class ReviewReportTests(unittest.TestCase):
 
             rows = rows_from_report(path)
 
-        self.assertIn("dropped_pair:father_mother", rows[0].issues)
-        self.assertIn("known_bad_pattern:watch_my_organization", rows[1].issues)
+        self.assertIn("possibly_dropped_bracket_term", rows[0].issues)
         self.assertIn("layout:tiny_font", rows[1].issues)
-        self.assertIn("known_bad_pattern:kobun_offensive", rows[2].issues)
+        self.assertIn("malformed_hyphen_chain", rows[2].issues)
 
     def test_writes_html_and_csv(self) -> None:
         report = {
             "kept_blocks": [
                 {
                     "page_order": 1,
-                    "source_text": "アーニャ",
-                    "translated_text": "Anja",
-                    "qwen_baseline": "Anya",
+                    "source_text": "\u30c6\u30b9\u30c8",
+                    "translated_text": "Test",
+                    "qwen_baseline": "Test",
                     "context_before": "前",
                     "context_after": "後",
                 }
@@ -72,9 +71,9 @@ class ReviewReportTests(unittest.TestCase):
             csv_text = csv_path.read_text(encoding="utf-8")
 
         self.assertIn("Manga Translation Review", html_text)
-        self.assertIn("name_consistency:anya", html_text)
+        self.assertIn("Test", html_text)
         self.assertIn("source_text", csv_text)
-        self.assertIn("Anja", csv_text)
+        self.assertIn("Test", csv_text)
 
 
 if __name__ == "__main__":
