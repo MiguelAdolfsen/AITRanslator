@@ -432,7 +432,7 @@ def accept_qwen_translation(
         return False, "stage_direction_only"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", candidate):
         return False, "malformed_hyphen_chain"
-    if re.search(r"\b(second-way|two-and-a-half|freaks?|candy store,\s*san)\b", candidate, flags=re.IGNORECASE):
+    if re.search(r"\b(second-way|two-and-a-half|freaks?|candy store,\s*san|zheng he)\b", candidate, flags=re.IGNORECASE):
         return False, "known_hallucination_artifact"
     if "\u7d44\u7e54" in source_text and re.search(r"\bwatch my organization\b", candidate, flags=re.IGNORECASE):
         return False, "organization_membership_drift"
@@ -442,6 +442,8 @@ def accept_qwen_translation(
         return False, "anya_name_drift"
     if source_mentions_father_and_mother(source_text) and not translation_mentions_father_and_mother(candidate):
         return False, "dropped_father_or_mother"
+    if source_mentions_plushie(source_text) and not translation_mentions_plushie(candidate):
+        return False, "dropped_plushie_term"
     if source_has_bracket_term(source_text) and not translation_preserves_bracket_term(source_text, candidate):
         return False, "dropped_bracket_term"
     if source_uses_gender_neutral_group_address(source_text) and re.search(
@@ -484,6 +486,7 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "kobun_offensive_mistranslation",
         "anya_name_drift",
         "dropped_father_or_mother",
+        "dropped_plushie_term",
         "dropped_bracket_term",
         "unnecessary_gendering",
         "operation_collapse_mismatch",
@@ -512,6 +515,14 @@ def translation_mentions_father_and_mother(candidate: str) -> bool:
     father = bool(re.search(r"\b(father|dad|papa)\b", normalized))
     mother = bool(re.search(r"\b(mother|mom|mama)\b", normalized))
     return father and mother
+
+
+def source_mentions_plushie(source_text: str) -> bool:
+    return "\u306c\u3044\u3050\u308b\u307f" in source_text or "\u30cc\u30a4\u30b0\u30eb\u30df" in source_text
+
+
+def translation_mentions_plushie(candidate: str) -> bool:
+    return bool(re.search(r"\b(plush|plushie|stuffed|doll|toy)\b", candidate.lower()))
 
 
 def source_has_bracket_term(source_text: str) -> bool:

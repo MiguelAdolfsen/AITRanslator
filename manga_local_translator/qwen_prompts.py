@@ -135,6 +135,8 @@ def build_qwen_critic_prompt(
         "Use severity none when the current translation is acceptable.",
         "Use severity low for minor style concerns that should not trigger repair.",
         "Use severity medium or high only when the line should be repaired by another model.",
+        "For accepted_line_review, be conservative: do not flag ordinary wording preferences as medium/high.",
+        "Use medium/high only for concrete translation failures: omission, invention, wrong name, context mismatch, untranslated text, glossary conflict, or broken grammar.",
         "Allowed issues: awkward_literal, context_mismatch, omitted_term, invented_detail, name_drift, tone_mismatch, untranslated_text, glossary_conflict, grammar_problem.",
         "Reject unsupported additions and missing target terms. Do not demand extra detail not present in Japanese.",
         "Return only compact JSON: {\"ok\":true,\"severity\":\"none|low|medium|high\",\"issues\":[],\"reason\":\"...\"}",
@@ -171,6 +173,10 @@ def build_qwen_repair_prompt(
     baseline: str,
     candidate: str,
     reject_reason: str | None,
+    before_translations: tuple[str, ...] = (),
+    after_translations: tuple[str, ...] = (),
+    critic_issues: tuple[str, ...] = (),
+    critic_reason: str | None = None,
     visual_facts: tuple[str, ...] = (),
 ) -> str:
     before_items = normalize_context_window(before_contexts, fallback=before)
@@ -188,15 +194,30 @@ def build_qwen_repair_prompt(
     if before_items:
         lines.append("Previous context, oldest to newest:")
         lines.extend(f"{index}. {value}" for index, value in enumerate(before_items, start=1))
+    before_english = normalize_english_context_window(before_translations)
+    if before_english:
+        lines.append("Accepted English before target, oldest to newest:")
+        lines.extend(f"{index}. {value}" for index, value in enumerate(before_english, start=1))
     lines.append(f"TARGET Japanese bubble: {target}")
     if after_items:
         lines.append("Next context, nearest to farthest:")
         lines.extend(f"{index}. {value}" for index, value in enumerate(after_items, start=1))
+    after_english = normalize_english_context_window(after_translations)
+    if after_english:
+        lines.append("Accepted English after target, nearest to farthest:")
+        lines.extend(f"{index}. {value}" for index, value in enumerate(after_english, start=1))
     append_visual_facts(lines, visual_facts)
     lines.append(f"Rejected baseline English: {baseline}")
     lines.append(f"Rejected candidate English: {candidate}")
     if reject_reason:
         lines.append(f"Why prior output failed: {reject_reason}")
+    clean_critic_issues = [issue for issue in critic_issues if issue]
+    if clean_critic_issues:
+        lines.append(f"Critic issue labels to fix: {', '.join(clean_critic_issues)}")
+    if critic_reason:
+        lines.append(f"Critic reason: {critic_reason}")
+    if clean_critic_issues or critic_reason:
+        lines.append("Repair only the listed issue(s). Do not rewrite a correct line just for style.")
     lines.append("Return only one-line compact JSON: {\"translation\":\"...\",\"confidence\":0.0}")
     lines.append("JSON:")
     return "\n".join(lines)
@@ -208,6 +229,18 @@ def normalize_context_window(values: tuple[str, ...], *, fallback: str | None) -
     for value in values or ((fallback,) if fallback else ()):
         text = normalize_japanese_for_translation(value)
         if not text or text in seen:
+            continue
+        seen.add(text)
+        normalized.append(text)
+    return normalized
+
+
+def normalize_english_context_window(values: tuple[str, ...]) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for value in values:
+        text = " ".join(str(value).split())
+        if not text or text in seen or text == "...":
             continue
         seen.add(text)
         normalized.append(text)

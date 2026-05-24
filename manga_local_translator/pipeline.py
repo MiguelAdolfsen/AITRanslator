@@ -998,14 +998,37 @@ def apply_qwen_fallback_translations(
             shorten(block.text),
             shorten(primary_translation),
         )
-        fallback_translation = qwen_fallback_translator.translate_with_context(
-            block.text,
-            before=str(context.get("context_before") or "") or None,
-            after=str(context.get("context_after") or "") or None,
-            before_contexts=tuple(str(value) for value in context.get("context_before_window") or []),
-            after_contexts=tuple(str(value) for value in context.get("context_after_window") or []),
-            visual_facts=visual_facts_for_context(primary_context),
+        before_contexts = tuple(str(value) for value in context.get("context_before_window") or [])
+        after_contexts = tuple(str(value) for value in context.get("context_after_window") or [])
+        before_translations, after_translations = english_context_for_block(block, translations, page_order_report)
+        guided_by_critic = (
+            primary_context.get("qwen_critic_should_repair") is True
+            and hasattr(qwen_fallback_translator, "repair_translation_with_guidance")
         )
+        if guided_by_critic:
+            fallback_translation = qwen_fallback_translator.repair_translation_with_guidance(
+                block.text,
+                current_translation=primary_translation,
+                before=str(context.get("context_before") or "") or None,
+                after=str(context.get("context_after") or "") or None,
+                before_contexts=before_contexts,
+                after_contexts=after_contexts,
+                before_translations=before_translations,
+                after_translations=after_translations,
+                baseline=str(primary_context.get("qwen_baseline") or ""),
+                critic_issues=tuple(str(value) for value in primary_context.get("qwen_critic_issues") or []),
+                critic_reason=str(primary_context.get("qwen_critic_reason") or ""),
+                visual_facts=visual_facts_for_context(primary_context),
+            )
+        else:
+            fallback_translation = qwen_fallback_translator.translate_with_context(
+                block.text,
+                before=str(context.get("context_before") or "") or None,
+                after=str(context.get("context_after") or "") or None,
+                before_contexts=before_contexts,
+                after_contexts=after_contexts,
+                visual_facts=visual_facts_for_context(primary_context),
+            )
         fallback_debug = (
             qwen_fallback_translator.debug_info_for(block.text)
             if hasattr(qwen_fallback_translator, "debug_info_for")
@@ -1019,6 +1042,9 @@ def apply_qwen_fallback_translations(
                 "qwen_fallback_translation": fallback_translation,
                 "qwen_fallback_debug": fallback_debug,
                 "qwen_fallback_accepted": reject_reason is None,
+                "qwen_fallback_guided_by_critic": guided_by_critic,
+                "qwen_fallback_before_translations": list(before_translations),
+                "qwen_fallback_after_translations": list(after_translations),
             }
         )
         if reject_reason is not None:
@@ -1051,6 +1077,36 @@ def apply_qwen_fallback_translations(
     if attempted:
         logger.info("Qwen fallback pass finished: attempted=%d accepted=%d", attempted, accepted)
     return attempted, accepted
+
+
+def english_context_for_block(
+    block: TextBlock,
+    translations: dict[str, str],
+    page_order_report: list[dict[str, object]],
+    *,
+    window: int = 3,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    target_index = None
+    for index, item in enumerate(page_order_report):
+        if tuple(item.get("box", ())) == tuple(block.box) and str(item.get("source_text", "")) == block.text:
+            target_index = index
+            break
+    if target_index is None:
+        return (), ()
+
+    before: list[str] = []
+    for item in page_order_report[max(0, target_index - window):target_index]:
+        translated = translations.get(str(item.get("source_text", "")), "")
+        if translated and translated != "...":
+            before.append(translated)
+
+    after: list[str] = []
+    for item in page_order_report[target_index + 1:target_index + 1 + window]:
+        translated = translations.get(str(item.get("source_text", "")), "")
+        if translated and translated != "...":
+            after.append(translated)
+
+    return tuple(before), tuple(after)
 
 
 def apply_qwen_critic_reviews(
@@ -1121,10 +1177,18 @@ def qwen_critic_trigger_reasons(
 ) -> tuple[str, ...]:
     if primary_context.get("qwen_rejected") is True:
         return ()
+    if primary_context.get("qwen_used") is not True:
+        return ()
+    if primary_context.get("qwen_reason") == "phrasebook":
+        return ()
     if unusable_translation_reason(source_text, translated_text, translator_name="qwen") is not None:
         return ()
+    if is_probable_standalone_japanese_name_or_credit(source_text):
+        return ()
+    if is_probable_short_sfx_or_reaction(source_text):
+        return ()
 
-    reasons: list[str] = []
+    reasons: list[str] = ["accepted_line_review"]
     if suspected_bad_translation(translated_text):
         reasons.append("suspected_bad_translation")
     if primary_context.get("qwen_repair_used") is True:
@@ -1150,6 +1214,19 @@ def has_critic_risk_source_terms(source_text: str) -> bool:
     return any(term in source_text for term in risk_terms)
 
 
+def is_probable_standalone_japanese_name_or_credit(source_text: str) -> bool:
+    compact = re.sub(r"\s+", "", source_text)
+    return bool(re.fullmatch(r"[\u4e00-\u9fff]{2,5}", compact))
+
+
+def is_probable_short_sfx_or_reaction(source_text: str) -> bool:
+    compact = re.sub(r"\s+", "", source_text)
+    compact = compact.strip("\u300c\u300d\u300e\u300f")
+    if len(compact) > 5:
+        return False
+    return bool(re.fullmatch(r"[\u3040-\u30ff\u31f0-\u31ff\u2026.!?\uff01\uff1f\u30fc]+", compact))
+
+
 def has_awkward_english_pattern(translated_text: str) -> bool:
     normalized = translated_text.lower()
     patterns = (
@@ -1162,7 +1239,20 @@ def has_awkward_english_pattern(translated_text: str) -> bool:
 
 
 def qwen_critic_should_trigger_repair(decision) -> bool:
-    return not bool(getattr(decision, "ok", False)) and str(getattr(decision, "severity", "")) in {"medium", "high"}
+    if bool(getattr(decision, "ok", False)):
+        return False
+    severity = str(getattr(decision, "severity", ""))
+    issues = set(getattr(decision, "issues", ()) or ())
+    hard_issues = {
+        "context_mismatch",
+        "omitted_term",
+        "invented_detail",
+        "name_drift",
+        "untranslated_text",
+        "glossary_conflict",
+        "grammar_problem",
+    }
+    return severity == "high" or bool(issues & hard_issues)
 
 
 def should_try_qwen_fallback(

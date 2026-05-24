@@ -43,13 +43,15 @@ The next quality work should focus on text-side review and targeted correction r
     - dropping reliable bracket terms like `〈繋〉`, while allowing noisy ruby/bracket text
 
 ## Current Decision
-The review report and initial broad bad-pattern rules are in place. The next fitting step is the optional translator + critic verifier path, implemented conservatively:
+The review report, initial broad bad-pattern rules, optional critic pass, and critic-guided Q8 repair path are in place. The critic remains experimental/off by default, but when enabled it now runs in batches and can constrain Q8 repair with source text, nearby Japanese context, nearby accepted English context, baseline/current translations, and critic issue labels. The critic now reviews nearly all accepted dialogue/narration lines while skipping phrasebook/SFX, unusable outputs, and likely credit/name-only lines; Q8 repair is still gated by hard issue labels only.
 
-1. Add critic prompt/parsing/validation unit tests.
-2. Add a CLI/GUI-off-by-default setting such as `--qwen-critic-model`.
-3. Run the critic only on suspicious accepted lines first.
-4. Record critic findings in `.ocr.json` and quality summaries.
-5. Only after the critic is measurable, let it trigger Q8 constrained repair.
+Next fitting steps:
+
+1. Run a full 8-page benchmark after critic-guided repair.
+2. Compare critic-guided Q8 repairs against the previous critic run in the review report.
+3. Tighten trigger rules if Q8 still rewrites style-only issues or worsens good lines.
+4. Decide whether Qwen3 Q4 is reliable enough as the critic, or whether Qwen3.5 Q4 should be used for criticism too.
+5. Keep vision facts experimental until text-only critic-guided repair is stable.
 
 ## Open Questions
 - Whether Qwen3 Q4 is reliable enough as a critic compared with Qwen3.5 Q4.

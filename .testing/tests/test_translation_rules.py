@@ -22,6 +22,7 @@ class TranslationRulesTests(unittest.TestCase):
     def test_normalize_and_phrasebook_handle_common_sfx(self) -> None:
         self.assertEqual(normalize_japanese_for_translation(" く っ "), "くっ")
         self.assertEqual(translate_known_phrase("くっ"), "Ngh.")
+        self.assertEqual(translate_known_phrase("なっ．．．！？"), "Wha...!?")
         self.assertEqual(translate_known_phrase("ドキドキ"), "Thump thump.")
         self.assertEqual(translate_known_phrase("たたた"), "Tap tap tap.")
         self.assertEqual(translate_known_phrase("ポリポリボリ"), "Crunch crunch.")
@@ -60,6 +61,16 @@ class TranslationRulesTests(unittest.TestCase):
         self.assertEqual(
             postprocess_translation("いく", "いく", "I'm going to go save them."),
             "I'll go save them.",
+        )
+
+    def test_postprocess_fixes_common_contextual_literal_phrases(self) -> None:
+        self.assertEqual(
+            postprocess_translation("\u52a9\u3051\u306b\u884c\u304f", "\u52a9\u3051\u306b\u884c\u304f", "I'm going to get you."),
+            "Let's go save them.",
+        )
+        self.assertEqual(
+            postprocess_translation("\u6a5f\u5acc\u3092\u76f4\u3057", "\u6a5f\u5acc\u3092\u76f4\u3057", "Anya fixed her mood."),
+            "Anya cheered up.",
         )
 
     def test_postprocess_cleans_broad_bad_patterns(self) -> None:

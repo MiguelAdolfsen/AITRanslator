@@ -65,6 +65,31 @@ class QwenValidationTests(unittest.TestCase):
         self.assertIn("awkward_literal", prompt)
         self.assertIn("Father and Mother are hated!!", prompt)
 
+    def test_qwen_repair_prompt_includes_critic_guidance_and_english_context(self) -> None:
+        from manga_local_translator.qwen_prompts import build_qwen_repair_prompt
+
+        prompt = build_qwen_repair_prompt(
+            "\u6bcd",
+            before="\u7236",
+            after="\u305f\u3059\u3051\u306b\u884c\u304f",
+            before_contexts=("\u7236",),
+            after_contexts=("\u305f\u3059\u3051\u306b\u884c\u304f",),
+            before_translations=("Father.",),
+            after_translations=("Let's go save them.",),
+            baseline="Mother.",
+            candidate="Mom is missing.",
+            reject_reason="critic:omitted_term",
+            critic_issues=("omitted_term",),
+            critic_reason="missing mother term",
+        )
+
+        self.assertIn("Accepted English before target", prompt)
+        self.assertIn("Father.", prompt)
+        self.assertIn("Accepted English after target", prompt)
+        self.assertIn("Let's go save them.", prompt)
+        self.assertIn("Critic issue labels to fix: omitted_term", prompt)
+        self.assertIn("Repair only the listed issue", prompt)
+
     def test_qwen_default_settings_are_conservative(self) -> None:
         self.assertLessEqual(QWEN_TRANSLATION_SETTINGS.temperature, 0.2)
         self.assertLessEqual(QWEN_REPAIR_SETTINGS.temperature, 0.4)
@@ -165,6 +190,8 @@ class QwenValidationTests(unittest.TestCase):
             ("こんにちは", "Hello.", "こんにちは", "contains_japanese"),
             ("くっ", "Ngh.", "This means he is probably angry.", "hedging_or_explanation"),
             ("罠だ", "It's a trap.", "the second-way candy store, san", "known_hallucination_artifact"),
+            ("〈アーニさ〉の部屋だ", "It's Ani-san's room.", "It's a room for a man named Zheng He.", "known_hallucination_artifact"),
+            ("\u306c\u3044\u3050\u308b\u307f\u6c17\u306b\u5165\u3063\u3066\u304f\u308c\u305f", "You liked the plushie.", "It's as if you've been pleased with Anya san.", "dropped_plushie_term"),
             ("\u304a\u307e\u3048\u3089", "You guys.", "Come on, boys!", "unnecessary_gendering"),
             ("\u305d\u306e\u5f8c\u304a\u83d3\u5b50\u3092\u8cb7\u3063\u3066\u3082\u3089\u3063\u305f", "Afterward, she bought sweets.", "(Laughter)", "stage_direction_only"),
             ("あ", "Ah.", "one-two-three-four-five-six", "malformed_hyphen_chain"),

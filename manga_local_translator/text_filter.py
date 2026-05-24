@@ -142,6 +142,8 @@ def suspected_bad_translation(text: str) -> bool:
         return True
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", stripped):
         return True
+    if re.search(r"\bzheng he\b", stripped, flags=re.IGNORECASE):
+        return True
     return False
 
 

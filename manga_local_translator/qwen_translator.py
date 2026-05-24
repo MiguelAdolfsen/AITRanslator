@@ -182,6 +182,107 @@ class QwenTranslator(Translator):
         }
         return decision, debug
 
+    def repair_translation_with_guidance(
+        self,
+        text: str,
+        *,
+        current_translation: str,
+        before: str | None = None,
+        after: str | None = None,
+        before_contexts: tuple[str, ...] = (),
+        after_contexts: tuple[str, ...] = (),
+        before_translations: tuple[str, ...] = (),
+        after_translations: tuple[str, ...] = (),
+        baseline: str | None = None,
+        critic_issues: tuple[str, ...] = (),
+        critic_reason: str | None = None,
+        visual_facts: tuple[str, ...] = (),
+    ) -> str:
+        normalized = normalize_japanese_for_translation(text)
+        prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
+        baseline_text = baseline if baseline is not None else self._baseline_translate(text)
+        reject_reason = "critic"
+        if critic_issues:
+            reject_reason = f"critic:{', '.join(critic_issues)}"
+        repair_candidate, raw_repair = self._repair_qwen_translation(
+            source_text=prepared,
+            before=before,
+            after=after,
+            before_contexts=before_contexts,
+            after_contexts=after_contexts,
+            before_translations=before_translations,
+            after_translations=after_translations,
+            baseline=baseline_text,
+            candidate=current_translation,
+            reject_reason=reject_reason,
+            critic_issues=critic_issues,
+            critic_reason=critic_reason,
+            visual_facts=visual_facts,
+        )
+        debug: dict[str, object] = {
+            "qwen_used": True,
+            "qwen_model": self._ollama_model_name,
+            "qwen_backend": self._backend,
+            "qwen_guided_repair": True,
+            "qwen_guided_repair_source_translation": current_translation,
+            "qwen_guided_repair_critic_issues": list(critic_issues),
+            "qwen_guided_repair_critic_reason": critic_reason or "",
+            "qwen_guided_repair_before_translations": list(before_translations),
+            "qwen_guided_repair_after_translations": list(after_translations),
+            "qwen_repair_settings": qwen_settings_to_debug_dict(QWEN_REPAIR_SETTINGS),
+            "qwen_baseline": baseline_text,
+            "qwen_raw_repair": raw_repair,
+            "qwen_repair_used": True,
+            "qwen_repair_candidate": repair_candidate,
+            "qwen_visual_facts_used": list(visual_facts),
+        }
+        accepted, reject = accept_qwen_translation(
+            source_text=prepared,
+            baseline=baseline_text,
+            candidate=repair_candidate,
+        )
+        if accepted:
+            verification = self._verify_qwen_translation(
+                source_text=prepared,
+                before=before,
+                after=after,
+                before_contexts=before_contexts,
+                after_contexts=after_contexts,
+                baseline=baseline_text,
+                candidate=repair_candidate,
+                visual_facts=visual_facts,
+            )
+            debug["qwen_repair_verify_choice"] = verification.choice
+            debug["qwen_repair_verify_reason"] = verification.reason
+            debug["qwen_raw_repair_verification"] = verification.raw_response
+            debug["qwen_repair_verified_candidate"] = verification.translation
+            verified_text = verification.translation or repair_candidate
+            if verification.ok:
+                verify_accepted, verify_reject = accept_qwen_translation(
+                    source_text=prepared,
+                    baseline=baseline_text,
+                    candidate=verified_text,
+                )
+            else:
+                verify_accepted = False
+                verify_reject = f"repair_verification:{verification.choice}:{verification.reason}"
+            if verify_accepted:
+                result = postprocess_translation(normalized, prepared, verified_text, self._glossary)
+                debug["qwen_repair_accepted"] = True
+                debug["qwen_candidate"] = verified_text
+                debug["qwen_final"] = result
+                self._debug[normalized] = debug
+                return result
+            reject = verify_reject
+
+        debug["qwen_repair_accepted"] = False
+        debug["qwen_repair_reject_reason"] = reject
+        debug["qwen_rejected"] = True
+        debug["qwen_reject_reason"] = f"guided_repair_rejected:{reject}"
+        debug["qwen_final"] = ""
+        self._debug[normalized] = debug
+        return ""
+
     def debug_info_for(self, text: str) -> dict[str, object]:
         return self._debug.get(normalize_japanese_for_translation(text), {})
 
@@ -559,6 +660,10 @@ class QwenTranslator(Translator):
         baseline: str,
         candidate: str,
         reject_reason: str | None,
+        before_translations: tuple[str, ...] = (),
+        after_translations: tuple[str, ...] = (),
+        critic_issues: tuple[str, ...] = (),
+        critic_reason: str | None = None,
         visual_facts: tuple[str, ...] = (),
     ) -> tuple[str, str]:
         prompt = build_qwen_repair_prompt(
@@ -567,9 +672,13 @@ class QwenTranslator(Translator):
             after=after,
             before_contexts=before_contexts,
             after_contexts=after_contexts,
+            before_translations=before_translations,
+            after_translations=after_translations,
             baseline=baseline,
             candidate=candidate,
             reject_reason=reject_reason,
+            critic_issues=critic_issues,
+            critic_reason=critic_reason,
             visual_facts=visual_facts,
         )
         raw = self._run_prompt(prompt, settings=QWEN_REPAIR_SETTINGS)
