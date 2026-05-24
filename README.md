@@ -1,115 +1,960 @@
-# Local Manga Translator
+# AI Translator / Local Manga Translator
 
-Local-first manga page translator for personal use.
+A local-first Japanese manga image translator.
 
-It takes a folder of images, finds Japanese text with OCR, translates it to English with an offline translator, removes the original text, draws the English text back onto the page, and writes translated images to an output folder.
+The project takes manga page images, detects Japanese text regions, OCRs the text, translates it to English, removes or covers the original text, and renders the translated text back into the image.
 
-This is a practical MVP, not a scanlation-quality editor. It works best on clear black text inside white speech bubbles. Sound effects, heavy art backgrounds, furigana, and dense vertical text will still need manual cleanup.
+It is designed for local experimentation and personal translation workflows. It includes both a GUI and a CLI, plus optional Qwen-based translation, verification, and vision-assisted repair.
 
-## What it uses
+---
 
-- **Text detection:** local Comic Text Detector model, with Tesseract/visual fallbacks.
-- **OCR:** local `manga-ocr` crop reader, with Tesseract as a fallback.
-- **Translation:** local OPUS Japanese-English model by default, no paid API. MADLAD and Argos remain optional.
-- **Context translation:** optional local Qwen GGUF model through Ollama or `llama-cpp-python`.
-- **Image editing:** OpenCV inpainting or simple white box erase.
-- **Typesetting:** Pillow text fitting.
+## What the pipeline does
 
-## Setup
+For each input image, the translator can:
 
-1. Install Python 3.10+.
-2. Install Tesseract OCR:
-   - Windows: install from the UB Mannheim build: https://github.com/UB-Mannheim/tesseract/wiki
-   - During install, include Japanese language data if available.
-   - If Japanese data is not included, install `jpn.traineddata` and `jpn_vert.traineddata`.
-   - The app auto-detects `C:\Program Files\Tesseract-OCR\tesseract.exe`. If Tesseract is installed elsewhere, select `tesseract.exe` with the GUI's Tesseract path Browse button.
-3. Install Python dependencies:
+1. Load one image or recursively scan a folder of images.
+2. Detect manga text regions.
+3. OCR Japanese text from each detected region.
+4. Filter bad OCR fragments and non-Japanese noise.
+5. Group text regions into render blocks.
+6. Translate text with the selected translator.
+7. Optionally use Qwen page context, verification, repair, or vision.
+8. Erase or cover the original text.
+9. Typeset the English translation back into the page.
+10. Write the translated image and optional debug reports.
 
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+Supported image extensions include:
+
+```text
+.jpg
+.jpeg
+.png
+.webp
+.bmp
+.tif
+.tiff
 ```
 
-4. Install the Comic Text Detector model:
+---
+
+## Main features
+
+- Tkinter GUI launcher for normal use.
+- CLI for batch processing and experiments.
+- Recursive folder processing.
+- Text detection with:
+  - Comic Text Detector / CTD
+  - Tesseract
+  - lightweight visual detector
+- OCR with:
+  - manga-ocr
+  - Tesseract
+- Translation with:
+  - OPUS-MT Japanese to English
+  - MADLAD-400
+  - Argos Translate
+  - local Qwen GGUF models
+  - no-translation debug mode
+- Qwen translation modes:
+  - block mode
+  - page mode
+- Optional Qwen verifier and repair flow.
+- Optional Qwen vision repair using numbered page artifacts.
+- Optional Qwen visual-facts pass.
+- Glossary support.
+- White-box or inpainting erase modes.
+- Pillow-based text rendering.
+- Resume/cache support.
+- OCR/debug JSON reports.
+- Debug images with boxes and render diagnostics.
+- Repeatable quality-evaluation runner.
+
+---
+
+## Current limitations
+
+This is not a fully automatic professional lettering system.
+
+Expect manual review for:
+
+- stylized sound effects
+- complex background text
+- dense vertical layouts
+- tiny bubbles
+- furigana
+- unusual fonts
+- handwritten text
+- low-resolution scans
+- heavily textured or colored bubbles
+- ambiguous speakers
+- OCR mistakes
+- pages where the original art needs careful redrawing
+
+The project works best when text is clear, dark, and inside white or lightly colored speech bubbles.
+
+---
+
+## Requirements
+
+### Required
+
+- Python 3.10 or newer
+- A working Python virtual environment
+- Internet access for first-time model downloads
+- Enough disk space for OCR / translation models
+
+### Strongly recommended
+
+- Windows, especially if using the included PowerShell GUI launcher
+- Tesseract OCR with Japanese language data
+- `jpn` and `jpn_vert` Tesseract languages
+- A GPU for faster local model inference, if available
+
+### Optional
+
+- Ollama for Qwen GGUF translation
+- `llama-cpp-python` for local GGUF inference without Ollama
+- Qwen GGUF model files
+- Qwen multimodal projector file for vision features
+- Argos Translate package if using Argos
+
+---
+
+## Quick start: Windows GUI
+
+Clone the repository:
 
 ```powershell
-python -m manga_local_translator.install_ctd
+git clone https://github.com/MiguelAdolfsen/AITRanslator.git
+cd AITRanslator
 ```
 
-5. Install the OPUS translator model:
-
-```powershell
-python -m manga_local_translator.install_opus
-```
-
-Optional large MADLAD setup:
-
-```powershell
-python -m manga_local_translator.install_madlad
-```
-
-MADLAD is a large model. It downloads once into the Hugging Face cache and runs locally after that.
-
-Optional legacy Argos setup:
-
-```powershell
-python -m manga_local_translator.install_argos ja en
-```
-
-## Usage
-
-GUI launcher on Windows:
+Launch the GUI:
 
 ```powershell
 .\Launch-GUI.ps1
 ```
 
-The launcher creates `.venv`, installs dependencies, and opens a small folder-picker GUI.
+The launcher will:
 
-Each launch recreates `manga_translator_debug.log` in the project folder. Check that file when OCR, dependency installation, translation, or image writing fails.
-
-CLI:
-
-```powershell
-python -m manga_local_translator "C:\path\to\raw-pages" "C:\path\to\translated-pages"
-```
-
-Useful options:
+1. Create `.venv` if it does not already exist.
+2. Install packages from `requirements.txt`.
+3. Set useful cache/runtime environment variables.
+4. Start the GUI with:
 
 ```powershell
-python -m manga_local_translator raw translated --erase-mode white --debug
-python -m manga_local_translator raw translated --translator none
-python -m manga_local_translator raw translated --translator madlad
-python -m manga_local_translator raw translated --translator qwen
-python -m manga_local_translator raw translated --translator argos
-python -m manga_local_translator raw translated --tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
-python -m manga_local_translator raw translated --font "C:\Windows\Fonts\arial.ttf"
-python -m manga_local_translator raw translated --glossary translation_glossary.json
+python -m manga_local_translator.gui
 ```
 
-Output preserves the input folder structure.
+In the GUI:
 
-For Qwen, put a `.gguf` file under `.models\qwen\`. The app auto-detects the newest `.gguf`; with Ollama installed it creates a local `manga-qwen` model on first use.
+1. Select an input image or folder.
+2. Select an output file or folder.
+3. Choose detector, OCR engine, translator, and erase mode.
+4. Install CTD / OPUS / MADLAD / Argos from the GUI if needed.
+5. Enable debug output while tuning settings.
+6. Click **Start**.
 
-## Translation glossary
+---
 
-OPUS is much better when kana-only OCR text is cleaned up before translation. The app includes a small built-in cleanup list for common manga/chapter terms and can also load a custom `translation_glossary.json` from the project folder, or from `--glossary`.
+## Manual setup
 
-Use `translation_glossary.example.json` as a starting point. Custom entries can:
+Create and activate a virtual environment:
 
-- replace OCR/source text before translation,
-- force exact phrase translations,
-- fix recurring English names after translation.
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-## Notes
+Upgrade pip and install dependencies:
 
-- `--erase-mode white` is usually cleaner for normal speech bubbles.
-- `--erase-mode inpaint` is better when text sits over artwork, but can smear screentones.
-- If OCR finds nothing, confirm Tesseract can see Japanese:
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Install the default detector and translator models:
+
+```powershell
+python -m manga_local_translator.install_ctd
+python -m manga_local_translator.install_opus
+```
+
+You can then run the CLI:
+
+```powershell
+python -m manga_local_translator --help
+```
+
+If the package is installed with its entry point available, this also works:
+
+```powershell
+manga-local-translator --help
+```
+
+---
+
+## Tesseract setup
+
+Tesseract is optional if you use CTD plus manga-ocr, but it is useful as a fallback detector/OCR path.
+
+Install Tesseract and verify the Japanese language files:
 
 ```powershell
 tesseract --list-langs
 ```
 
-You should see `jpn` and ideally `jpn_vert`.
+Recommended languages:
+
+```text
+jpn
+jpn_vert
+```
+
+If Tesseract is not on your PATH, pass the executable path manually:
+
+```powershell
+python -m manga_local_translator input output `
+  --tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
+```
+
+The GUI also has a Tesseract path field.
+
+---
+
+## Model setup
+
+### CTD detector
+
+Install Comic Text Detector assets:
+
+```powershell
+python -m manga_local_translator.install_ctd
+```
+
+Use it with:
+
+```powershell
+--detector ctd
+```
+
+This is the default detector.
+
+---
+
+### OPUS translator
+
+Install the default OPUS Japanese-to-English model:
+
+```powershell
+python -m manga_local_translator.install_opus
+```
+
+Use it with:
+
+```powershell
+--translator opus
+```
+
+This is the default translator.
+
+---
+
+### MADLAD translator
+
+Install MADLAD:
+
+```powershell
+python -m manga_local_translator.install_madlad
+```
+
+Use it with:
+
+```powershell
+--translator madlad
+```
+
+MADLAD is larger than OPUS and may be slower.
+
+---
+
+### Argos translator
+
+Install Argos Translate support:
+
+```powershell
+pip install argostranslate
+python -m manga_local_translator.install_argos ja en
+```
+
+Use it with:
+
+```powershell
+--translator argos
+```
+
+---
+
+### Qwen translator
+
+Qwen support is for local GGUF models.
+
+The code looks for Qwen models in:
+
+```text
+.models/qwen
+```
+
+You can also pass a model directly:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator qwen `
+  --qwen-model ".models\qwen\your-qwen-model.gguf"
+```
+
+You can provide a fallback model:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator qwen `
+  --qwen-model ".models\qwen\primary.gguf" `
+  --qwen-fallback-model ".models\qwen\fallback.gguf"
+```
+
+Qwen can use:
+
+- Ollama, when available
+- `llama-cpp-python`, as a local fallback path
+
+You can also set:
+
+```powershell
+$env:MANGA_QWEN_MODEL = ".models\qwen\your-qwen-model.gguf"
+```
+
+---
+
+### Qwen vision
+
+Vision support is optional and advanced.
+
+Vision features require:
+
+- a vision-capable Qwen GGUF model
+- a multimodal projector / mmproj GGUF file
+- `llama-cpp-python` with Qwen vision chat-handler support
+
+Default projector search location:
+
+```text
+.models/qwen
+```
+
+Default projector-style filename expected by the code:
+
+```text
+mmproj-Qwen3.5-9B-BF16.gguf
+```
+
+You can pass model and projector paths manually:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator qwen `
+  --vision `
+  --vision-model ".models\qwen\vision-model.gguf" `
+  --vision-projector ".models\qwen\mmproj-model.gguf"
+```
+
+Vision is used as context and repair support. It should not replace OCR.
+
+---
+
+## CLI usage
+
+Basic command:
+
+```powershell
+python -m manga_local_translator INPUT OUTPUT [options]
+```
+
+Input and output may be files or folders.
+
+Example: translate a folder recursively with defaults:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages"
+```
+
+Example: enable debug output and overwrite existing files:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --debug `
+  --overwrite
+```
+
+Example: use Tesseract detector and OCR:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --detector tesseract `
+  --ocr-engine tesseract `
+  --tesseract-lang jpn+jpn_vert `
+  --psm 11
+```
+
+Example: use Qwen in block mode:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --qwen-mode block `
+  --qwen-model ".models\qwen\qwen-model.gguf"
+```
+
+Example: use Qwen page mode with resume support:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --qwen-mode page `
+  --resume `
+  --work-dir ".\.manga-work"
+```
+
+Example: use Qwen with vision repair:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --vision `
+  --vision-trigger suspicious `
+  --vision-mode numbered_page
+```
+
+Example: use Qwen visual facts before translation:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --qwen-mode page `
+  --vision-facts `
+  --vision-mode numbered_page
+```
+
+Example: OCR/render debug without translating:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator none `
+  --debug `
+  --overwrite
+```
+
+---
+
+## Important CLI options
+
+### Input/output
+
+| Option | Description |
+|---|---|
+| `input` | Input image or folder |
+| `output` | Output image or folder |
+| `--recursive` | Recursively process folders |
+| `--no-recursive` | Disable recursive folder processing |
+| `--overwrite` | Replace existing output files |
+| `--resume` | Reuse cached prepared pages/translations when possible |
+| `--work-dir PATH` | Override the cache/work directory |
+
+### Detection and OCR
+
+| Option | Values | Default |
+|---|---|---|
+| `--detector` | `ctd`, `tesseract`, `visual` | `ctd` |
+| `--ocr-engine` | `manga-ocr`, `tesseract` | `manga-ocr` |
+| `--tesseract-cmd` | path | unset |
+| `--tesseract-lang` | language string | `jpn+jpn_vert` |
+| `--psm` | Tesseract page segmentation mode | `11` |
+| `--min-confidence` | OCR confidence threshold | `20.0` |
+
+### Translation
+
+| Option | Values | Default |
+|---|---|---|
+| `--translator` | `opus`, `qwen`, `madlad`, `argos`, `none` | `opus` |
+| `--glossary` | JSON glossary path | unset |
+
+### Qwen
+
+| Option | Values | Default |
+|---|---|---|
+| `--qwen-model` | GGUF path or model name | unset |
+| `--qwen-fallback-model` | GGUF path or model name | unset |
+| `--qwen-mode` | `block`, `page` | `block` |
+
+### Vision
+
+| Option | Values | Default |
+|---|---|---|
+| `--vision` | enable vision repair | disabled |
+| `--vision-facts` | enable visual-facts pass | disabled |
+| `--vision-mode` | `numbered_page`, `page_image` | `numbered_page` |
+| `--vision-trigger` | `suspicious`, `layout`, `all` | `suspicious` |
+| `--vision-model` | vision-capable GGUF path | unset |
+| `--vision-projector` | mmproj/projector path | unset |
+
+### Rendering
+
+| Option | Description | Default |
+|---|---|---|
+| `--erase-mode` | `white` or `inpaint` | `white` |
+| `--padding` | pixels around text regions | `8` |
+| `--render-expand` | render box expansion factor | `2.2` |
+| `--font` | path to font file | unset |
+| `--font-size` | base render font size | `28` |
+
+### Debugging
+
+| Option | Description |
+|---|---|
+| `--debug` | Write debug images and OCR/debug JSON reports |
+
+---
+
+## Glossary support
+
+A glossary can enforce names, terms, and post-processing replacements.
+
+Start from the example file:
+
+```powershell
+copy translation_glossary.example.json translation_glossary.json
+```
+
+Use it with:
+
+```powershell
+python -m manga_local_translator input output `
+  --glossary ".\translation_glossary.json"
+```
+
+Example structure:
+
+```json
+{
+  "source_replacements": [
+    {
+      "source": "あじと",
+      "target": "アジト"
+    }
+  ],
+  "exact_phrases": {
+    "ただいま": "I'm home."
+  },
+  "target_replacements": [
+    {
+      "source": "Ajit",
+      "target": "hideout",
+      "when_source_contains": "アジト"
+    }
+  ]
+}
+```
+
+Glossary concepts:
+
+| Field | Purpose |
+|---|---|
+| `source_replacements` | Normalize or repair Japanese source text before translation |
+| `exact_phrases` | Force a specific English translation for an exact Japanese phrase |
+| `target_replacements` | Replace unwanted English output after translation |
+
+---
+
+## Debug output
+
+When `--debug` is enabled, the project writes extra diagnostics.
+
+Common debug files include:
+
+| File | Purpose |
+|---|---|
+| `manga_translator_debug.log` | Main debug log |
+| `*.debug.png` | Page image with detected boxes/layout diagnostics |
+| `*.ocr.json` | OCR blocks, skipped blocks, translations, render warnings, and metadata |
+| `*.vision.png` | Numbered or page-image artifact sent to the vision model |
+| `.manga-work/` | Cached prepared pages and translation artifacts |
+
+Debug reports are useful for checking:
+
+- detected boxes
+- OCR text
+- skipped OCR fragments
+- reading order
+- grouped render blocks
+- translation output
+- render fitting warnings
+- Qwen page summaries
+- vision repair/facts summaries
+
+---
+
+## Quality evaluation
+
+The quality evaluation runner can process pages with repeatable profile settings and summarize debug OCR reports.
+
+Show help:
+
+```powershell
+python -m manga_local_translator.quality_eval --help
+```
+
+Example run:
+
+```powershell
+python -m manga_local_translator.quality_eval ".\raw_pages" `
+  --output-root ".\quality-runs" `
+  --name "my-qwen-test" `
+  --profiles quality,strict `
+  --qwen-mode page
+```
+
+Example vision comparison:
+
+```powershell
+python -m manga_local_translator.quality_eval ".\raw_pages" `
+  --output-root ".\quality-runs" `
+  --name "vision-comparison" `
+  --profiles quality `
+  --vision `
+  --vision-facts `
+  --compare-vision
+```
+
+Summarize an existing run:
+
+```powershell
+python -m manga_local_translator.quality_eval ".\raw_pages" `
+  --output-root ".\quality-runs" `
+  --name "my-qwen-test" `
+  --summarize-only
+```
+
+---
+
+## Tests
+
+The repository includes a PowerShell test runner under `.testing`.
+
+Run normal tests:
+
+```powershell
+.\.testing\run_tests.ps1
+```
+
+Run tests plus the optional smoke test:
+
+```powershell
+.\.testing\run_tests.ps1 -WithSmoke
+```
+
+The smoke test expects a sample image at:
+
+```text
+..\mangafolder\1.png
+```
+
+The test runner performs checks such as:
+
+- Python compile check
+- CLI help check
+- quality evaluator help check
+- unit tests under `.testing/tests`
+- optional smoke translation
+
+---
+
+## Project layout
+
+Important files and folders:
+
+```text
+AITRanslator/
+  Launch-GUI.ps1
+  README.md
+  pyproject.toml
+  requirements.txt
+  translation_glossary.example.json
+
+  manga_local_translator/
+    cli.py
+    gui.py
+    pipeline.py
+    config.py
+    detect_ocr.py
+    ctd_detector.py
+    hf_translators.py
+    qwen_translator.py
+    qwen_vision.py
+    qwen_validation.py
+    vision_service.py
+    vision_artifact.py
+    render.py
+    erase.py
+    grouping.py
+    quality_eval.py
+    install_ctd.py
+    install_opus.py
+    install_madlad.py
+    install_argos.py
+
+  .testing/
+    README.md
+    run_tests.ps1
+    tests/
+
+  quality-runs/
+    previous quality/evaluation run outputs
+```
+
+---
+
+## Recommended workflows
+
+### Simple local translation
+
+Use this when you want the easiest path:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --detector ctd `
+  --ocr-engine manga-ocr `
+  --translator opus `
+  --debug
+```
+
+### OCR/layout debugging
+
+Use this before tuning translation:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\debug_output" `
+  --translator none `
+  --debug `
+  --overwrite
+```
+
+Inspect the generated `.debug.png` and `.ocr.json` files.
+
+### Higher-quality local Qwen pass
+
+Use this when Qwen models are installed:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --qwen-mode page `
+  --resume `
+  --debug
+```
+
+### Qwen with vision assistance
+
+Use this for pages where speaker, layout, or visual context matters:
+
+```powershell
+python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
+  --translator qwen `
+  --qwen-mode page `
+  --vision-facts `
+  --vision `
+  --vision-trigger suspicious `
+  --vision-mode numbered_page `
+  --resume `
+  --debug
+```
+
+---
+
+## Troubleshooting
+
+### `CTD detector requested but not available`
+
+Install CTD assets:
+
+```powershell
+python -m manga_local_translator.install_ctd
+```
+
+Or use another detector:
+
+```powershell
+--detector tesseract
+```
+
+---
+
+### OPUS model is missing
+
+Install OPUS:
+
+```powershell
+python -m manga_local_translator.install_opus
+```
+
+---
+
+### Tesseract is not found
+
+Pass the executable path:
+
+```powershell
+--tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
+```
+
+Also verify Japanese language files:
+
+```powershell
+tesseract --list-langs
+```
+
+---
+
+### manga-ocr downloads on first use
+
+The first `manga-ocr` run may download model files. After that, the project tries to use local cached files.
+
+---
+
+### Qwen model not found
+
+Place a GGUF model under:
+
+```text
+.models/qwen
+```
+
+Or pass:
+
+```powershell
+--qwen-model ".models\qwen\model.gguf"
+```
+
+Or set:
+
+```powershell
+$env:MANGA_QWEN_MODEL = ".models\qwen\model.gguf"
+```
+
+---
+
+### Vision projector not found
+
+Place the multimodal projector file under:
+
+```text
+.models/qwen
+```
+
+Or pass:
+
+```powershell
+--vision-projector ".models\qwen\mmproj-model.gguf"
+```
+
+---
+
+### Output files are skipped
+
+Use:
+
+```powershell
+--overwrite
+```
+
+---
+
+### Translation is bad but OCR is also bad
+
+Do not tune the translator first.
+
+Run:
+
+```powershell
+--translator none --debug
+```
+
+Inspect `.ocr.json` and `.debug.png`, then adjust detector/OCR settings.
+
+---
+
+### Text is too large or does not fit
+
+Try:
+
+```powershell
+--font-size 24
+--render-expand 2.8
+```
+
+You can also pass a different font:
+
+```powershell
+--font "C:\Windows\Fonts\arial.ttf"
+```
+
+---
+
+## Environment variables
+
+The Qwen code supports several environment-variable overrides.
+
+Commonly useful:
+
+```powershell
+$env:MANGA_QWEN_MODEL = ".models\qwen\model.gguf"
+```
+
+Generation settings can be overridden with prefixes such as:
+
+```text
+MANGA_QWEN_TRANSLATION_*
+MANGA_QWEN_PAGE_*
+MANGA_QWEN_VERIFICATION_*
+MANGA_QWEN_REPAIR_*
+```
+
+Examples:
+
+```powershell
+$env:MANGA_QWEN_TRANSLATION_TEMPERATURE = "0.2"
+$env:MANGA_QWEN_PAGE_NUM_PREDICT = "768"
+$env:MANGA_QWEN_VERIFICATION_TEMPERATURE = "0.1"
+```
+
+Use these when benchmarking prompt/model changes.
+
+---
+
+## Notes on vision usage
+
+The project’s vision path is intended to support translation, not replace OCR.
+
+Recommended policy:
+
+```text
+OCR/source text is authoritative.
+Vision is used for context, layout, speaker hints, visual facts, and repair.
+Vision should not invent dialogue or silently correct source text.
+```
+
+The `numbered_page` vision mode creates an artifact that maps line IDs to locations on the page. This is usually safer than asking a vision model to read the original manga text directly.
+
+---
+
+## License
+
+No license file is currently included in the repository. Add a license before distributing or accepting external reuse/contributions.

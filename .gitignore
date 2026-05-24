@@ -7,3 +7,5 @@ output/
 manga_translator_debug.log
 .models/
 .testing/output/
+quality-runs/
+.testing/input/
