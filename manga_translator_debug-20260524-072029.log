@@ -1,0 +1,24 @@
+2026-05-24 07:20:29,028 INFO     [manga_local_translator.logging_utils] Debug logging started: C:\Users\migue\Desktop\pythonscripts\Translator\manga_translator_debug-20260524-072029.log
+2026-05-24 07:20:29,028 INFO     [manga_local_translator.cli] CLI started
+2026-05-24 07:20:29,028 DEBUG    [manga_local_translator.cli] CLI args: Namespace(input=WindowsPath('../mangafolder/1.png'), output=WindowsPath('.testing/output/layout-page1-final.png'), detector='ctd', ocr_engine='manga-ocr', translator='qwen', erase_mode='white', tesseract_cmd=None, tesseract_lang='jpn+jpn_vert', psm=11, min_confidence=20.0, padding=8, render_expand=2.2, font=None, glossary=None, qwen_model=WindowsPath('.models/qwen/Qwen3.5-9B-Q4_K_M.gguf'), qwen_fallback_model=None, qwen_mode='block', vision=False, vision_mode='numbered_page', vision_trigger='suspicious', vision_model=None, vision_projector=None, font_size=28, recursive=True, overwrite=True, debug=True, resume=False, work_dir=None)
+2026-05-24 07:20:29,166 INFO     [manga_local_translator.cli] Debug log: C:\Users\migue\Desktop\pythonscripts\Translator\manga_translator_debug-20260524-072029.log
+2026-05-24 07:20:29,192 INFO     [manga_local_translator.pipeline] Process folder started
+2026-05-24 07:20:29,192 DEBUG    [manga_local_translator.pipeline] Input path resolved to: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png
+2026-05-24 07:20:29,192 DEBUG    [manga_local_translator.pipeline] Output path resolved to: C:\Users\migue\Desktop\pythonscripts\Translator\.testing\output\layout-page1-final.png
+2026-05-24 07:20:29,192 DEBUG    [manga_local_translator.pipeline] Pipeline config: PipelineConfig(detector='ctd', ocr_engine='manga-ocr', translator='qwen', qwen_mode='block', erase_mode='white', tesseract_cmd=None, tesseract_lang='jpn+jpn_vert', tesseract_psm=11, min_confidence=20.0, padding=8, render_expand=2.2, font_path=None, glossary_path=None, qwen_model_path=WindowsPath('.models/qwen/Qwen3.5-9B-Q4_K_M.gguf'), qwen_fallback_model_path=None, vision_enabled=False, vision_mode='numbered_page', vision_trigger='suspicious', vision_model_path=None, vision_projector_path=None, base_font_size=28, recursive=True, overwrite=True, debug=True, resume=False, work_dir=None)
+2026-05-24 07:20:29,192 DEBUG    [manga_local_translator.pipeline] Enabled Hugging Face offline runtime mode
+2026-05-24 07:20:29,193 DEBUG    [manga_local_translator.image_io] Single input file support check: path=C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png supported=True
+2026-05-24 07:20:29,193 INFO     [manga_local_translator.pipeline] Found 1 supported image(s)
+2026-05-24 07:20:29,193 INFO     [manga_local_translator.translate] Building translator backend: qwen
+2026-05-24 07:20:29,193 INFO     [manga_local_translator.qwen_translator] Initializing Qwen translator: model=.models\qwen\Qwen3.5-9B-Q4_K_M.gguf
+2026-05-24 07:20:29,196 DEBUG    [manga_local_translator.qwen_ollama] Found Ollama executable: C:\Users\migue\AppData\Local\Programs\Ollama\ollama.EXE
+2026-05-24 07:20:29,395 DEBUG    [manga_local_translator.qwen_ollama] Ollama model exists check: model=manga-qwen35-9b-q4-k-m exists=True
+2026-05-24 07:20:29,579 DEBUG    [manga_local_translator.qwen_ollama] Ollama model projector check: model=manga-qwen35-9b-q4-k-m has_projector=False
+2026-05-24 07:20:29,579 INFO     [manga_local_translator.qwen_translator] Qwen translator ready through Ollama model=manga-qwen35-9b-q4-k-m
+2026-05-24 07:20:29,585 INFO     [manga_local_translator.pipeline] Page 1/1: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png -> C:\Users\migue\Desktop\pythonscripts\Translator\.testing\output\layout-page1-final.png
+2026-05-24 07:20:29,595 INFO     [manga_local_translator.pipeline] Reading image: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png
+2026-05-24 07:20:29,601 DEBUG    [manga_local_translator.pipeline] Image loaded: width=476 height=797 channels=3
+2026-05-24 07:20:29,601 INFO     [manga_local_translator.pipeline] Running OCR
+2026-05-24 07:20:29,601 INFO     [manga_local_translator.detect_ocr] Selected OCR engine: manga-ocr
+2026-05-24 07:20:29,601 INFO     [manga_local_translator.detect_ocr] Selected text detector: ctd
+2026-05-24 07:20:29,602 INFO     [manga_local_translator.ctd_detector] Loading CTD model: .models\comic-text-detector\comictextdetector.pt.onnx

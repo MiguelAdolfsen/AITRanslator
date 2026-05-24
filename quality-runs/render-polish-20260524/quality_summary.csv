@@ -1,0 +1,10 @@
+profile,page,report,kept_blocks,skipped_blocks,fallback_blocks,ellipsis_outputs,qwen_used,qwen_rejected,qwen_repairs_attempted,qwen_repairs_accepted,qwen_fallback_attempted,qwen_fallback_accepted,qwen_page_used,qwen_page_rejected,layout_warning_blocks,layout_warning_types,vision_attempted,vision_accepted,vision_rejected,vision_json_repair_attempted,vision_json_repair_used,vision_reject_reasons,suspected_bad_translations
+quality:vision-suspicious,1,quality-runs\render-polish-20260524\quality\1.ocr.json,8,1,0,0,6,0,2,2,0,0,0,0,1,"{""render_box_touches_page_edge"": 1}",1,0,1,0,0,"{""needs_review"": 1}",0
+quality:vision-suspicious,2,quality-runs\render-polish-20260524\quality\2.ocr.json,9,0,0,0,7,1,3,2,1,1,0,0,3,"{""cramped_fit"": 1, ""render_box_touches_page_edge"": 1, ""tiny_font"": 1}",4,0,4,4,0,"{""missing_line_id"": 3, ""needs_review"": 1}",0
+quality:vision-suspicious,3,quality-runs\render-polish-20260524\quality\3.ocr.json,6,1,0,0,6,0,1,1,0,0,0,0,0,{},0,0,0,0,0,{},0
+quality:vision-suspicious,4,quality-runs\render-polish-20260524\quality\4.ocr.json,9,1,0,0,9,0,2,2,0,0,0,0,2,"{""render_box_touches_page_edge"": 1, ""tiny_font"": 1}",2,0,2,0,0,"{""needs_review"": 2}",0
+quality:vision-suspicious,5,quality-runs\render-polish-20260524\quality\5.ocr.json,5,0,0,0,5,0,1,1,0,0,0,0,0,{},0,0,0,0,0,{},0
+quality:vision-suspicious,6,quality-runs\render-polish-20260524\quality\6.ocr.json,6,2,0,0,6,0,0,0,0,0,0,0,1,"{""cramped_fit"": 1}",1,0,1,0,0,"{""needs_review"": 1}",0
+quality:vision-suspicious,7,quality-runs\render-polish-20260524\quality\7.ocr.json,9,2,0,0,8,0,2,2,0,0,0,0,2,"{""render_box_touches_page_edge"": 1, ""tiny_font"": 1}",2,0,2,0,0,"{""needs_review"": 2}",0
+quality:vision-suspicious,8,quality-runs\render-polish-20260524\quality\8.ocr.json,11,0,0,0,9,1,3,2,1,1,0,0,2,"{""cramped_fit"": 1, ""tiny_font"": 1}",2,0,2,2,0,"{""duplicate_line_id"": 2}",0
+quality:vision-suspicious,__total__,quality-runs\render-polish-20260524\quality,63,7,0,0,56,2,14,12,2,2,0,0,11,"{""cramped_fit"": 3, ""render_box_touches_page_edge"": 4, ""tiny_font"": 4}",12,0,12,6,0,"{""duplicate_line_id"": 2, ""missing_line_id"": 3, ""needs_review"": 7}",0

@@ -1,0 +1,1195 @@
+{
+  "version": 1,
+  "image_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\mangafolder\\6.png",
+  "output_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\6.png",
+  "width": 477,
+  "height": 800,
+  "raw_blocks": [
+    {
+      "text": "コラ何してるッ！！！",
+      "box": [
+        374,
+        85,
+        450,
+        253
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              417,
+              85
+            ],
+            [
+              450,
+              87
+            ],
+            [
+              447,
+              147
+            ],
+            [
+              414,
+              145
+            ]
+          ],
+          [
+            [
+              376,
+              85
+            ],
+            [
+              412,
+              85
+            ],
+            [
+              410,
+              253
+            ],
+            [
+              374,
+              253
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "！！",
+      "box": [
+        25,
+        85,
+        88,
+        149
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              25,
+              85
+            ],
+            [
+              88,
+              85
+            ],
+            [
+              88,
+              149
+            ],
+            [
+              25,
+              149
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "box": [
+        359,
+        419,
+        464,
+        559
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              437,
+              419
+            ],
+            [
+              458,
+              419
+            ],
+            [
+              458,
+              559
+            ],
+            [
+              437,
+              559
+            ]
+          ],
+          [
+            [
+              414,
+              421
+            ],
+            [
+              433,
+              421
+            ],
+            [
+              433,
+              500
+            ],
+            [
+              414,
+              500
+            ]
+          ],
+          [
+            [
+              388,
+              420
+            ],
+            [
+              408,
+              420
+            ],
+            [
+              409,
+              500
+            ],
+            [
+              390,
+              500
+            ]
+          ],
+          [
+            [
+              359,
+              419
+            ],
+            [
+              380,
+              419
+            ],
+            [
+              380,
+              518
+            ],
+            [
+              359,
+              518
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "．．．．．．",
+      "box": [
+        27,
+        437,
+        43,
+        536
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              27,
+              437
+            ],
+            [
+              43,
+              437
+            ],
+            [
+              43,
+              536
+            ],
+            [
+              27,
+              536
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "びゃ～～～っ",
+      "box": [
+        405,
+        631,
+        447,
+        778
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              414,
+              631
+            ],
+            [
+              447,
+              633
+            ],
+            [
+              437,
+              778
+            ],
+            [
+              405,
+              775
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "うあ．．．？",
+      "box": [
+        299,
+        727,
+        313,
+        759
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "unknown",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              303,
+              727
+            ],
+            [
+              313,
+              728
+            ],
+            [
+              309,
+              759
+            ],
+            [
+              299,
+              757
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "box": [
+        164,
+        622,
+        227,
+        760
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              213,
+              623
+            ],
+            [
+              227,
+              623
+            ],
+            [
+              227,
+              673
+            ],
+            [
+              213,
+              673
+            ]
+          ],
+          [
+            [
+              198,
+              623
+            ],
+            [
+              213,
+              623
+            ],
+            [
+              213,
+              760
+            ],
+            [
+              198,
+              760
+            ]
+          ],
+          [
+            [
+              181,
+              624
+            ],
+            [
+              192,
+              624
+            ],
+            [
+              192,
+              723
+            ],
+            [
+              181,
+              723
+            ]
+          ],
+          [
+            [
+              164,
+              625
+            ],
+            [
+              175,
+              625
+            ],
+            [
+              175,
+              749
+            ],
+            [
+              164,
+              749
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "そうですよダメだすよ？",
+      "box": [
+        42,
+        611,
+        57,
+        775
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              42,
+              611
+            ],
+            [
+              57,
+              611
+            ],
+            [
+              57,
+              775
+            ],
+            [
+              42,
+              775
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "text": "私の部屋にも毒針などが．．．",
+      "box": [
+        24,
+        630,
+        35,
+        756
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              24,
+              630
+            ],
+            [
+              35,
+              630
+            ],
+            [
+              35,
+              756
+            ],
+            [
+              24,
+              756
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "render_blocks": [
+    {
+      "text": "コラ何してるッ！！！",
+      "box": [
+        374,
+        85,
+        450,
+        253
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              417,
+              85
+            ],
+            [
+              450,
+              87
+            ],
+            [
+              447,
+              147
+            ],
+            [
+              414,
+              145
+            ]
+          ],
+          [
+            [
+              376,
+              85
+            ],
+            [
+              412,
+              85
+            ],
+            [
+              410,
+              253
+            ],
+            [
+              374,
+              253
+            ]
+          ]
+        ],
+        "translation_group_id": 1,
+        "translation_group_size": 1
+      }
+    },
+    {
+      "text": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "box": [
+        359,
+        419,
+        464,
+        559
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              437,
+              419
+            ],
+            [
+              458,
+              419
+            ],
+            [
+              458,
+              559
+            ],
+            [
+              437,
+              559
+            ]
+          ],
+          [
+            [
+              414,
+              421
+            ],
+            [
+              433,
+              421
+            ],
+            [
+              433,
+              500
+            ],
+            [
+              414,
+              500
+            ]
+          ],
+          [
+            [
+              388,
+              420
+            ],
+            [
+              408,
+              420
+            ],
+            [
+              409,
+              500
+            ],
+            [
+              390,
+              500
+            ]
+          ],
+          [
+            [
+              359,
+              419
+            ],
+            [
+              380,
+              419
+            ],
+            [
+              380,
+              518
+            ],
+            [
+              359,
+              518
+            ]
+          ]
+        ],
+        "translation_group_id": 2,
+        "translation_group_size": 1
+      }
+    },
+    {
+      "text": "そうですよダメだすよ？私の部屋にも毒針などが．．．",
+      "box": [
+        24,
+        611,
+        57,
+        775
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "translation_group_id": 3,
+        "translation_group_size": 2,
+        "grouped_from": [
+          {
+            "box": [
+              42,
+              611,
+              57,
+              775
+            ],
+            "source_text": "そうですよダメだすよ？",
+            "confidence": 1.0,
+            "metadata": {
+              "language": "ja",
+              "vertical": true,
+              "lines": [
+                [
+                  [
+                    42,
+                    611
+                  ],
+                  [
+                    57,
+                    611
+                  ],
+                  [
+                    57,
+                    775
+                  ],
+                  [
+                    42,
+                    775
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "box": [
+              24,
+              630,
+              35,
+              756
+            ],
+            "source_text": "私の部屋にも毒針などが．．．",
+            "confidence": 1.0,
+            "metadata": {
+              "language": "ja",
+              "vertical": true,
+              "lines": [
+                [
+                  [
+                    24,
+                    630
+                  ],
+                  [
+                    35,
+                    630
+                  ],
+                  [
+                    35,
+                    756
+                  ],
+                  [
+                    24,
+                    756
+                  ]
+                ]
+              ]
+            }
+          }
+        ],
+        "vertical": true
+      }
+    },
+    {
+      "text": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "box": [
+        164,
+        622,
+        227,
+        760
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              213,
+              623
+            ],
+            [
+              227,
+              623
+            ],
+            [
+              227,
+              673
+            ],
+            [
+              213,
+              673
+            ]
+          ],
+          [
+            [
+              198,
+              623
+            ],
+            [
+              213,
+              623
+            ],
+            [
+              213,
+              760
+            ],
+            [
+              198,
+              760
+            ]
+          ],
+          [
+            [
+              181,
+              624
+            ],
+            [
+              192,
+              624
+            ],
+            [
+              192,
+              723
+            ],
+            [
+              181,
+              723
+            ]
+          ],
+          [
+            [
+              164,
+              625
+            ],
+            [
+              175,
+              625
+            ],
+            [
+              175,
+              749
+            ],
+            [
+              164,
+              749
+            ]
+          ]
+        ],
+        "translation_group_id": 4,
+        "translation_group_size": 1
+      }
+    },
+    {
+      "text": "びゃ～～～っ",
+      "box": [
+        405,
+        631,
+        447,
+        778
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              414,
+              631
+            ],
+            [
+              447,
+              633
+            ],
+            [
+              437,
+              778
+            ],
+            [
+              405,
+              775
+            ]
+          ]
+        ],
+        "translation_group_id": 5,
+        "translation_group_size": 1
+      }
+    },
+    {
+      "text": "うあ．．．？",
+      "box": [
+        299,
+        727,
+        313,
+        759
+      ],
+      "confidence": 1.0,
+      "detector": "ctd",
+      "metadata": {
+        "language": "unknown",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              303,
+              727
+            ],
+            [
+              313,
+              728
+            ],
+            [
+              309,
+              759
+            ],
+            [
+              299,
+              757
+            ]
+          ]
+        ],
+        "translation_group_id": 6,
+        "translation_group_size": 1
+      }
+    }
+  ],
+  "skipped_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        25,
+        85,
+        88,
+        149
+      ],
+      "confidence": 1.0,
+      "source_text": "！！",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              25,
+              85
+            ],
+            [
+              88,
+              85
+            ],
+            [
+              88,
+              149
+            ],
+            [
+              25,
+              149
+            ]
+          ]
+        ]
+      },
+      "reason": "punctuation_or_symbols_only"
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        27,
+        437,
+        43,
+        536
+      ],
+      "confidence": 1.0,
+      "source_text": "．．．．．．",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              27,
+              437
+            ],
+            [
+              43,
+              437
+            ],
+            [
+              43,
+              536
+            ],
+            [
+              27,
+              536
+            ]
+          ]
+        ]
+      },
+      "reason": "punctuation_or_symbols_only"
+    }
+  ],
+  "grouping_report": [
+    {
+      "group_id": 1,
+      "box": [
+        374,
+        85,
+        450,
+        253
+      ],
+      "source_text": "コラ何してるッ！！！",
+      "members": [
+        {
+          "box": [
+            374,
+            85,
+            450,
+            253
+          ],
+          "source_text": "コラ何してるッ！！！",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 2,
+      "box": [
+        359,
+        419,
+        464,
+        559
+      ],
+      "source_text": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "members": [
+        {
+          "box": [
+            359,
+            419,
+            464,
+            559
+          ],
+          "source_text": "勝手に入ったらダメだとあれほど言ったろ！！",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 3,
+      "box": [
+        24,
+        611,
+        57,
+        775
+      ],
+      "source_text": "そうですよダメだすよ？私の部屋にも毒針などが．．．",
+      "members": [
+        {
+          "box": [
+            42,
+            611,
+            57,
+            775
+          ],
+          "source_text": "そうですよダメだすよ？",
+          "confidence": 1.0,
+          "detector": "ctd"
+        },
+        {
+          "box": [
+            24,
+            630,
+            35,
+            756
+          ],
+          "source_text": "私の部屋にも毒針などが．．．",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 4,
+      "box": [
+        164,
+        622,
+        227,
+        760
+      ],
+      "source_text": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "members": [
+        {
+          "box": [
+            164,
+            622,
+            227,
+            760
+          ],
+          "source_text": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 5,
+      "box": [
+        405,
+        631,
+        447,
+        778
+      ],
+      "source_text": "びゃ～～～っ",
+      "members": [
+        {
+          "box": [
+            405,
+            631,
+            447,
+            778
+          ],
+          "source_text": "びゃ～～～っ",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 6,
+      "box": [
+        299,
+        727,
+        313,
+        759
+      ],
+      "source_text": "うあ．．．？",
+      "members": [
+        {
+          "box": [
+            299,
+            727,
+            313,
+            759
+          ],
+          "source_text": "うあ．．．？",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    }
+  ],
+  "page_order_report": [
+    {
+      "page_order": 1,
+      "box": [
+        374,
+        85,
+        450,
+        253
+      ],
+      "source_text": "コラ何してるッ！！！",
+      "detector": "ctd",
+      "context_before": "―――では！！",
+      "context_after": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "context_before_window": [
+        "―――では！！"
+      ],
+      "context_after_window": [
+        "勝手に入ったらダメだとあれほど言ったろ！！",
+        "びゃ～～～っ"
+      ]
+    },
+    {
+      "page_order": 2,
+      "box": [
+        359,
+        419,
+        464,
+        559
+      ],
+      "source_text": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "detector": "ctd",
+      "context_before": "コラ何してるッ！！！",
+      "context_after": "びゃ～～～っ",
+      "context_before_window": [
+        "コラ何してるッ！！！"
+      ],
+      "context_after_window": [
+        "びゃ～～～っ",
+        "うあ．．．？"
+      ]
+    },
+    {
+      "page_order": 3,
+      "box": [
+        405,
+        631,
+        447,
+        778
+      ],
+      "source_text": "びゃ～～～っ",
+      "detector": "ctd",
+      "context_before": "勝手に入ったらダメだとあれほど言ったろ！！",
+      "context_after": "うあ．．．？",
+      "context_before_window": [
+        "コラ何してるッ！！！",
+        "勝手に入ったらダメだとあれほど言ったろ！！"
+      ],
+      "context_after_window": [
+        "うあ．．．？",
+        "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）"
+      ]
+    },
+    {
+      "page_order": 4,
+      "box": [
+        299,
+        727,
+        313,
+        759
+      ],
+      "source_text": "うあ．．．？",
+      "detector": "ctd",
+      "context_before": "びゃ～～～っ",
+      "context_after": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "context_before_window": [
+        "勝手に入ったらダメだとあれほど言ったろ！！",
+        "びゃ～～～っ"
+      ],
+      "context_after_window": [
+        "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+        "そうですよダメだすよ？私の部屋にも毒針などが．．．"
+      ]
+    },
+    {
+      "page_order": 5,
+      "box": [
+        164,
+        622,
+        227,
+        760
+      ],
+      "source_text": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "detector": "ctd",
+      "context_before": "うあ．．．？",
+      "context_after": "そうですよダメだすよ？私の部屋にも毒針などが．．．",
+      "context_before_window": [
+        "びゃ～～～っ",
+        "うあ．．．？"
+      ],
+      "context_after_window": [
+        "そうですよダメだすよ？私の部屋にも毒針などが．．．"
+      ]
+    },
+    {
+      "page_order": 6,
+      "box": [
+        24,
+        611,
+        57,
+        775
+      ],
+      "source_text": "そうですよダメだすよ？私の部屋にも毒針などが．．．",
+      "detector": "ctd",
+      "context_before": "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）",
+      "context_before_window": [
+        "うあ．．．？",
+        "あ．．．いやハサミとかストーブとか危険な物がだな．．．不当はもっと危険を物が．．．）"
+      ],
+      "context_after_window": []
+    }
+  ]
+}

@@ -1,0 +1,2214 @@
+{
+  "source_image": "C:\\Users\\migue\\Desktop\\pythonscripts\\mangafolder\\1.png",
+  "output_image": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\1.png",
+  "detector": "ctd",
+  "ocr_engine": "manga-ocr",
+  "translator": "qwen",
+  "qwen_mode": "block",
+  "vision_enabled": true,
+  "vision_mode": "numbered_page",
+  "vision_trigger": "suspicious",
+  "page_summary": {
+    "kept_blocks": 8,
+    "skipped_blocks": 1,
+    "fallback_blocks": 0,
+    "ellipsis_outputs": 0,
+    "qwen_used": 6,
+    "qwen_rejected": 0,
+    "qwen_repairs_attempted": 2,
+    "qwen_repairs_accepted": 2,
+    "qwen_fallback_attempted": 0,
+    "qwen_fallback_accepted": 0,
+    "suspected_bad_translations": 0,
+    "layout_warning_blocks": 1,
+    "vision_attempted": 1,
+    "vision_accepted": 0,
+    "vision_rejected": 1,
+    "vision_json_repair_attempted": 0,
+    "vision_json_repair_used": 0,
+    "vision_reject_reasons": {
+      "needs_review": 1
+    },
+    "vision_trigger_reasons": {
+      "layout:render_box_touches_page_edge": 1
+    },
+    "layout_warning_types": {
+      "render_box_touches_page_edge": 1
+    },
+    "vision_artifact_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\1.vision.png"
+  },
+  "raw_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        280,
+        17,
+        433,
+        31
+      ],
+      "confidence": 1.0,
+      "source_text": "ＳＨＯＲＴＭｅｓｉＯＮ",
+      "metadata": {
+        "language": "unknown",
+        "vertical": false,
+        "lines": [
+          [
+            [
+              280,
+              17
+            ],
+            [
+              433,
+              18
+            ],
+            [
+              433,
+              31
+            ],
+            [
+              280,
+              30
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        390,
+        56,
+        431,
+        235
+      ],
+      "confidence": 1.0,
+      "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              413,
+              58
+            ],
+            [
+              430,
+              58
+            ],
+            [
+              430,
+              235
+            ],
+            [
+              413,
+              235
+            ]
+          ],
+          [
+            [
+              390,
+              56
+            ],
+            [
+              412,
+              56
+            ],
+            [
+              412,
+              196
+            ],
+            [
+              390,
+              196
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        44,
+        77,
+        62,
+        234
+      ],
+      "confidence": 1.0,
+      "source_text": "きめらちょうかんだ",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              44,
+              77
+            ],
+            [
+              59,
+              77
+            ],
+            [
+              59,
+              234
+            ],
+            [
+              44,
+              234
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        388,
+        282,
+        461,
+        293
+      ],
+      "confidence": 1.0,
+      "source_text": "遠藤達哉",
+      "metadata": {
+        "language": "unknown",
+        "vertical": false,
+        "lines": [
+          [
+            [
+              388,
+              282
+            ],
+            [
+              461,
+              282
+            ],
+            [
+              461,
+              293
+            ],
+            [
+              388,
+              293
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        374,
+        339,
+        435,
+        502
+      ],
+      "confidence": 1.0,
+      "source_text": "きみがあたらしくはいったしんじんくんだね",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              415,
+              340
+            ],
+            [
+              435,
+              340
+            ],
+            [
+              435,
+              393
+            ],
+            [
+              415,
+              393
+            ]
+          ],
+          [
+            [
+              393,
+              339
+            ],
+            [
+              412,
+              339
+            ],
+            [
+              413,
+              502
+            ],
+            [
+              395,
+              502
+            ]
+          ],
+          [
+            [
+              374,
+              340
+            ],
+            [
+              391,
+              340
+            ],
+            [
+              391,
+              479
+            ],
+            [
+              374,
+              479
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        42,
+        323,
+        82,
+        512
+      ],
+      "confidence": 1.0,
+      "source_text": "すいぞくかんからきたべんぎんともうするます",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              63,
+              323
+            ],
+            [
+              81,
+              323
+            ],
+            [
+              81,
+              501
+            ],
+            [
+              63,
+              501
+            ]
+          ],
+          [
+            [
+              42,
+              324
+            ],
+            [
+              60,
+              324
+            ],
+            [
+              60,
+              512
+            ],
+            [
+              42,
+              512
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        406,
+        623,
+        445,
+        761
+      ],
+      "confidence": 1.0,
+      "source_text": "よろろすおねがいするます",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              429,
+              623
+            ],
+            [
+              445,
+              623
+            ],
+            [
+              445,
+              692
+            ],
+            [
+              429,
+              692
+            ]
+          ],
+          [
+            [
+              406,
+              623
+            ],
+            [
+              423,
+              623
+            ],
+            [
+              423,
+              761
+            ],
+            [
+              407,
+              761
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        66,
+        699,
+        92,
+        748
+      ],
+      "confidence": 1.0,
+      "source_text": "うむ",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              66,
+              699
+            ],
+            [
+              92,
+              699
+            ],
+            [
+              92,
+              748
+            ],
+            [
+              66,
+              748
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        2,
+        601,
+        27,
+        787
+      ],
+      "confidence": 1.0,
+      "source_text": "レッツ愉楽！一人三役っ♪",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              4,
+              603
+            ],
+            [
+              21,
+              603
+            ],
+            [
+              20,
+              782
+            ],
+            [
+              3,
+              782
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "kept_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        390,
+        56,
+        431,
+        235
+      ],
+      "confidence": 1.0,
+      "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              413,
+              58
+            ],
+            [
+              430,
+              58
+            ],
+            [
+              430,
+              235
+            ],
+            [
+              413,
+              235
+            ]
+          ],
+          [
+            [
+              390,
+              56
+            ],
+            [
+              412,
+              56
+            ],
+            [
+              412,
+              196
+            ],
+            [
+              390,
+              196
+            ]
+          ]
+        ],
+        "translation_group_id": 1,
+        "translation_group_size": 1
+      },
+      "translated_text": "I'm the boss of the secret organization.",
+      "page_order": 1,
+      "erase_box": [
+        382,
+        48,
+        439,
+        243
+      ],
+      "render_box": [
+        363,
+        52,
+        458,
+        239
+      ],
+      "render_fit": {
+        "font_size": 15,
+        "line_count": 3,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 83,
+        "total_height": 45,
+        "usable_width": 83,
+        "usable_height": 175,
+        "attempted_font_size": 22,
+        "line_height": 15,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "I'm the boss",
+          "of the secret",
+          "organization."
+        ],
+        "wrap_score": 43.075,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": null,
+      "context_after": "きめらちょうかんだ",
+      "context_before_window": [],
+      "context_after_window": [
+        "きめらちょうかんだ",
+        "遠藤達哉"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "I'm the boss of the secret organization.",
+      "qwen_raw_translation": "{\"translation\":\"I'm the first boss of the secret organization.\",\"confidence\":0.85}\nTarget Japanese bubble: じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃあ、じゃ",
+      "qwen_candidate": "I'm the boss of the secret organization.",
+      "qwen_verify_choice": "correction",
+      "qwen_verify_reason": "Candidate adds 'first' not in target text.",
+      "qwen_raw_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"I'm the boss of the secret organization.\",\"unsupported_terms\":[],\"reason\":\"Candidate adds 'first' not in target text.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- \"Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\"\n- \"Do not invent a speaker name, gender, age, or relationship.\"\n- \"Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\"\n- \"If uncertain, become less specific, not more creative.\"\n- \"If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\"\n-",
+      "qwen_verified_candidate": "I'm the boss of the secret organization.",
+      "qwen_final": "I'm the boss of the secret organization.",
+      "normalized_source": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "prepared_source": "わたしが秘密組織〈ぴーつー〉のボス",
+      "glossary_source_replacements": [
+        {
+          "source": "ひみつそしき",
+          "target": "秘密組織"
+        },
+        {
+          "source": "ぼす",
+          "target": "ボス"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        44,
+        77,
+        62,
+        234
+      ],
+      "confidence": 1.0,
+      "source_text": "きめらちょうかんだ",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              44,
+              77
+            ],
+            [
+              59,
+              77
+            ],
+            [
+              59,
+              234
+            ],
+            [
+              44,
+              234
+            ]
+          ]
+        ],
+        "translation_group_id": 2,
+        "translation_group_size": 1
+      },
+      "translated_text": "It's Director Kimerada.",
+      "page_order": 2,
+      "erase_box": [
+        36,
+        69,
+        70,
+        242
+      ],
+      "render_box": [
+        17,
+        74,
+        89,
+        238
+      ],
+      "render_fit": {
+        "font_size": 12,
+        "line_count": 2,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 61,
+        "total_height": 24,
+        "usable_width": 62,
+        "usable_height": 154,
+        "attempted_font_size": 24,
+        "line_height": 12,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "It's Director",
+          "Kimerada."
+        ],
+        "wrap_score": 65.19,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "context_after": "遠藤達哉",
+      "context_before_window": [
+        "わたしがひみつそしき〈ぴーつー〉のぼす"
+      ],
+      "context_after_window": [
+        "遠藤達哉",
+        "きみがあたらしくはいったしんじんくんだね"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "I'm the director.",
+      "qwen_raw_translation": "{\"translation\":\"It's Director Kimerada.\",\"confidence\":0.95}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_candidate": "It's Director Kimerada.",
+      "qwen_verify_choice": "correction",
+      "qwen_verify_reason": "Target text explicitly names the speaker as Kimerada.",
+      "qwen_raw_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"It's Director Kimerada.\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly names the speaker as Kimerada.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, titles, facts, locations, relationships, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe",
+      "qwen_verified_candidate": "It's Director Kimerada.",
+      "qwen_final": "It's Director Kimerada.",
+      "normalized_source": "きめらちょうかんだ",
+      "prepared_source": "きめら長官だ",
+      "glossary_source_replacements": [
+        {
+          "source": "ちょうかん",
+          "target": "長官"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        388,
+        282,
+        461,
+        293
+      ],
+      "confidence": 1.0,
+      "source_text": "遠藤達哉",
+      "status": "rendered",
+      "metadata": {
+        "language": "unknown",
+        "vertical": false,
+        "lines": [
+          [
+            [
+              388,
+              282
+            ],
+            [
+              461,
+              282
+            ],
+            [
+              461,
+              293
+            ],
+            [
+              388,
+              293
+            ]
+          ]
+        ],
+        "translation_group_id": 3,
+        "translation_group_size": 1
+      },
+      "translated_text": "Fujido",
+      "page_order": 3,
+      "erase_box": [
+        380,
+        274,
+        469,
+        301
+      ],
+      "render_box": [
+        376,
+        265,
+        474,
+        310
+      ],
+      "render_fit": {
+        "font_size": 28,
+        "line_count": 1,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 77,
+        "total_height": 28,
+        "usable_width": 82,
+        "usable_height": 29,
+        "attempted_font_size": 28,
+        "line_height": 28,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "Fujido"
+        ],
+        "wrap_score": 0.0,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          28,
+          27,
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "きめらちょうかんだ",
+      "context_after": "きみがあたらしくはいったしんじんくんだね",
+      "context_before_window": [
+        "わたしがひみつそしき〈ぴーつー〉のぼす",
+        "きめらちょうかんだ"
+      ],
+      "context_after_window": [
+        "きみがあたらしくはいったしんじんくんだね",
+        "すいぞくかんからきたべんぎんともうするます"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "Fujido.",
+      "qwen_raw_translation": "{\"translation\":\"Fujido.\",\"confidence\":0.9}\n\n{\"translation\":\"Fujido.\",\"confidence\":0.9}\n\n**Analysis:**\n1.  **Source Text:** \"遠藤達哉\" (Endou Tatsuya).\n2.  **Baseline:** \"Fujido.\"\n3.  **Context:**\n    *   Previous: \"きめらちょうかんだ\" (Kimerachoukanda - likely \"K",
+      "qwen_candidate": "Fujido",
+      "qwen_verify_choice": "baseline",
+      "qwen_verify_reason": "Target text is a proper name requiring no modification.",
+      "qwen_raw_verification": "{\"choice\":\"baseline\",\"ok\":false,\"translation\":\"Fujido.\",\"unsupported_terms\":[],\"reason\":\"Target text is a proper name requiring no modification.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Read the context window to check speaker continuity, pronouns, tone, and known terms.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, or backstory.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe target bubble is the only text being translated. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported",
+      "qwen_verified_candidate": null,
+      "qwen_raw_repair": "{\"translation\": \"Fujido\", \"confidence\": 0.8}\n\n<think>\nTask: Repair one failed Japanese-to-English manga bubble translation.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nTranslate only TARGET. Do not translate neighboring context lines.\nDo not copy baseline or candidate if they contain hallucinations, garbage words, or unsupported details.\nIf OCR is uncertain, give the shortest faithful English approximation.\nKeep the English short enough for a manga bubble, usually 16 words or here.\nPreserve Japanese honorifics as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.\nPrevious context, oldest",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "Fujido",
+      "qwen_repair_verify_choice": "candidate",
+      "qwen_repair_verify_reason": "Target text is a proper name matching baseline.",
+      "qwen_raw_repair_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"Fujido\",\"unsupported_terms\":[],\"reason\":\"Target text is a proper name matching baseline.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts,\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe target bubble is the onomatopoeia.\nThe target bubble is the only text being",
+      "qwen_repair_verified_candidate": "Fujido",
+      "qwen_repair_accepted": true,
+      "qwen_final": "Fujido",
+      "normalized_source": "遠藤達哉"
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        42,
+        323,
+        82,
+        512
+      ],
+      "confidence": 1.0,
+      "source_text": "すいぞくかんからきたべんぎんともうするます",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              63,
+              323
+            ],
+            [
+              81,
+              323
+            ],
+            [
+              81,
+              501
+            ],
+            [
+              63,
+              501
+            ]
+          ],
+          [
+            [
+              42,
+              324
+            ],
+            [
+              60,
+              324
+            ],
+            [
+              60,
+              512
+            ],
+            [
+              42,
+              512
+            ]
+          ]
+        ],
+        "translation_group_id": 4,
+        "translation_group_size": 1
+      },
+      "translated_text": "I'm a penguin from the aquarium.",
+      "page_order": 5,
+      "erase_box": [
+        34,
+        315,
+        90,
+        520
+      ],
+      "render_box": [
+        14,
+        318,
+        109,
+        516
+      ],
+      "render_fit": {
+        "font_size": 9,
+        "line_count": 2,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 78,
+        "total_height": 20,
+        "usable_width": 83,
+        "usable_height": 186,
+        "attempted_font_size": 26,
+        "line_height": 10,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "I'm a penguin from",
+          "the aquarium."
+        ],
+        "wrap_score": 89.64,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "きみがあたらしくはいったしんじんくんだね",
+      "context_after": "よろろすおねがいするます",
+      "context_before_window": [
+        "遠藤達哉",
+        "きみがあたらしくはいったしんじんくんだね"
+      ],
+      "context_after_window": [
+        "よろろすおねがいするます",
+        "うむ"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "I'm a penguin from the aquarium.",
+      "qwen_raw_translation": "{\"translation\":\"I'm a penguin from the aquarium.\",\"confidence\":0.95}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_candidate": "I'm a penguin from the aquarium.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text and context match candidate exactly.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"I'm a penguin from the aquarium.\",\"unsupported_terms\":[],\"reason\":\"Target text and context match candidate exactly.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, or actions.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe target bubble is the other text being translated",
+      "qwen_verified_candidate": "I'm a penguin from the aquarium.",
+      "qwen_final": "I'm a penguin from the aquarium.",
+      "normalized_source": "すいぞくかんからきたべんぎんともうするます",
+      "prepared_source": "水族館からきたペンギンと申します",
+      "glossary_source_replacements": [
+        {
+          "source": "すいぞくかん",
+          "target": "水族館"
+        },
+        {
+          "source": "もうするます",
+          "target": "申します"
+        },
+        {
+          "source": "べんぎん",
+          "target": "ペンギン"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        374,
+        339,
+        435,
+        502
+      ],
+      "confidence": 1.0,
+      "source_text": "きみがあたらしくはいったしんじんくんだね",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              415,
+              340
+            ],
+            [
+              435,
+              340
+            ],
+            [
+              435,
+              393
+            ],
+            [
+              415,
+              393
+            ]
+          ],
+          [
+            [
+              393,
+              339
+            ],
+            [
+              412,
+              339
+            ],
+            [
+              413,
+              502
+            ],
+            [
+              395,
+              502
+            ]
+          ],
+          [
+            [
+              374,
+              340
+            ],
+            [
+              391,
+              340
+            ],
+            [
+              391,
+              479
+            ],
+            [
+              374,
+              479
+            ]
+          ]
+        ],
+        "translation_group_id": 5,
+        "translation_group_size": 1
+      },
+      "translated_text": "You're a new guy, right?",
+      "page_order": 4,
+      "erase_box": [
+        366,
+        331,
+        443,
+        510
+      ],
+      "render_box": [
+        374,
+        339,
+        435,
+        502
+      ],
+      "render_fit": {
+        "font_size": 11,
+        "line_count": 3,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 51,
+        "total_height": 33,
+        "usable_width": 53,
+        "usable_height": 155,
+        "attempted_font_size": 22,
+        "line_height": 11,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "You're",
+          "a new",
+          "guy, right?"
+        ],
+        "wrap_score": 68.143,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "遠藤達哉",
+      "context_after": "すいぞくかんからきたべんぎんともうするます",
+      "context_before_window": [
+        "きめらちょうかんだ",
+        "遠藤達哉"
+      ],
+      "context_after_window": [
+        "すいぞくかんからきたべんぎんともうするます",
+        "よろろすおねがいするます"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "You seem like you're the one who's getting on my nerves.",
+      "qwen_raw_translation": "{\"translation\":\"You seem like you're the previous bubble context: 遠藤達哉\nTarget Japanese bubble: きみがあたらしくはいったしんじんくんだね\nNext bubble context: すいぞくかんからきたべんぎんともうするます\nBaseline English translation: You seem like you're the one who's getting on my nerves.\nJSON: {\"translation\":\"You seem like you're the one who's getting on my nerves.\",\"confidence",
+      "qwen_candidate": "You're a new guy, right?",
+      "qwen_raw_repair": "{\"translation\":\"You're a new guy, right?\",\"confidence\":0.9}\n\n### Analysis\n1.  **Source Text**: `きみがあたらしくはいったしんじんくんだね`\n    *   `きみ` (kimi): You.\n    *   `が` (ga): Subject marker.\n    *   `あたらしい` (atarashii): New / Fresh.\n    *   `は` (wa): Topic marker.\n    *   `いった` (itta): Past tense of `いる` (iru - to be/present), but here functioning as part of the phrase `はいった` (haitta - entered/came into). Wait, `はいった` is `入った` (entered).\n    *   `しんじん` (shinjin): Newcomer / New person.\n    *   `くんだ` (kunda): Past tense of `きう` (kiu - to sound like / to be / to act like)? No, `きう` is archaic or dialect?\n    *   Let's re-parse: `きみ` (you) `が` (subject) `あたらしい` (new",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "You're a new guy, right?",
+      "qwen_repair_verify_choice": "correction",
+      "qwen_repair_verify_reason": "Target text explicitly mentions 'new resident' and 'you'.",
+      "qwen_raw_repair_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"You're a new guy, right?\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly mentions 'new resident' and 'you'.\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly mentions 'new resident' and 'you'.\"}\n\n{\"choice\":\"correction\",\"ok\":true,\"translation\":\"You're a new guy, right?\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly mentions 'new resident' and 'you'.\"}\n\n**Correction** is the correct choice because the baseline adds \"getting on my nerves\" which is not in the source text, while the candidate captures the core meaning of \"new resident\" and the questioning tone.\n\n```json\n{\"choice\":\"correction\",\"ok\":true,\"translation\":\"You're a new guy, right?\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly mentions 'new resident' and 'you'.\"}",
+      "qwen_repair_verified_candidate": "You're a new guy, right?",
+      "qwen_repair_accepted": true,
+      "qwen_final": "You're a new guy, right?",
+      "normalized_source": "きみがあたらしくはいったしんじんくんだね"
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        2,
+        601,
+        27,
+        787
+      ],
+      "confidence": 1.0,
+      "source_text": "レッツ愉楽！一人三役っ♪",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              4,
+              603
+            ],
+            [
+              21,
+              603
+            ],
+            [
+              20,
+              782
+            ],
+            [
+              3,
+              782
+            ]
+          ]
+        ],
+        "translation_group_id": 6,
+        "translation_group_size": 1
+      },
+      "translated_text": "Let's play! One by three! ♪",
+      "page_order": 8,
+      "erase_box": [
+        0,
+        593,
+        35,
+        795
+      ],
+      "render_box": [
+        0,
+        596,
+        61,
+        690
+      ],
+      "render_fit": {
+        "font_size": 15,
+        "line_count": 4,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 49,
+        "total_height": 60,
+        "usable_width": 53,
+        "usable_height": 86,
+        "attempted_font_size": 15,
+        "line_height": 15,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "Let's",
+          "play!",
+          "One by",
+          "three! ♪"
+        ],
+        "wrap_score": 15.0,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "layout_warnings": [
+        "render_box_touches_page_edge"
+      ],
+      "context_before": "うむ",
+      "context_after": null,
+      "context_before_window": [
+        "よろろすおねがいするます",
+        "うむ"
+      ],
+      "context_after_window": [],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "Let's play! ♪ One by three ♪",
+      "qwen_raw_translation": "{\"translation\":\"Let's play! One by three! ♪\",\"confidence\":0.8}\nTask: Improve the baseline translation of one Japanese manga bubble.\nAnti-hallucination rules:\n- Translate only the on-screen text.\n- Do not add dialogue, narration, sound effects, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.",
+      "qwen_candidate": "Let's play! One by three! ♪",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Candidate matches target text exactly with better punctuation.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"Let's play! One by three! ♪\",\"unsupported_terms\":[],\"reason\":\"Candidate matches target text exactly with better punctuation.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_verified_candidate": "Let's play! One by three! ♪",
+      "qwen_final": "Let's play! One by three! ♪",
+      "normalized_source": "レッツ愉楽!一人三役っ♪",
+      "vision_attempted": true,
+      "vision_model": "manga-qwen35-9b-q4-k-m-vision",
+      "vision_mode": "numbered_page",
+      "vision_trigger": "suspicious",
+      "vision_line_id": "1_008",
+      "vision_number": 8,
+      "vision_issue": "layout:render_box_touches_page_edge",
+      "vision_trigger_reason": "layout:render_box_touches_page_edge",
+      "vision_structural_error": null,
+      "vision_translation": "Let's have fun! Playing three roles in one! ♪",
+      "vision_source_text": "レッツ愉楽！一人三役っ♪",
+      "vision_accepted": false,
+      "vision_reject_reason": "needs_review",
+      "vision_final_source": "text",
+      "speaker": null,
+      "speaker_confidence": "low",
+      "situation": "character exclaiming enthusiastically, likely mid-scene or start of a skit/game",
+      "visual_evidence_type": "direct",
+      "visual_evidence": "speech bubble is large and centered, character appears to be smiling or excited, bubble touches right page edge",
+      "needs_review": true,
+      "risk_flags": [
+        "layout:render_box_touches_page_edge"
+      ],
+      "vision_warnings": [],
+      "vision_raw_prompt": "/no_think\nYou are a professional manga translation QA assistant.\nTask: review only the numbered lines listed below.\nAnti-hallucination rules:\n- Translate only the provided source_text fields.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Do not use the image to correct Japanese OCR.\n- The image is visual context only; never treat it as the source of text.\n- If uncertain, become less specific, not more creative.\n- visual_evidence must mention only observable facts from the image.\n- If no observable visual fact helped, use visual_evidence_type=\"none\" and visual_evidence=\"not visually informed\".\n- Set needs_review=true and add risk_flags when mapping, OCR, speaker, or visual evidence is uncertain.\nThe provided Japanese OCR/source text is authoritative. Do not OCR Japanese from the image.\nUse the page image only for speaker, emotion, scene, objects, bubble location, and whether the current English is visually plausible.\nReturn JSON only. Do not use markdown fences. Do not include thinking text.\nFor each input line, return exactly one object with the same line_id, number, and source_text copied exactly.\nUse action=\"replace\" only when the image clearly supports a better concise English translation.\nUse action=\"keep\" when the current translation is acceptable or the image is uncertain.\nKeep translations short enough for manga bubbles.\nPreserve Japanese honorifics as romanized suffixes like san, sama, chan, kun, senpai, sensei.\nRequired fields in every output line object: line_id, number, action, translation, source_text, speaker, speaker_confidence, situation, visual_evidence_type, visual_evidence, confidence, needs_review, risk_flags, warnings.\nAllowed action values: replace, keep.\nAllowed speaker_confidence values: low, medium, high.\nAllowed visual_evidence_type values: none, weak, direct.\nOutput wrapper must be exactly: {\"lines\":[...]}\nExample output shape: {\"lines\":[{\"line_id\":\"example_001\",\"number\":1,\"action\":\"keep\",\"translation\":\"Current English.\",\"source_text\":\"日本語\",\"speaker\":\"unknown\",\"speaker_confidence\":\"low\",\"situation\":null,\"visual_evidence_type\":\"none\",\"visual_evidence\":\"not visually informed\",\"confidence\":\"medium\",\"needs_review\":false,\"risk_flags\":[],\"warnings\":[]}]}\nVision mode: numbered_page\nLines to review:\n[{\"line_id\":\"1_008\",\"number\":8,\"source_text\":\"レッツ愉楽！一人三役っ♪\",\"current_translation\":\"Let's play! One by three! ♪\",\"issue\":\"layout:render_box_touches_page_edge\"}]\nJSON:",
+      "vision_raw_response": "{\"lines\":[{\"line_id\":\"1_008\",\"number\":8,\"action\":\"replace\",\"translation\":\"Let's have fun! Playing three roles in one! ♪\",\"source_text\":\"レッツ愉楽！一人三役っ♪\",\"speaker\":\"unknown\",\"speaker_confidence\":\"low\",\"situation\":\"character exclaiming enthusiastically, likely mid-scene or start of a skit/game\",\"visual_evidence_type\":\"direct\",\"visual_evidence\":\"speech bubble is large and centered, character appears to be smiling or excited, bubble touches right page edge\",\"confidence\":\"high\",\"needs_review\":true,\"risk_flags\":[\"layout:render_box_touches_page_edge\"],\"warnings\":[]}]}",
+      "vision_json_repair_attempted": false,
+      "vision_json_repair_used": false,
+      "vision_raw_json_repair_prompt": "",
+      "vision_raw_json_repair_response": ""
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        406,
+        623,
+        445,
+        761
+      ],
+      "confidence": 1.0,
+      "source_text": "よろろすおねがいするます",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              429,
+              623
+            ],
+            [
+              445,
+              623
+            ],
+            [
+              445,
+              692
+            ],
+            [
+              429,
+              692
+            ]
+          ],
+          [
+            [
+              406,
+              623
+            ],
+            [
+              423,
+              623
+            ],
+            [
+              423,
+              761
+            ],
+            [
+              407,
+              761
+            ]
+          ]
+        ],
+        "translation_group_id": 7,
+        "translation_group_size": 1
+      },
+      "translated_text": "Nice to meet you.",
+      "page_order": 6,
+      "erase_box": [
+        398,
+        615,
+        453,
+        769
+      ],
+      "render_box": [
+        368,
+        620,
+        461,
+        764
+      ],
+      "render_fit": {
+        "font_size": 18,
+        "line_count": 2,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 79,
+        "total_height": 36,
+        "usable_width": 81,
+        "usable_height": 132,
+        "attempted_font_size": 28,
+        "line_height": 18,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "Nice to",
+          "meet you."
+        ],
+        "wrap_score": 89.562,
+        "wrap_warnings": [
+          "weak_line_end"
+        ],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          28,
+          27,
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "bubble_box": [
+        359,
+        601,
+        470,
+        783
+      ],
+      "context_before": "すいぞくかんからきたべんぎんともうするます",
+      "context_after": "うむ",
+      "context_before_window": [
+        "きみがあたらしくはいったしんじんくんだね",
+        "すいぞくかんからきたべんぎんともうするます"
+      ],
+      "context_after_window": [
+        "うむ",
+        "レッツ愉楽！一人三役っ♪"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": false,
+      "qwen_reason": "phrasebook",
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "normalized_source": "よろろすおねがいするます",
+      "prepared_source": "よろしくお願いします",
+      "glossary_source_replacements": [
+        {
+          "source": "よろろすおねがいするます",
+          "target": "よろしくお願いします"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        66,
+        699,
+        92,
+        748
+      ],
+      "confidence": 1.0,
+      "source_text": "うむ",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              66,
+              699
+            ],
+            [
+              92,
+              699
+            ],
+            [
+              92,
+              748
+            ],
+            [
+              66,
+              748
+            ]
+          ]
+        ],
+        "translation_group_id": 8,
+        "translation_group_size": 1
+      },
+      "translated_text": "Hmm.",
+      "page_order": 7,
+      "erase_box": [
+        58,
+        691,
+        100,
+        756
+      ],
+      "render_box": [
+        27,
+        695,
+        131,
+        752
+      ],
+      "render_fit": {
+        "font_size": 28,
+        "line_count": 1,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 74,
+        "total_height": 28,
+        "usable_width": 96,
+        "usable_height": 49,
+        "attempted_font_size": 28,
+        "line_height": 28,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "Hmm."
+        ],
+        "wrap_score": 0.0,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          28,
+          27,
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "よろろすおねがいするます",
+      "context_after": "レッツ愉楽！一人三役っ♪",
+      "context_before_window": [
+        "すいぞくかんからきたべんぎんともうするます",
+        "よろろすおねがいするます"
+      ],
+      "context_after_window": [
+        "レッツ愉楽！一人三役っ♪"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": false,
+      "qwen_reason": "phrasebook",
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "normalized_source": "うむ"
+    }
+  ],
+  "translation_groups": [
+    {
+      "group_id": 1,
+      "box": [
+        390,
+        56,
+        431,
+        235
+      ],
+      "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "members": [
+        {
+          "box": [
+            390,
+            56,
+            431,
+            235
+          ],
+          "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 2,
+      "box": [
+        44,
+        77,
+        62,
+        234
+      ],
+      "source_text": "きめらちょうかんだ",
+      "members": [
+        {
+          "box": [
+            44,
+            77,
+            62,
+            234
+          ],
+          "source_text": "きめらちょうかんだ",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 3,
+      "box": [
+        388,
+        282,
+        461,
+        293
+      ],
+      "source_text": "遠藤達哉",
+      "members": [
+        {
+          "box": [
+            388,
+            282,
+            461,
+            293
+          ],
+          "source_text": "遠藤達哉",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 4,
+      "box": [
+        42,
+        323,
+        82,
+        512
+      ],
+      "source_text": "すいぞくかんからきたべんぎんともうするます",
+      "members": [
+        {
+          "box": [
+            42,
+            323,
+            82,
+            512
+          ],
+          "source_text": "すいぞくかんからきたべんぎんともうするます",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 5,
+      "box": [
+        374,
+        339,
+        435,
+        502
+      ],
+      "source_text": "きみがあたらしくはいったしんじんくんだね",
+      "members": [
+        {
+          "box": [
+            374,
+            339,
+            435,
+            502
+          ],
+          "source_text": "きみがあたらしくはいったしんじんくんだね",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 6,
+      "box": [
+        2,
+        601,
+        27,
+        787
+      ],
+      "source_text": "レッツ愉楽！一人三役っ♪",
+      "members": [
+        {
+          "box": [
+            2,
+            601,
+            27,
+            787
+          ],
+          "source_text": "レッツ愉楽！一人三役っ♪",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 7,
+      "box": [
+        406,
+        623,
+        445,
+        761
+      ],
+      "source_text": "よろろすおねがいするます",
+      "members": [
+        {
+          "box": [
+            406,
+            623,
+            445,
+            761
+          ],
+          "source_text": "よろろすおねがいするます",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 8,
+      "box": [
+        66,
+        699,
+        92,
+        748
+      ],
+      "source_text": "うむ",
+      "members": [
+        {
+          "box": [
+            66,
+            699,
+            92,
+            748
+          ],
+          "source_text": "うむ",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    }
+  ],
+  "page_order": [
+    {
+      "page_order": 1,
+      "box": [
+        390,
+        56,
+        431,
+        235
+      ],
+      "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "detector": "ctd",
+      "context_after": "きめらちょうかんだ",
+      "context_before_window": [],
+      "context_after_window": [
+        "きめらちょうかんだ",
+        "遠藤達哉"
+      ]
+    },
+    {
+      "page_order": 2,
+      "box": [
+        44,
+        77,
+        62,
+        234
+      ],
+      "source_text": "きめらちょうかんだ",
+      "detector": "ctd",
+      "context_before": "わたしがひみつそしき〈ぴーつー〉のぼす",
+      "context_after": "遠藤達哉",
+      "context_before_window": [
+        "わたしがひみつそしき〈ぴーつー〉のぼす"
+      ],
+      "context_after_window": [
+        "遠藤達哉",
+        "きみがあたらしくはいったしんじんくんだね"
+      ]
+    },
+    {
+      "page_order": 3,
+      "box": [
+        388,
+        282,
+        461,
+        293
+      ],
+      "source_text": "遠藤達哉",
+      "detector": "ctd",
+      "context_before": "きめらちょうかんだ",
+      "context_after": "きみがあたらしくはいったしんじんくんだね",
+      "context_before_window": [
+        "わたしがひみつそしき〈ぴーつー〉のぼす",
+        "きめらちょうかんだ"
+      ],
+      "context_after_window": [
+        "きみがあたらしくはいったしんじんくんだね",
+        "すいぞくかんからきたべんぎんともうするます"
+      ]
+    },
+    {
+      "page_order": 4,
+      "box": [
+        374,
+        339,
+        435,
+        502
+      ],
+      "source_text": "きみがあたらしくはいったしんじんくんだね",
+      "detector": "ctd",
+      "context_before": "遠藤達哉",
+      "context_after": "すいぞくかんからきたべんぎんともうするます",
+      "context_before_window": [
+        "きめらちょうかんだ",
+        "遠藤達哉"
+      ],
+      "context_after_window": [
+        "すいぞくかんからきたべんぎんともうするます",
+        "よろろすおねがいするます"
+      ]
+    },
+    {
+      "page_order": 5,
+      "box": [
+        42,
+        323,
+        82,
+        512
+      ],
+      "source_text": "すいぞくかんからきたべんぎんともうするます",
+      "detector": "ctd",
+      "context_before": "きみがあたらしくはいったしんじんくんだね",
+      "context_after": "よろろすおねがいするます",
+      "context_before_window": [
+        "遠藤達哉",
+        "きみがあたらしくはいったしんじんくんだね"
+      ],
+      "context_after_window": [
+        "よろろすおねがいするます",
+        "うむ"
+      ]
+    },
+    {
+      "page_order": 6,
+      "box": [
+        406,
+        623,
+        445,
+        761
+      ],
+      "source_text": "よろろすおねがいするます",
+      "detector": "ctd",
+      "context_before": "すいぞくかんからきたべんぎんともうするます",
+      "context_after": "うむ",
+      "context_before_window": [
+        "きみがあたらしくはいったしんじんくんだね",
+        "すいぞくかんからきたべんぎんともうするます"
+      ],
+      "context_after_window": [
+        "うむ",
+        "レッツ愉楽！一人三役っ♪"
+      ]
+    },
+    {
+      "page_order": 7,
+      "box": [
+        66,
+        699,
+        92,
+        748
+      ],
+      "source_text": "うむ",
+      "detector": "ctd",
+      "context_before": "よろろすおねがいするます",
+      "context_after": "レッツ愉楽！一人三役っ♪",
+      "context_before_window": [
+        "すいぞくかんからきたべんぎんともうするます",
+        "よろろすおねがいするます"
+      ],
+      "context_after_window": [
+        "レッツ愉楽！一人三役っ♪"
+      ]
+    },
+    {
+      "page_order": 8,
+      "box": [
+        2,
+        601,
+        27,
+        787
+      ],
+      "source_text": "レッツ愉楽！一人三役っ♪",
+      "detector": "ctd",
+      "context_before": "うむ",
+      "context_before_window": [
+        "よろろすおねがいするます",
+        "うむ"
+      ],
+      "context_after_window": []
+    }
+  ],
+  "skipped_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        280,
+        17,
+        433,
+        31
+      ],
+      "confidence": 1.0,
+      "source_text": "ＳＨＯＲＴＭｅｓｉＯＮ",
+      "metadata": {
+        "language": "unknown",
+        "vertical": false,
+        "lines": [
+          [
+            [
+              280,
+              17
+            ],
+            [
+              433,
+              18
+            ],
+            [
+              433,
+              31
+            ],
+            [
+              280,
+              30
+            ]
+          ]
+        ]
+      },
+      "reason": "non_japanese_text"
+    }
+  ],
+  "fallback_blocks": [],
+  "vision": {
+    "mode": "numbered_page",
+    "image_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\1.vision.png",
+    "number_map": [
+      {
+        "number": 1,
+        "line_id": "1_001",
+        "order_index": 1,
+        "source_text": "わたしがひみつそしき〈ぴーつー〉のぼす",
+        "translated_text": "I'm the boss of the secret organization.",
+        "box": [
+          390,
+          56,
+          431,
+          235
+        ]
+      },
+      {
+        "number": 2,
+        "line_id": "1_002",
+        "order_index": 2,
+        "source_text": "きめらちょうかんだ",
+        "translated_text": "It's Director Kimerada.",
+        "box": [
+          44,
+          77,
+          62,
+          234
+        ]
+      },
+      {
+        "number": 3,
+        "line_id": "1_003",
+        "order_index": 3,
+        "source_text": "遠藤達哉",
+        "translated_text": "Fujido",
+        "box": [
+          388,
+          282,
+          461,
+          293
+        ]
+      },
+      {
+        "number": 4,
+        "line_id": "1_004",
+        "order_index": 4,
+        "source_text": "きみがあたらしくはいったしんじんくんだね",
+        "translated_text": "You're a new guy, right?",
+        "box": [
+          374,
+          339,
+          435,
+          502
+        ]
+      },
+      {
+        "number": 5,
+        "line_id": "1_005",
+        "order_index": 5,
+        "source_text": "すいぞくかんからきたべんぎんともうするます",
+        "translated_text": "I'm a penguin from the aquarium.",
+        "box": [
+          42,
+          323,
+          82,
+          512
+        ]
+      },
+      {
+        "number": 6,
+        "line_id": "1_006",
+        "order_index": 6,
+        "source_text": "よろろすおねがいするます",
+        "translated_text": "Nice to meet you.",
+        "box": [
+          406,
+          623,
+          445,
+          761
+        ]
+      },
+      {
+        "number": 7,
+        "line_id": "1_007",
+        "order_index": 7,
+        "source_text": "うむ",
+        "translated_text": "Hmm.",
+        "box": [
+          66,
+          699,
+          92,
+          748
+        ]
+      },
+      {
+        "number": 8,
+        "line_id": "1_008",
+        "order_index": 8,
+        "source_text": "レッツ愉楽！一人三役っ♪",
+        "translated_text": "Let's play! One by three! ♪",
+        "box": [
+          2,
+          601,
+          27,
+          787
+        ]
+      }
+    ],
+    "preprocessing_warnings": [
+      "tiny_label_region:1_002",
+      "tiny_label_region:1_003",
+      "tiny_label_region:1_007",
+      "tiny_label_region:1_008"
+    ]
+  }
+}

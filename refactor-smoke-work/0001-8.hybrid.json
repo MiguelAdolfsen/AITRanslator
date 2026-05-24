@@ -1,0 +1,549 @@
+{
+  "version": 1,
+  "image_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\mangafolder\\8.png",
+  "output_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\refactor-smoke-qwen-fallback.png",
+  "translations": {
+    "よしついてこいおまえら！２ばんがいのおかしやさんがわるものにのっとられた！たすけれいく": "All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.",
+    "え．．．？": "Huh?",
+    "さ．．．さすがっす先輩．．．！": "Saa... Sasuga desu, senpai...!",
+    "クスクス": "Hehe.",
+    "きをつけろてきのわながしかけられてるかもしれない": "Watch out. There may be an enemy's trap set.",
+    "何あれ": "What's that?",
+    "仲良し家族ねー": "We're a close family.",
+    "目立ってはいけない．．．": "Don't stand out...",
+    "．．．．．．！スパイは": "...! A spy.",
+    "フォージャー家は事なきを得た全てはこの笑顔のため．．．！": "The Forger family was spared from disaster thanks to this smile!",
+    "その後お菓子を買ってもらったアーニャは機嫌を直し": "After that, Anya got a treat to cheer her up."
+  },
+  "translation_contexts": {
+    "よしついてこいおまえら！２ばんがいのおかしやさんがわるものにのっとられた！たすけれいく": {
+      "context_before": null,
+      "context_after": "え．．．？",
+      "context_before_window": [],
+      "context_after_window": [
+        "え．．．？",
+        "きをつけろてきのわながしかけられてるかもしれない"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "All right, follow me, boys! The second-way candy shop has been taken over by the bad guys! I'm going to get you.",
+      "qwen_raw_translation": "{\"translation\":\"All right, follow me, boys! The second-way candy shop has been taken over by the bad guys! I'm going to get you.\",\"confidence\":0.0}\n\n{\"translation\":\"All right, follow me, boys! The candy shop in the second district has been taken over by the bad guys! I'm going to go save you!\",\"confidence\":0.95}\n\n**Analysis of Improvements:**\n1.  **\"2番",
+      "qwen_candidate": "All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "verified_candidate_rejected:known_hallucination_artifact",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"All right, follow me, boys! The second-way candy shop has been giving you a ride! I'm going to get you.\",\"unsupported_terms\":[],\"reason\":\"Target says shop taken over, not giving a ride.\"}\nExample 1:\nTarget Japanese bubble: よしついてこいおまえら!2番街のお菓子屋さんが悪者に乗っ取られた!助けに行く\nNext bubble context: え…?\nLater context window:\n  - 1: え…?\n  - 2: きをつけろてきのわながしかけられてるかもしれない\nBaseline English translation: All right, follow me, boys! The second-way candy shop has been taken over by the bad guys! I'm going to get you.\nProposed English translation: [invalid candidate: known_hallucination_artifact]\nJSON: {\"choice\":\"baseline\",\"ok",
+      "qwen_verified_candidate": "All right, follow me, boys! The second-way candy shop has been giving you a ride! I'm going to get you.",
+      "qwen_raw_repair": "{\"translation\":\"All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.\",\"confidence\":0.95}\n\n**Analysis of the repair:**\n1.  **Segmentation & Parsing**:\n    *   `よし` (Yoshi): \"All right\" / \"Okay\".\n    *   `ついてこい` (tsuitekoi): Imperative \"follow me\" / \"come along\".\n    *   `おまえら` (omairra): \"You lot\" / \"you guys\" (plural).\n    *   `2番街` (2-bangai): \"2nd Street\" / \"2nd Avenue\".\n    *   `お菓子屋さん` (okashiya-san): \"Candy shop owner\" / \"Candy shop\" (honorific `san` retained).\n    *   `が` (ga): Subject marker.\n    *   `悪者` (warumono): \"Bad guys\" / \"villains\".\n    *   `に` (ni): Target marker.\n    *   `乗っ取られた` (nottor",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.",
+      "qwen_repair_verify_choice": "candidate",
+      "qwen_repair_verify_reason": "Candidate matches target; baseline adds 'boys' and 'get you'.",
+      "qwen_raw_repair_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.\",\"unsupported_terms\":[],\"reason\":\"Candidate matches target; baseline adds 'boys' and 'get you'. \"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_repair_verified_candidate": "All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.",
+      "qwen_repair_accepted": true,
+      "qwen_final": "All right, come along, you lot! The candy shop on 2nd Street has been taken over by the bad guys! I'm going to save you.",
+      "normalized_source": "よしついてこいおまえら!2ばんがいのおかしやさんがわるものにのっとられた!たすけれいく",
+      "prepared_source": "よしついてこいおまえら!2番街のお菓子屋さんが悪者に乗っ取られた!助けに行く",
+      "glossary_source_replacements": [
+        {
+          "source": "おかしやさん",
+          "target": "お菓子屋さん"
+        },
+        {
+          "source": "のっとられた",
+          "target": "乗っ取られた"
+        },
+        {
+          "source": "たすけれいく",
+          "target": "助けに行く"
+        },
+        {
+          "source": "わるもの",
+          "target": "悪者"
+        },
+        {
+          "source": "2ばんがい",
+          "target": "2番街"
+        }
+      ]
+    },
+    "え．．．？": {
+      "context_before": "よしついてこいおまえら！２ばんがいのおかしやさんがわるものにのっとられた！たすけれいく",
+      "context_after": "きをつけろてきのわながしかけられてるかもしれない",
+      "context_before_window": [
+        "よしついてこいおまえら！２ばんがいのおかしやさんがわるものにのっとられた！たすけれいく"
+      ],
+      "context_after_window": [
+        "きをつけろてきのわながしかけられてるかもしれない",
+        "さ．．．さすがっす先輩．．．！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": false,
+      "qwen_reason": "phrasebook",
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "normalized_source": "え…?"
+    },
+    "さ．．．さすがっす先輩．．．！": {
+      "context_before": "きをつけろてきのわながしかけられてるかもしれない",
+      "context_after": "クスクス",
+      "context_before_window": [
+        "え．．．？",
+        "きをつけろてきのわながしかけられてるかもしれない"
+      ],
+      "context_after_window": [
+        "クスクス",
+        "何あれ"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "What are you talking about?",
+      "qwen_raw_translation": "{\n  \"translation\": \"Saa... Sasuga desu, senpai...!\",\n  \"confidence\": 0.95\n}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_candidate": "Saa... Sasuga desu, senpai...!",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "contradictory_verifier_reason:Context shows praise; baseline drifts to question.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"Saa... Sasuga desu, senpai...!\",\"unsupported_terms\":[],\"reason\":\"Context shows praise; baseline drifts to question.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the admiration. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, direct fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.",
+      "qwen_verified_candidate": "Saa... Sasuga desu, senpai...!",
+      "qwen_raw_repair": "{\"translation\":\"Saa... Sasuga desu, senpai...!\",\"confidence\":0.8}\n<think>\nTask: Repair one failed Japanese-to-English manga bubble translation.\nTranslate only TARGET. Do not translate neighboring context lines.\nUse context only for pronouns, speaker intent, tone, and recurring terms.\nDo not copy baseline or candidate if they contain hallucinations, garbage words, or unsupported details.\nDo not invent nouns, events, names, numbers, jokes, relationships, locations, or actions.\nIf OCR is uncertain, give the shortest faithful English approximation.\nKeep the English short enough for a manga bubble, usually 16 words or fewer.\nPreserve Japanese honorifics as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.\nPrevious context, oldest to newest:\n1. え…?\n2. きをつけろてきのわながしかけられてるかもしれない\nTARGET Japanese bubble: さ…さすがっす先輩…!\nNext context, nearest to farthest:\n1. クスクス\n2. 何あれ\nRejected baseline English: What are you talking about?\nRejected candidate English: S",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "Saa... Sasuga desu, senpai...!",
+      "qwen_repair_verify_choice": "candidate",
+      "qwen_repair_verify_reason": "Target text explicitly includes honorific and interjection.",
+      "qwen_raw_repair_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"Saa... Sasuga desu, senpai...!\",\"unsupported_terms\":[],\"reason\":\"Target text explicitly includes honorific and interjection.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the internal monologue.\nThe target bubble is the only text being translated. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, direct fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama",
+      "qwen_repair_verified_candidate": "Saa... Sasuga desu, senpai...!",
+      "qwen_repair_accepted": true,
+      "qwen_final": "Saa... Sasuga desu, senpai...!",
+      "normalized_source": "さ…さすがっす先輩…!"
+    },
+    "クスクス": {
+      "context_before": "さ．．．さすがっす先輩．．．！",
+      "context_after": "何あれ",
+      "context_before_window": [
+        "きをつけろてきのわながしかけられてるかもしれない",
+        "さ．．．さすがっす先輩．．．！"
+      ],
+      "context_after_window": [
+        "何あれ",
+        "仲良し家族ねー"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": false,
+      "qwen_reason": "phrasebook",
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "normalized_source": "クスクス"
+    },
+    "きをつけろてきのわながしかけられてるかもしれない": {
+      "context_before": "え．．．？",
+      "context_after": "さ．．．さすがっす先輩．．．！",
+      "context_before_window": [
+        "よしついてこいおまえら！２ばんがいのおかしやさんがわるものにのっとられた！たすけれいく",
+        "え．．．？"
+      ],
+      "context_after_window": [
+        "さ．．．さすがっす先輩．．．！",
+        "クスクス"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "Watch out. There may be an enemy's trap.",
+      "qwen_raw_translation": "{\"translation\":\"Watch out. There may be an enemy's trap set.\",\"confidence\":0.9}<|endoftext|><|im_start|>\nTask: Improve the baseline translation of one Japanese manga bubble.\nUse context only to resolve references and tone. Do not add story facts.\nPreserve Japanese honorifics as romanized suffixes, for example Yamada san, Hime sama, Miki chan, Taro kun.\nIf the OCR is unclear, keep close to the baseline",
+      "qwen_candidate": "Watch out. There may be an enemy's trap set.",
+      "qwen_verify_choice": "correction",
+      "qwen_verify_reason": "Target verb '仕掛けられてる' requires 'set' for accuracy.",
+      "qwen_raw_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"Watch out. There may be an enemy's trap set.\",\"unsupported_terms\":[],\"reason\":\"Target verb '仕掛けられてる' requires 'set' for accuracy.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the possible text being translated. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, direct fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like",
+      "qwen_verified_candidate": "Watch out. There may be an enemy's trap set.",
+      "qwen_final": "Watch out. There may be an enemy's trap set.",
+      "normalized_source": "きをつけろてきのわながしかけられてるかもしれない",
+      "prepared_source": "気をつけろ敵の罠が仕掛けられてるかもしれない",
+      "glossary_source_replacements": [
+        {
+          "source": "しかけられてる",
+          "target": "仕掛けられてる"
+        },
+        {
+          "source": "きをつけろ",
+          "target": "気をつけろ"
+        },
+        {
+          "source": "てき",
+          "target": "敵"
+        },
+        {
+          "source": "わな",
+          "target": "罠"
+        }
+      ]
+    },
+    "何あれ": {
+      "context_before": "クスクス",
+      "context_after": "仲良し家族ねー",
+      "context_before_window": [
+        "さ．．．さすがっす先輩．．．！",
+        "クスクス"
+      ],
+      "context_after_window": [
+        "仲良し家族ねー",
+        "．．．．．．！スパイは"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "What's that?",
+      "qwen_raw_translation": "{\"translation\":\"What's that?\",\"confidence\":0.95}<|endoftext|><|im_start|>\nTask: Improve the baseline translation of one Japanese manga bubble.\nUse context only to resolve references and tone. Do not add story facts.\nPreserve Japanese honorifics as romanized suffixes, for example Yamada san, Hime sama, Miki chan, Taro kun.\nIf the OCR is unclear, keep close to the baseline instead of guessing.\nReturn",
+      "qwen_candidate": "What's that?",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text matches candidate exactly; baseline is also valid but candidate preferred.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"What's that?\",\"unsupported_terms\":[],\"reason\":\"Target text matches candidate exactly; baseline is also valid but candidate preferred.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the internal monologue.\nUse the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, strict fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or",
+      "qwen_verified_candidate": "What's that?",
+      "qwen_final": "What's that?",
+      "normalized_source": "何あれ"
+    },
+    "仲良し家族ねー": {
+      "context_before": "何あれ",
+      "context_after": "．．．．．．！スパイは",
+      "context_before_window": [
+        "クスクス",
+        "何あれ"
+      ],
+      "context_after_window": [
+        "．．．．．．！スパイは",
+        "目立ってはいけない．．．"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "We're a close family.",
+      "qwen_raw_translation": "{\"translation\":\"We're a close family.\",\"confidence\":0.9}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Improve the baseline translation of one Japanese manga bubble.\nUse context only to resolve references and tone. Do not add story facts.\nPreserve Japanese honorifics as romanized suffixes, for example Yamada san, Hime sama, Miki chan, Taro kun.\nIf the OCR is unclear, keep close to the baseline instead of",
+      "qwen_candidate": "We're a close family.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target and baseline match exactly.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"We're a close family.\",\"unsupported_terms\":[],\"reason\":\"Target and baseline match exactly.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_verified_candidate": "We're a close family.",
+      "qwen_final": "We're a close family.",
+      "normalized_source": "仲良し家族ねー"
+    },
+    "目立ってはいけない．．．": {
+      "context_before": "．．．．．．！スパイは",
+      "context_after": "その後お菓子を買ってもらったアーニャは機嫌を直し",
+      "context_before_window": [
+        "仲良し家族ねー",
+        "．．．．．．！スパイは"
+      ],
+      "context_after_window": [
+        "その後お菓子を買ってもらったアーニャは機嫌を直し",
+        "フォージャー家は事なきを得た全てはこの笑顔のため．．．！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "Don't stand out...",
+      "qwen_raw_translation": "{\"translation\":\"Don't stand out...\",\"confidence\":0.9}\nTask: Improve the baseline translation of one Japanese manga bubble.\nUse context only to resolve references and tone. Do not add story facts.\nPreserve Japanese honorifics as romanized suffixes, for example Yamada san, Hime sama, Miki chan,\nIf the OCR is unclear, keep close to the manga bubble.\nReturn only compact JSON: {\"translation\":\"...\",\"",
+      "qwen_candidate": "Don't stand out...",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text matches candidate exactly.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"Don't stand out...\",\"unsupported_terms\":[],\"reason\":\"Target text matches candidate exactly.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_verified_candidate": "Don't stand out...",
+      "qwen_final": "Don't stand out...",
+      "normalized_source": "目立ってはいけない…"
+    },
+    "．．．．．．！スパイは": {
+      "context_before": "仲良し家族ねー",
+      "context_after": "目立ってはいけない．．．",
+      "context_before_window": [
+        "何あれ",
+        "仲良し家族ねー"
+      ],
+      "context_after_window": [
+        "目立ってはいけない．．．",
+        "その後お菓子を買ってもらったアーニャは機嫌を直し"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "...! A spy.",
+      "qwen_raw_translation": "{\"translation\":\"...! A spy.\",\"confidence\":0.95}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_candidate": "...! A spy.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Candidate matches target exactly with no drift.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"...! A spy.\",\"unsupported_terms\":[],\"reason\":\"Candidate matches target exactly with no drift.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>",
+      "qwen_verified_candidate": "...! A spy.",
+      "qwen_final": "...! A spy.",
+      "normalized_source": "……!スパイは"
+    },
+    "フォージャー家は事なきを得た全てはこの笑顔のため．．．！": {
+      "context_before": "その後お菓子を買ってもらったアーニャは機嫌を直し",
+      "context_after": null,
+      "context_before_window": [
+        "目立ってはいけない．．．",
+        "その後お菓子を買ってもらったアーニャは機嫌を直し"
+      ],
+      "context_after_window": [],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "The Forger family has won everything for this smile!",
+      "qwen_raw_translation": "{\"translation\":\"The Forger family was spared from disaster thanks to this smile!\",\"confidence\":0.9}<|endoftext|><|im_start|>\nTask: Improve the baseline translation of one Japanese manga bubble.\nUse context only to resolve references and tone. Do not add story facts.\nPreserve Japanese honorifics as romanized suffixes, for any example Yamada san, Hime sama, Miki chan, Taro kun.\nIf the OCR is unclear, keep close",
+      "qwen_candidate": "The Forger family was spared from disaster thanks to this smile!",
+      "qwen_verify_choice": "correction",
+      "qwen_verify_reason": "Baseline adds 'won everything' not in target text.",
+      "qwen_raw_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"The Forger family was spared from disaster thanks to this smile!\",\"unsupported_terms\":[],\"reason\":\"Baseline adds 'won everything' not in target text.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the LLM's only text being translated. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, direct fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama, chan, kun",
+      "qwen_verified_candidate": "The Forger family was spared from disaster thanks to this smile!",
+      "qwen_final": "The Forger family was spared from disaster thanks to this smile!",
+      "normalized_source": "フォージャー家は事なきを得た全てはこの笑顔のため…!"
+    },
+    "その後お菓子を買ってもらったアーニャは機嫌を直し": {
+      "context_before": "目立ってはいけない．．．",
+      "context_after": "フォージャー家は事なきを得た全てはこの笑顔のため．．．！",
+      "context_before_window": [
+        "．．．．．．！スパイは",
+        "目立ってはいけない．．．"
+      ],
+      "context_after_window": [
+        "フォージャー家は事なきを得た全てはこの笑顔のため．．．！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "(Laughter)",
+      "qwen_raw_translation": "{\"translation\":\"(Laughter)\",\"confidence\":0.0}\nTarget Japanese bubble: 目立ってはいけない…\nBaseline English translation: (Laughter)\nJSON: {\"translation\":\"(Laughter)\",\"confidence\":0.0}\nTarget Japanese bubble: その後お菓子を買ってもらったアーニャは機嫌を直し\nBaseline English translation: (Laughter)\nJSON: {\"confidence\":0.0}\nTarget Japanese bubble: フォージャー家は",
+      "qwen_candidate": "After that, Anya got a treat to cheer her up.",
+      "qwen_verify_choice": "baseline",
+      "qwen_verify_reason": "Context implies laughter from tone, not literal translation.",
+      "qwen_raw_verification": "{\"choice\":\"baseline\",\"ok\":false,\"translation\":\"(Laughter)\",\"unsupported_terms\":[],\"reason\":\"Context implies laughter from tone, not literal translation.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the character speaking. Use the context window to check speaker continuity, pronouns, tone, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, strict fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.\nSet ok=true only for choice candidate",
+      "qwen_verified_candidate": null,
+      "qwen_raw_repair": "{\"translation\":\"After that, Anya got a treat to cheer her up.\",\"confidence\":0.8}\n<think>\nTask: Repair one failed Japanese-to-English manga bubble translation.\nTranslate only TARGET. Do not translate neighboring context lines.\nUse context only for pronouns, speaker intent, tone, and recurring terms.\nDo not copy baseline or candidate if they contain hallucinations, garbage words, or unsupported details.\nDo not invent nouns, events, names, names, numbers, jokes, relationships, locations, or actions.\nIf OCR is uncertain, give the shortest faithful English approximation.\nKeep the English short enough for a manga bubble, usually 16 words or fewer.\nPreserve Japanese honorifics as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.\nPrevious context, oldest to newest:\n1. ……!スパイは\n2. 目立ってはいけない…\nTARGET Japanese bubble: その後お菓子を買ってもらったアーニャは機嫌を直し\nNext context, nearest to farthest:\n1. フォージャー家は事なきを得た全てはこの笑顔のため…!\nRejected baseline English: (La",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "After that, Anya got a treat to cheer her up.",
+      "qwen_repair_verify_choice": "candidate",
+      "qwen_repair_verify_reason": "Context confirms Anya's action and tone.",
+      "qwen_raw_repair_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"After that, Anya got a treat to cheer her up.\",\"unsupported_terms\":[],\"reason\":\"Context confirms Anya's action and tone.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nThe target bubble is the user's only text being translated. Use the context window to check speaker continuity, pronouns, and known terms.\nReject the candidate if it adds unsupported nouns, events, numbers, places, jokes, relationships, or actions.\nPrefer baseline when the candidate is fluent but invents details or drifts away from the target bubble.\nUse correction only when a short, strict fix is obvious from the target Japanese.\nHonorifics should stay as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or sh",
+      "qwen_repair_verified_candidate": "After that, Anya got a treat to cheer her up.",
+      "qwen_repair_accepted": true,
+      "qwen_final": "After that, Anya got a treat to cheer her up.",
+      "normalized_source": "その後お菓子を買ってもらったアーニャは機嫌を直し"
+    }
+  },
+  "translation_fallback_blocks": []
+}

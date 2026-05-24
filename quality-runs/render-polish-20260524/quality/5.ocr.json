@@ -1,0 +1,1632 @@
+{
+  "source_image": "C:\\Users\\migue\\Desktop\\pythonscripts\\mangafolder\\5.png",
+  "output_image": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\5.png",
+  "detector": "ctd",
+  "ocr_engine": "manga-ocr",
+  "translator": "qwen",
+  "qwen_mode": "block",
+  "vision_enabled": true,
+  "vision_mode": "numbered_page",
+  "vision_trigger": "suspicious",
+  "page_summary": {
+    "kept_blocks": 5,
+    "skipped_blocks": 0,
+    "fallback_blocks": 0,
+    "ellipsis_outputs": 0,
+    "qwen_used": 5,
+    "qwen_rejected": 0,
+    "qwen_repairs_attempted": 1,
+    "qwen_repairs_accepted": 1,
+    "qwen_fallback_attempted": 0,
+    "qwen_fallback_accepted": 0,
+    "suspected_bad_translations": 0,
+    "layout_warning_blocks": 0,
+    "vision_attempted": 0,
+    "vision_accepted": 0,
+    "vision_rejected": 0,
+    "vision_json_repair_attempted": 0,
+    "vision_json_repair_used": 0,
+    "vision_reject_reasons": {},
+    "vision_trigger_reasons": {},
+    "layout_warning_types": {},
+    "vision_artifact_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\5.vision.png"
+  },
+  "raw_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        346,
+        39,
+        459,
+        256
+      ],
+      "confidence": 1.0,
+      "source_text": "わがそしきさいだいのひみつのばしょ",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              420,
+              39
+            ],
+            [
+              455,
+              39
+            ],
+            [
+              459,
+              197
+            ],
+            [
+              424,
+              198
+            ]
+          ],
+          [
+            [
+              379,
+              39
+            ],
+            [
+              418,
+              39
+            ],
+            [
+              422,
+              196
+            ],
+            [
+              385,
+              197
+            ]
+          ],
+          [
+            [
+              346,
+              40
+            ],
+            [
+              386,
+              40
+            ],
+            [
+              386,
+              256
+            ],
+            [
+              346,
+              256
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        28,
+        33,
+        130,
+        304
+      ],
+      "confidence": 1.0,
+      "source_text": "ちちのヘやとははのへや．．．！！",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              76,
+              34
+            ],
+            [
+              130,
+              35
+            ],
+            [
+              127,
+              276
+            ],
+            [
+              74,
+              275
+            ]
+          ],
+          [
+            [
+              38,
+              33
+            ],
+            [
+              99,
+              35
+            ],
+            [
+              89,
+              272
+            ],
+            [
+              28,
+              269
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        439,
+        504,
+        455,
+        628
+      ],
+      "confidence": 1.0,
+      "source_text": "こころしてかかれ",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              439,
+              504
+            ],
+            [
+              455,
+              504
+            ],
+            [
+              455,
+              628
+            ],
+            [
+              439,
+              628
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        354,
+        518,
+        408,
+        649
+      ],
+      "confidence": 1.0,
+      "source_text": "このへやのひみつをしったらいきてはかえれない",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              391,
+              518
+            ],
+            [
+              408,
+              518
+            ],
+            [
+              408,
+              593
+            ],
+            [
+              391,
+              593
+            ]
+          ],
+          [
+            [
+              372,
+              518
+            ],
+            [
+              389,
+              518
+            ],
+            [
+              389,
+              637
+            ],
+            [
+              372,
+              637
+            ]
+          ],
+          [
+            [
+              355,
+              519
+            ],
+            [
+              369,
+              519
+            ],
+            [
+              369,
+              649
+            ],
+            [
+              354,
+              649
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        220,
+        634,
+        264,
+        761
+      ],
+      "confidence": 1.0,
+      "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              251,
+              635
+            ],
+            [
+              262,
+              635
+            ],
+            [
+              262,
+              761
+            ],
+            [
+              251,
+              761
+            ]
+          ],
+          [
+            [
+              236,
+              635
+            ],
+            [
+              247,
+              635
+            ],
+            [
+              247,
+              720
+            ],
+            [
+              236,
+              720
+            ]
+          ],
+          [
+            [
+              220,
+              635
+            ],
+            [
+              231,
+              635
+            ],
+            [
+              231,
+              757
+            ],
+            [
+              220,
+              757
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        128,
+        532,
+        158,
+        727
+      ],
+      "confidence": 1.0,
+      "source_text": "―――では！！",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              129,
+              638
+            ],
+            [
+              157,
+              638
+            ],
+            [
+              157,
+              727
+            ],
+            [
+              129,
+              727
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "kept_blocks": [
+    {
+      "detector": "ctd",
+      "box": [
+        28,
+        33,
+        130,
+        304
+      ],
+      "confidence": 1.0,
+      "source_text": "ちちのヘやとははのへや．．．！！",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              76,
+              34
+            ],
+            [
+              130,
+              35
+            ],
+            [
+              127,
+              276
+            ],
+            [
+              74,
+              275
+            ]
+          ],
+          [
+            [
+              38,
+              33
+            ],
+            [
+              99,
+              35
+            ],
+            [
+              89,
+              272
+            ],
+            [
+              28,
+              269
+            ]
+          ]
+        ],
+        "translation_group_id": 1,
+        "translation_group_size": 1
+      },
+      "translated_text": "My father's room and my mother's room...!!",
+      "page_order": 2,
+      "erase_box": [
+        20,
+        25,
+        138,
+        312
+      ],
+      "render_box": [
+        28,
+        33,
+        130,
+        304
+      ],
+      "render_fit": {
+        "font_size": 11,
+        "line_count": 3,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 85,
+        "total_height": 33,
+        "usable_width": 88,
+        "usable_height": 257,
+        "attempted_font_size": 28,
+        "line_height": 11,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "My father's",
+          "room and my",
+          "mother's room...!!"
+        ],
+        "wrap_score": 94.262,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          28,
+          27,
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "わがそしきさいだいのひみつのばしょ",
+      "context_after": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "context_before_window": [
+        "わがそしきさいだいのひみつのばしょ"
+      ],
+      "context_after_window": [
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "My father's room and my mother's!",
+      "qwen_raw_translation": "{\n  \"translation\": \"My father's room and my mother's room...!!\",\n  \"confidence\": 0.9\n}\n\n{\n  \"translation\": \"My father's room and my mother's room...!!\",\n  \"confidence\": 0.9\n}\n\n{\n  \"translation\": \"My father's room and my mother's room...!!\",\n  \"confidence\": 0.9\n}\n\n{",
+      "qwen_candidate": "My father's room and my mother's room...!!",
+      "qwen_verify_choice": "correction",
+      "qwen_verify_reason": "Target explicitly includes 'room' for both parents.",
+      "qwen_raw_verification": "{\"choice\":\"correction\",\"ok\":true,\"translation\":\"My father's room and my mother's room...!!\",\"unsupported_terms\":[],\"reason\":\"Target explicitly includes 'room' for both parents.\",\"unsupported_terms\":[],\"reason\":\"Target explicitly includes 'room' for both parents.\"}\nWait, I need to fix the JSON structure to be one-line compact.\n\n{\"choice\":\"correction\",\"ok\":true,\"translation\":\"My father's room and my mother's room...!!\",\"unsupported_terms\":[],\"reason\":\"Target explicitly includes 'room' for both parents.\"}\n\nLet's double check the constraints.\n- One-line compact JSON.\n- `reason` under 14 words.\n- At most 3 `unsupported_terms`.\n- `ok` true for candidate/correction.\n- `choice` is one of candidate, baseline, correction.\n\nTarget: 父の部屋と母の部屋…!!",
+      "qwen_verified_candidate": "My father's room and my mother's room...!!",
+      "qwen_final": "My father's room and my mother's room...!!",
+      "normalized_source": "ちちのヘやとははのへや…!!",
+      "prepared_source": "父の部屋と母の部屋…!!",
+      "glossary_source_replacements": [
+        {
+          "source": "ヘや",
+          "target": "部屋"
+        },
+        {
+          "source": "へや",
+          "target": "部屋"
+        },
+        {
+          "source": "ちち",
+          "target": "父"
+        },
+        {
+          "source": "はは",
+          "target": "母"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        346,
+        39,
+        459,
+        256
+      ],
+      "confidence": 1.0,
+      "source_text": "わがそしきさいだいのひみつのばしょ",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              420,
+              39
+            ],
+            [
+              455,
+              39
+            ],
+            [
+              459,
+              197
+            ],
+            [
+              424,
+              198
+            ]
+          ],
+          [
+            [
+              379,
+              39
+            ],
+            [
+              418,
+              39
+            ],
+            [
+              422,
+              196
+            ],
+            [
+              385,
+              197
+            ]
+          ],
+          [
+            [
+              346,
+              40
+            ],
+            [
+              386,
+              40
+            ],
+            [
+              386,
+              256
+            ],
+            [
+              346,
+              256
+            ]
+          ]
+        ],
+        "translation_group_id": 2,
+        "translation_group_size": 1
+      },
+      "translated_text": "The greatest secret place in our organization.",
+      "page_order": 1,
+      "erase_box": [
+        338,
+        31,
+        467,
+        264
+      ],
+      "render_box": [
+        346,
+        39,
+        459,
+        256
+      ],
+      "render_fit": {
+        "font_size": 17,
+        "line_count": 4,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 96,
+        "total_height": 64,
+        "usable_width": 97,
+        "usable_height": 201,
+        "attempted_font_size": 24,
+        "line_height": 16,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "The greatest",
+          "secret place",
+          "in our",
+          "organization."
+        ],
+        "wrap_score": 51.79,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "．．．そして．．．",
+      "context_after": "ちちのヘやとははのへや．．．！！",
+      "context_before_window": [
+        "．．．そして．．．"
+      ],
+      "context_after_window": [
+        "ちちのヘやとははのへや．．．！！",
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "The greatest secret place in our organization.",
+      "qwen_raw_translation": "{\"translation\":\"The greatest secret place in our organization.\",\"confidence\":0.95}\nTask: Improve the baseline translation of one Japanese manga bubble.\nAnti-hallucination rules:\n- Translate only the text in the target bubble.\n- Do not add dialogue, narration, sound effects, here, there, or other words not in the text.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only",
+      "qwen_candidate": "The greatest secret place in our organization.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text matches candidate exactly.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"The greatest secret place in our organization.\",\"unsupported_terms\":[],\"reason\":\"Target text matches candidate exactly.\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe target bubble is the Next bubble context: ちち",
+      "qwen_verified_candidate": "The greatest secret place in our organization.",
+      "qwen_final": "The greatest secret place in our organization.",
+      "normalized_source": "わがそしきさいだいのひみつのばしょ",
+      "prepared_source": "わが組織最大の秘密の場所",
+      "glossary_source_replacements": [
+        {
+          "source": "さいだい",
+          "target": "最大"
+        },
+        {
+          "source": "ひみつ",
+          "target": "秘密"
+        },
+        {
+          "source": "そしき",
+          "target": "組織"
+        },
+        {
+          "source": "ばしょ",
+          "target": "場所"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        354,
+        504,
+        455,
+        649
+      ],
+      "confidence": 1.0,
+      "source_text": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "status": "rendered",
+      "metadata": {
+        "translation_group_id": 3,
+        "translation_group_size": 2,
+        "grouped_from": [
+          {
+            "box": [
+              439,
+              504,
+              455,
+              628
+            ],
+            "source_text": "こころしてかかれ",
+            "confidence": 1.0,
+            "metadata": {
+              "language": "ja",
+              "vertical": true,
+              "lines": [
+                [
+                  [
+                    439,
+                    504
+                  ],
+                  [
+                    455,
+                    504
+                  ],
+                  [
+                    455,
+                    628
+                  ],
+                  [
+                    439,
+                    628
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "box": [
+              354,
+              518,
+              408,
+              649
+            ],
+            "source_text": "このへやのひみつをしったらいきてはかえれない",
+            "confidence": 1.0,
+            "metadata": {
+              "language": "ja",
+              "vertical": true,
+              "lines": [
+                [
+                  [
+                    391,
+                    518
+                  ],
+                  [
+                    408,
+                    518
+                  ],
+                  [
+                    408,
+                    593
+                  ],
+                  [
+                    391,
+                    593
+                  ]
+                ],
+                [
+                  [
+                    372,
+                    518
+                  ],
+                  [
+                    389,
+                    518
+                  ],
+                  [
+                    389,
+                    637
+                  ],
+                  [
+                    372,
+                    637
+                  ]
+                ],
+                [
+                  [
+                    355,
+                    519
+                  ],
+                  [
+                    369,
+                    519
+                  ],
+                  [
+                    369,
+                    649
+                  ],
+                  [
+                    354,
+                    649
+                  ]
+                ]
+              ]
+            }
+          }
+        ],
+        "vertical": true
+      },
+      "translated_text": "You can't keep secrets from this room.",
+      "page_order": 3,
+      "erase_box": [
+        346,
+        496,
+        463,
+        657
+      ],
+      "render_box": [
+        329,
+        500,
+        461,
+        652
+      ],
+      "render_fit": {
+        "font_size": 17,
+        "line_count": 3,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 110,
+        "total_height": 48,
+        "usable_width": 114,
+        "usable_height": 134,
+        "attempted_font_size": 24,
+        "line_height": 16,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "You can't keep",
+          "secrets from",
+          "this room."
+        ],
+        "wrap_score": 44.0,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "bubble_box": [
+        317,
+        481,
+        473,
+        671
+      ],
+      "context_before": "ちちのヘやとははのへや．．．！！",
+      "context_after": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "context_before_window": [
+        "わがそしきさいだいのひみつのばしょ",
+        "ちちのヘやとははのへや．．．！！"
+      ],
+      "context_after_window": [
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+        "―――では！！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "You can't keep secrets from this room.",
+      "qwen_raw_translation": "{\"translation\":\"You can't keep secrets from this room.\",\"confidence\":0.9}\nTarget Japanese bubble: こころしてかかれこの部屋の秘密をしったらいきてはかえれない\nBaseline English translation: You can\nTask: Improve the baseline translation of one Japanese manga bubble.\nAnti-hallucination rules:\n- Translate only the potential target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, or names.\n-",
+      "qwen_candidate": "You can't keep secrets from this room.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text matches baseline exactly, no drift detected.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"You can't keep secrets from this room.\",\"unsupported_terms\":[],\"reason\":\"Target text matches baseline exactly, no drift detected.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe",
+      "qwen_verified_candidate": "You can't keep secrets from this room.",
+      "qwen_final": "You can't keep secrets from this room.",
+      "normalized_source": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "prepared_source": "こころしてかかれこの部屋の秘密をしったらいきてはかえれない",
+      "glossary_source_replacements": [
+        {
+          "source": "ひみつ",
+          "target": "秘密"
+        },
+        {
+          "source": "へや",
+          "target": "部屋"
+        }
+      ]
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        128,
+        532,
+        158,
+        727
+      ],
+      "confidence": 1.0,
+      "source_text": "―――では！！",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              129,
+              638
+            ],
+            [
+              157,
+              638
+            ],
+            [
+              157,
+              727
+            ],
+            [
+              129,
+              727
+            ]
+          ]
+        ],
+        "translation_group_id": 4,
+        "translation_group_size": 1
+      },
+      "translated_text": "- Then!!",
+      "page_order": 5,
+      "erase_box": [
+        120,
+        524,
+        166,
+        735
+      ],
+      "render_box": [
+        96,
+        528,
+        191,
+        732
+      ],
+      "render_fit": {
+        "font_size": 24,
+        "line_count": 1,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 83,
+        "total_height": 24,
+        "usable_width": 83,
+        "usable_height": 192,
+        "attempted_font_size": 28,
+        "line_height": 24,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "- Then!!"
+        ],
+        "wrap_score": 20.0,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          28,
+          27,
+          26,
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "context_after": null,
+      "context_before_window": [
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！"
+      ],
+      "context_after_window": [],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "- Bye!",
+      "qwen_raw_translation": "{\"translation\":\"- Bye!\",\"confidence\":0.8}\nSource Japanese: ―――では!!\nTarget Japanese bubble: ―――では!!\nBaseline English translation: - Where?\nJSON: {\"translation\":\"- Where?\",\"confidence\":0.8}\nSource Japanese: ―――では!!\nTarget Japanese where:\nBaseline English translation: - Where?\nJSON: {\"translation\":\"- Where?\",\"code\":0.8}\nSource Japanese: ―",
+      "qwen_candidate": "- Then!!",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "contradictory_verifier_reason:Target text matches baseline exactly with added emphasis.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"- Bye!!\",\"unsupported_terms\":[],\"reason\":\"Target text matches baseline exactly with added emphasis.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- \"Bye\" is a valid translation for \"では\" in this context.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it",
+      "qwen_verified_candidate": "- Bye!!",
+      "qwen_raw_repair": "{\"translation\":\"- Then!!\",\"confidence\":1.0}\n<think>\nTask: Repair one failed Japanese-to-English manga bubble translation.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nTranslate only TARGET. Do not translate neighboring context lines.\nDo not copy baseline or candidate if they contain hallucinations, garbage words, or unsupported details.\nIf OCR is uncertain, give the shortest faithful English approximation.\nKeep the English short enough for a manga bubble, usually 16 words or fewer.\nPreserve Japanese honorifics as romanized suffixes like san, sama, chan, kun, senpai, sensei, dono, or shi.\nPrevious context, oldest to newest:",
+      "qwen_repair_used": true,
+      "qwen_repair_candidate": "- Then!!",
+      "qwen_repair_verify_choice": "candidate",
+      "qwen_repair_verify_reason": "Target text directly translates to 'Then!!'",
+      "qwen_raw_repair_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"- Then!!\",\"unsupported_terms\":[],\"reason\":\"Target text directly translates to 'Then!!'\"}<|endoftext|><|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return JSON only.\nThe target bubble is the **only** text being translated.",
+      "qwen_repair_verified_candidate": "- Then!!",
+      "qwen_repair_accepted": true,
+      "qwen_final": "- Then!!",
+      "normalized_source": "―――では!!"
+    },
+    {
+      "detector": "ctd",
+      "box": [
+        220,
+        634,
+        264,
+        761
+      ],
+      "confidence": 1.0,
+      "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "status": "rendered",
+      "metadata": {
+        "language": "ja",
+        "vertical": true,
+        "lines": [
+          [
+            [
+              251,
+              635
+            ],
+            [
+              262,
+              635
+            ],
+            [
+              262,
+              761
+            ],
+            [
+              251,
+              761
+            ]
+          ],
+          [
+            [
+              236,
+              635
+            ],
+            [
+              247,
+              635
+            ],
+            [
+              247,
+              720
+            ],
+            [
+              236,
+              720
+            ]
+          ],
+          [
+            [
+              220,
+              635
+            ],
+            [
+              231,
+              635
+            ],
+            [
+              231,
+              757
+            ],
+            [
+              220,
+              757
+            ]
+          ]
+        ],
+        "translation_group_id": 5,
+        "translation_group_size": 1
+      },
+      "translated_text": "I don't know if there's anything I can do.",
+      "page_order": 4,
+      "erase_box": [
+        212,
+        626,
+        272,
+        769
+      ],
+      "render_box": [
+        194,
+        631,
+        289,
+        764
+      ],
+      "render_fit": {
+        "font_size": 15,
+        "line_count": 4,
+        "fit_status": "fit",
+        "clipped": false,
+        "widest_line": 78,
+        "total_height": 60,
+        "usable_width": 83,
+        "usable_height": 121,
+        "attempted_font_size": 18,
+        "line_height": 15,
+        "overflow_width": 0,
+        "overflow_height": 0,
+        "lines": [
+          "I don't know",
+          "if there's",
+          "anything I",
+          "can do."
+        ],
+        "wrap_score": 29.414,
+        "wrap_warnings": [],
+        "split_word_count": 0,
+        "orphan_line_count": 0,
+        "candidate_font_sizes": [
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5
+        ],
+        "compacted_for_render": false
+      },
+      "context_before": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "context_after": "―――では！！",
+      "context_before_window": [
+        "ちちのヘやとははのへや．．．！！",
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない"
+      ],
+      "context_after_window": [
+        "―――では！！"
+      ],
+      "context_available": true,
+      "context_used": true,
+      "translation_mode": "qwen_context",
+      "qwen_used": true,
+      "qwen_model": "manga-qwen35-9b-q4-k-m",
+      "qwen_backend": "ollama",
+      "qwen_translation_settings": {
+        "temperature": 0.4,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 96
+      },
+      "qwen_verification_settings": {
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 192
+      },
+      "qwen_repair_settings": {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "num_predict": 256
+      },
+      "qwen_baseline": "I don't know if there's anything I can do.",
+      "qwen_raw_translation": "{\"translation\":\"I don't know if there's anything I can do.\",\"confidence\":0.8}\nBaseline Japanese: さいきょうのないふやかくばくだんがあるかもしれない…!!\nBaseline English: I don't know if there's anything I can do.\nJSON: {\"translation\":\"I don't halluncination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, speech, sound effects, thoughts,",
+      "qwen_candidate": "I don't know if there's anything I can do.",
+      "qwen_verify_choice": "candidate",
+      "qwen_verify_reason": "Target text implies uncertainty about capability, matching baseline.",
+      "qwen_raw_verification": "{\"choice\":\"candidate\",\"ok\":true,\"translation\":\"I don't know if there's anything I can do.\",\"unsupported_terms\":[],\"reason\":\"Target text implies uncertainty about capability, matching baseline.\"}<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\nTask: Adjudicate two English translations for one Japanese manga bubble.\nChoose exactly one: candidate, baseline, or correction.\nAnti-hallucination rules:\n- Translate only the provided target/source text.\n- Do not add dialogue, narration, sound effects, thoughts, thoughts, names, facts, locations, relationships, motives, or backstory.\n- Do not invent a speaker name, gender, age, or relationship.\n- Use context only to resolve pronouns, tone, speaker continuity, and recurring terms.\n- If uncertain, become less specific, not more creative.\n- If OCR seems suspicious, keep close to the baseline instead of correcting it by guesswork.\n- Return",
+      "qwen_verified_candidate": "I don't know if there's anything I can do.",
+      "qwen_final": "I don't know if there's anything I can do.",
+      "normalized_source": "さいきょうのないふやかくばくだんがあるかもしれない…!!"
+    }
+  ],
+  "translation_groups": [
+    {
+      "group_id": 1,
+      "box": [
+        28,
+        33,
+        130,
+        304
+      ],
+      "source_text": "ちちのヘやとははのへや．．．！！",
+      "members": [
+        {
+          "box": [
+            28,
+            33,
+            130,
+            304
+          ],
+          "source_text": "ちちのヘやとははのへや．．．！！",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 2,
+      "box": [
+        346,
+        39,
+        459,
+        256
+      ],
+      "source_text": "わがそしきさいだいのひみつのばしょ",
+      "members": [
+        {
+          "box": [
+            346,
+            39,
+            459,
+            256
+          ],
+          "source_text": "わがそしきさいだいのひみつのばしょ",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 3,
+      "box": [
+        354,
+        504,
+        455,
+        649
+      ],
+      "source_text": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "members": [
+        {
+          "box": [
+            439,
+            504,
+            455,
+            628
+          ],
+          "source_text": "こころしてかかれ",
+          "confidence": 1.0,
+          "detector": "ctd"
+        },
+        {
+          "box": [
+            354,
+            518,
+            408,
+            649
+          ],
+          "source_text": "このへやのひみつをしったらいきてはかえれない",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 4,
+      "box": [
+        128,
+        532,
+        158,
+        727
+      ],
+      "source_text": "―――では！！",
+      "members": [
+        {
+          "box": [
+            128,
+            532,
+            158,
+            727
+          ],
+          "source_text": "―――では！！",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    },
+    {
+      "group_id": 5,
+      "box": [
+        220,
+        634,
+        264,
+        761
+      ],
+      "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "members": [
+        {
+          "box": [
+            220,
+            634,
+            264,
+            761
+          ],
+          "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+          "confidence": 1.0,
+          "detector": "ctd"
+        }
+      ]
+    }
+  ],
+  "page_order": [
+    {
+      "page_order": 1,
+      "box": [
+        346,
+        39,
+        459,
+        256
+      ],
+      "source_text": "わがそしきさいだいのひみつのばしょ",
+      "detector": "ctd",
+      "context_before": "．．．そして．．．",
+      "context_after": "ちちのヘやとははのへや．．．！！",
+      "context_before_window": [
+        "．．．そして．．．"
+      ],
+      "context_after_window": [
+        "ちちのヘやとははのへや．．．！！",
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない"
+      ]
+    },
+    {
+      "page_order": 2,
+      "box": [
+        28,
+        33,
+        130,
+        304
+      ],
+      "source_text": "ちちのヘやとははのへや．．．！！",
+      "detector": "ctd",
+      "context_before": "わがそしきさいだいのひみつのばしょ",
+      "context_after": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "context_before_window": [
+        "わがそしきさいだいのひみつのばしょ"
+      ],
+      "context_after_window": [
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！"
+      ]
+    },
+    {
+      "page_order": 3,
+      "box": [
+        354,
+        504,
+        455,
+        649
+      ],
+      "source_text": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "detector": "ctd",
+      "context_before": "ちちのヘやとははのへや．．．！！",
+      "context_after": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "context_before_window": [
+        "わがそしきさいだいのひみつのばしょ",
+        "ちちのヘやとははのへや．．．！！"
+      ],
+      "context_after_window": [
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+        "―――では！！"
+      ]
+    },
+    {
+      "page_order": 4,
+      "box": [
+        220,
+        634,
+        264,
+        761
+      ],
+      "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "detector": "ctd",
+      "context_before": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+      "context_after": "―――では！！",
+      "context_before_window": [
+        "ちちのヘやとははのへや．．．！！",
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない"
+      ],
+      "context_after_window": [
+        "―――では！！"
+      ]
+    },
+    {
+      "page_order": 5,
+      "box": [
+        128,
+        532,
+        158,
+        727
+      ],
+      "source_text": "―――では！！",
+      "detector": "ctd",
+      "context_before": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+      "context_before_window": [
+        "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+        "さいきょうのないふやかくばくだんがあるかもしれない．．．！！"
+      ],
+      "context_after_window": []
+    }
+  ],
+  "skipped_blocks": [],
+  "fallback_blocks": [],
+  "vision": {
+    "mode": "numbered_page",
+    "image_path": "C:\\Users\\migue\\Desktop\\pythonscripts\\Translator\\quality-runs\\render-polish-20260524\\quality\\5.vision.png",
+    "number_map": [
+      {
+        "number": 1,
+        "line_id": "5_001",
+        "order_index": 1,
+        "source_text": "わがそしきさいだいのひみつのばしょ",
+        "translated_text": "The greatest secret place in our organization.",
+        "box": [
+          346,
+          39,
+          459,
+          256
+        ]
+      },
+      {
+        "number": 2,
+        "line_id": "5_002",
+        "order_index": 2,
+        "source_text": "ちちのヘやとははのへや．．．！！",
+        "translated_text": "My father's room and my mother's room...!!",
+        "box": [
+          28,
+          33,
+          130,
+          304
+        ]
+      },
+      {
+        "number": 3,
+        "line_id": "5_003",
+        "order_index": 3,
+        "source_text": "こころしてかかれこのへやのひみつをしったらいきてはかえれない",
+        "translated_text": "You can't keep secrets from this room.",
+        "box": [
+          354,
+          504,
+          455,
+          649
+        ]
+      },
+      {
+        "number": 4,
+        "line_id": "5_004",
+        "order_index": 4,
+        "source_text": "さいきょうのないふやかくばくだんがあるかもしれない．．．！！",
+        "translated_text": "I don't know if there's anything I can do.",
+        "box": [
+          220,
+          634,
+          264,
+          761
+        ]
+      },
+      {
+        "number": 5,
+        "line_id": "5_005",
+        "order_index": 5,
+        "source_text": "―――では！！",
+        "translated_text": "- Then!!",
+        "box": [
+          128,
+          532,
+          158,
+          727
+        ]
+      }
+    ],
+    "preprocessing_warnings": [
+      "tiny_label_region:5_005"
+    ]
+  }
+}

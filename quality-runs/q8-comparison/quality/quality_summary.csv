@@ -1,0 +1,10 @@
+profile,page,report,kept_blocks,skipped_blocks,fallback_blocks,ellipsis_outputs,qwen_used,qwen_rejected,qwen_repairs_attempted,qwen_repairs_accepted,suspected_bad_translations
+quality,1,quality-runs\q8-comparison\quality\1.ocr.json,7,2,0,0,6,0,2,2,0
+quality,2,quality-runs\q8-comparison\quality\2.ocr.json,8,1,0,0,8,0,0,0,0
+quality,3,quality-runs\q8-comparison\quality\3.ocr.json,6,1,0,0,6,0,1,1,0
+quality,4,quality-runs\q8-comparison\quality\4.ocr.json,9,1,0,0,9,0,3,3,0
+quality,5,quality-runs\q8-comparison\quality\5.ocr.json,5,0,0,0,5,0,1,1,0
+quality,6,quality-runs\q8-comparison\quality\6.ocr.json,6,2,0,0,6,0,1,1,0
+quality,7,quality-runs\q8-comparison\quality\7.ocr.json,8,3,0,0,8,1,3,2,0
+quality,8,quality-runs\q8-comparison\quality\8.ocr.json,11,0,0,0,9,1,5,4,0
+quality,__total__,quality-runs\q8-comparison\quality,60,10,0,0,57,2,16,14,0

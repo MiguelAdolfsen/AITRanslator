@@ -1,0 +1,2 @@
+# No extra test dependencies are required.
+# The fast test suite uses Python's built-in unittest module.

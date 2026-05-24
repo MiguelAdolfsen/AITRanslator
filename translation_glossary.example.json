@@ -1,0 +1,22 @@
+{
+  "source_replacements": [
+    {
+      "source": "\u3048\u30fc\u3058\u3047\u3093\u3068",
+      "target": "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8"
+    },
+    {
+      "source": "\u3042\u3058\u3068",
+      "target": "\u30a2\u30b8\u30c8"
+    }
+  ],
+  "exact_phrases": {
+    "\u3088\u308d\u3057\u304f\u304a\u9858\u3044\u3057\u307e\u3059": "Nice to meet you."
+  },
+  "target_replacements": [
+    {
+      "when_source_contains": "\u30a2\u30b8\u30c8",
+      "source": "Ajito",
+      "target": "hideout"
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+2026-05-24 04:07:49,208 INFO     [manga_local_translator.logging_utils] Debug logging started: C:\Users\migue\Desktop\pythonscripts\Translator\manga_translator_debug-20260524-040749.log
+2026-05-24 04:07:49,208 INFO     [manga_local_translator.cli] CLI started
+2026-05-24 04:07:49,208 DEBUG    [manga_local_translator.cli] CLI args: Namespace(input=WindowsPath('../mangafolder/1.png'), output=WindowsPath('refactor-smoke-tesseract.png'), detector='tesseract', ocr_engine='tesseract', translator='none', erase_mode='white', tesseract_cmd=None, tesseract_lang='jpn+jpn_vert', psm=11, min_confidence=20.0, padding=8, render_expand=2.2, font=None, glossary=None, qwen_model=None, qwen_fallback_model=None, font_size=28, recursive=True, overwrite=True, debug=True, resume=False, work_dir=None)
+2026-05-24 04:07:49,261 INFO     [manga_local_translator.cli] Debug log: C:\Users\migue\Desktop\pythonscripts\Translator\manga_translator_debug-20260524-040749.log
+2026-05-24 04:07:49,333 INFO     [manga_local_translator.pipeline] Process folder started
+2026-05-24 04:07:49,333 DEBUG    [manga_local_translator.pipeline] Input path resolved to: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png
+2026-05-24 04:07:49,333 DEBUG    [manga_local_translator.pipeline] Output path resolved to: C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.png
+2026-05-24 04:07:49,333 DEBUG    [manga_local_translator.pipeline] Pipeline config: PipelineConfig(detector='tesseract', ocr_engine='tesseract', translator='none', erase_mode='white', tesseract_cmd=None, tesseract_lang='jpn+jpn_vert', tesseract_psm=11, min_confidence=20.0, padding=8, render_expand=2.2, font_path=None, glossary_path=None, qwen_model_path=None, qwen_fallback_model_path=None, base_font_size=28, recursive=True, overwrite=True, debug=True, resume=False, work_dir=None)
+2026-05-24 04:07:49,333 DEBUG    [manga_local_translator.pipeline] Enabled Hugging Face offline runtime mode
+2026-05-24 04:07:49,342 INFO     [manga_local_translator.tesseract_utils] Found tesseract at common install path: C:\Program Files\Tesseract-OCR\tesseract.exe
+2026-05-24 04:07:49,342 INFO     [manga_local_translator.detect_ocr] Using tesseract executable: C:\Program Files\Tesseract-OCR\tesseract.exe
+2026-05-24 04:07:49,343 DEBUG    [manga_local_translator.image_io] Single input file support check: path=C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png supported=True
+2026-05-24 04:07:49,343 INFO     [manga_local_translator.pipeline] Found 1 supported image(s)
+2026-05-24 04:07:49,343 INFO     [manga_local_translator.translate] Building translator backend: none
+2026-05-24 04:07:49,347 INFO     [manga_local_translator.pipeline] Page 1/1: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png -> C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.png
+2026-05-24 04:07:49,369 INFO     [manga_local_translator.pipeline] Reading image: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png
+2026-05-24 04:07:49,374 DEBUG    [manga_local_translator.pipeline] Image loaded: width=476 height=797 channels=3
+2026-05-24 04:07:49,375 INFO     [manga_local_translator.pipeline] Running OCR
+2026-05-24 04:07:49,375 INFO     [manga_local_translator.detect_ocr] Selected OCR engine: tesseract
+2026-05-24 04:07:49,375 INFO     [manga_local_translator.detect_ocr] Selected text detector: tesseract
+2026-05-24 04:07:49,375 INFO     [manga_local_translator.detect_ocr] Opening image for OCR: C:\Users\migue\Desktop\pythonscripts\mangafolder\1.png
+2026-05-24 04:07:49,375 DEBUG    [PIL.Image] Importing PngImagePlugin
+2026-05-24 04:07:49,381 DEBUG    [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+2026-05-24 04:07:49,381 DEBUG    [PIL.PngImagePlugin] STREAM b'sRGB' 41 1
+2026-05-24 04:07:49,381 DEBUG    [PIL.PngImagePlugin] STREAM b'gAMA' 54 4
+2026-05-24 04:07:49,381 DEBUG    [PIL.PngImagePlugin] STREAM b'pHYs' 70 9
+2026-05-24 04:07:49,381 DEBUG    [PIL.PngImagePlugin] STREAM b'IDAT' 91 65445
+2026-05-24 04:07:49,385 DEBUG    [manga_local_translator.detect_ocr] Tesseract config: lang=jpn+jpn_vert config=--psm 11 --oem 1 min_confidence=20.00
+2026-05-24 04:07:50,321 DEBUG    [pytesseract] ['C:\\Program Files\\Tesseract-OCR\\tesseract.exe', 'C:\\Users\\migue\\AppData\\Local\\Temp\\tess_2utjrrti_input.PNG', 'C:\\Users\\migue\\AppData\\Local\\Temp\\tess_2utjrrti', '-l', 'jpn+jpn_vert', '-c', 'tessedit_create_tsv=1', '--psm', '11', '--oem', '1']
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=4 confidence=10.00 text=MK
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=8 confidence=6.00 text=3
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=12 confidence=0.00 text=章
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=13 confidence=0.00 text=半
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=14 confidence=0.00 text=間
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=25 confidence=0.00 text=人
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=43 confidence=0.00 text=ゃ
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=56 confidence=10.00 text=の
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=136 confidence=12.00 text=/6
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] Rejected OCR item below confidence: index=148 confidence=14.00 text=6
+2026-05-24 04:07:50,897 INFO     [manga_local_translator.detect_ocr] OCR words processed: raw=149 accepted=42 empty=97 low_confidence=10 groups=26
+2026-05-24 04:07:50,897 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(360, 11, 465, 31) refined_box=(360, 11, 465, 31) confidence=83.50 text=MISSION:1
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(393, 59, 430, 73) refined_box=(393, 59, 430, 73) confidence=55.00 text=がわ
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(393, 128, 431, 156) refined_box=(393, 128, 431, 156) confidence=58.00 text=ニンひ
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(400, 112, 425, 134) refined_box=(400, 112, 425, 134) confidence=96.00 text=1が
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(169, 118, 197, 153) refined_box=(169, 118, 197, 153) confidence=87.00 text=の
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(395, 163, 430, 180) refined_box=(395, 163, 430, 180) confidence=94.00 text=ぼっ
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(160, 225, 187, 244) refined_box=(160, 225, 187, 244) confidence=20.00 text=|
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(187, 251, 204, 284) refined_box=(187, 251, 204, 284) confidence=76.00 text=>
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(387, 273, 474, 306) refined_box=(387, 273, 474, 306) confidence=69.00 text=遠藤達哉-
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(379, 343, 431, 357) refined_box=(379, 343, 431, 357) confidence=95.00 text=しあき
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(377, 360, 434, 374) refined_box=(377, 360, 434, 374) confidence=93.33 text=んたみ
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(379, 378, 428, 392) refined_box=(379, 378, 428, 392) confidence=91.33 text=じらか
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(380, 412, 407, 426) refined_box=(380, 412, 407, 426) confidence=87.00 text=くく
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(377, 443, 407, 474) refined_box=(377, 443, 407, 474) confidence=86.00 text=だし
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(377, 430, 412, 448) refined_box=(377, 430, 412, 448) confidence=95.50 text=んは
+2026-05-24 04:07:50,898 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(410, 620, 446, 648) refined_box=(410, 620, 446, 648) confidence=65.00 text=およ
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(410, 642, 444, 656) refined_box=(410, 642, 444, 656) confidence=92.50 text=ねろ
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(302, 631, 311, 665) refined_box=(302, 631, 311, 665) confidence=84.00 text=|
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(410, 660, 444, 673) refined_box=(410, 660, 444, 673) confidence=92.00 text=がろ
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(118, 675, 126, 706) refined_box=(118, 675, 126, 706) confidence=86.00 text=|
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(161, 682, 179, 707) refined_box=(161, 682, 179, 707) confidence=54.00 text=(7
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(223, 684, 234, 701) refined_box=(223, 684, 234, 701) confidence=66.00 text=)
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(306, 686, 319, 710) refined_box=(306, 686, 319, 710) confidence=37.00 text=(/
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(410, 676, 445, 691) refined_box=(410, 676, 445, 691) confidence=94.00 text=いす
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(465, 732, 474, 759) refined_box=(465, 732, 474, 759) confidence=89.00 text==
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] OCR block: raw_box=(131, 752, 176, 775) refined_box=(131, 752, 176, 775) confidence=51.00 text=SS
+2026-05-24 04:07:50,899 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(393, 128, 431, 156) next=(395, 163, 430, 180)
+2026-05-24 04:07:50,900 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(379, 343, 431, 357) next=(377, 360, 434, 374)
+2026-05-24 04:07:50,900 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(377, 343, 434, 374) next=(379, 378, 428, 392)
+2026-05-24 04:07:50,900 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(380, 412, 407, 426) next=(377, 430, 412, 448)
+2026-05-24 04:07:50,900 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(377, 412, 412, 448) next=(377, 443, 407, 474)
+2026-05-24 04:07:50,900 DEBUG    [manga_local_translator.detect_ocr] Merging nearby OCR blocks: prev=(410, 642, 444, 656) next=(410, 660, 444, 673)
+2026-05-24 04:07:50,900 INFO     [manga_local_translator.detect_ocr] OCR block merge complete: before=26 after=20
+2026-05-24 04:07:50,900 INFO     [manga_local_translator.detect_ocr] Detector returned 20 candidate block(s)
+2026-05-24 04:07:50,900 DEBUG    [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+2026-05-24 04:07:50,900 DEBUG    [PIL.PngImagePlugin] STREAM b'sRGB' 41 1
+2026-05-24 04:07:50,900 DEBUG    [PIL.PngImagePlugin] STREAM b'gAMA' 54 4
+2026-05-24 04:07:50,900 DEBUG    [PIL.PngImagePlugin] STREAM b'pHYs' 70 9
+2026-05-24 04:07:50,900 DEBUG    [PIL.PngImagePlugin] STREAM b'IDAT' 91 65445
+2026-05-24 04:07:50,903 INFO     [manga_local_translator.detect_ocr] Tesseract recognition complete: before=20 after=20
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.pipeline] OCR returned 20 raw text block(s)
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=non_japanese_text box=(360, 11, 465, 31) confidence=83.50 text=MISSION:1
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=short_kana_fragment box=(393, 59, 430, 73) confidence=55.00 text=がわ
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=short_kana_fragment box=(400, 112, 425, 134) confidence=96.00 text=1が
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=single_character_fragment box=(169, 118, 197, 153) confidence=87.00 text=の
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(160, 225, 187, 244) confidence=20.00 text=|
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(187, 251, 204, 284) confidence=76.00 text=>
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=short_kana_fragment box=(410, 620, 446, 648) confidence=65.00 text=およ
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(302, 631, 311, 665) confidence=84.00 text=|
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(118, 675, 126, 706) confidence=86.00 text=|
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=short_kana_fragment box=(410, 676, 445, 691) confidence=94.00 text=いす
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=non_japanese_text box=(161, 682, 179, 707) confidence=54.00 text=(7
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(223, 684, 234, 701) confidence=66.00 text=)
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(306, 686, 319, 710) confidence=37.00 text=(/
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=punctuation_or_symbols_only box=(465, 732, 474, 759) confidence=89.00 text==
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.text_filter] Skipping OCR block: reason=non_japanese_text box=(131, 752, 176, 775) confidence=51.00 text=SS
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.pipeline] OCR filter kept 5 block(s), skipped 15 block(s)
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.pipeline] Translation grouping complete: input_blocks=5 render_blocks=5 grouped_sets=0
+2026-05-24 04:07:50,904 INFO     [manga_local_translator.pipeline] Translating 5 text block(s)
+2026-05-24 04:07:50,904 DEBUG    [manga_local_translator.translator_base] Noop translation used for text=ニンひぼっ
+2026-05-24 04:07:50,906 DEBUG    [manga_local_translator.translator_base] Noop translation used for text=遠藤達哉-
+2026-05-24 04:07:50,907 DEBUG    [manga_local_translator.translator_base] Noop translation used for text=しあきんたみじらか
+2026-05-24 04:07:50,907 DEBUG    [manga_local_translator.translator_base] Noop translation used for text=くくんはだし
+2026-05-24 04:07:50,907 DEBUG    [manga_local_translator.translator_base] Noop translation used for text=ねろがろ
+2026-05-24 04:07:50,907 DEBUG    [manga_local_translator.pipeline] Translation map contains 5 unique source string(s)
+2026-05-24 04:07:50,910 DEBUG    [manga_local_translator.render] Ignoring unusable bubble candidate: source=(377, 412, 412, 474) expanded=(332, 405, 457, 482) bubble=(327, 386, 470, 501)
+2026-05-24 04:07:50,911 DEBUG    [manga_local_translator.render] Ignoring unusable bubble candidate: source=(410, 642, 444, 673) expanded=(390, 635, 464, 679) bubble=(371, 616, 470, 698)
+2026-05-24 04:07:50,911 INFO     [manga_local_translator.render] Planned 5 render layout(s)
+2026-05-24 04:07:50,912 DEBUG    [manga_local_translator.render] Estimated start font size: size=15 base=28 text_len=5 render_box=(371, 117, 454, 192) source_box=(393, 128, 431, 180)
+2026-05-24 04:07:50,912 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=15
+2026-05-24 04:07:50,912 DEBUG    [manga_local_translator.render] Text fit: font_size=15 lines=1 box=(371, 117, 454, 192) text=ニンひぼっ
+2026-05-24 04:07:50,912 DEBUG    [manga_local_translator.render] Estimated start font size: size=18 base=28 text_len=5 render_box=(358, 266, 475, 313) source_box=(387, 273, 474, 306)
+2026-05-24 04:07:50,912 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=18
+2026-05-24 04:07:50,913 DEBUG    [manga_local_translator.render] Text fit: font_size=18 lines=1 box=(358, 266, 475, 313) text=遠藤達哉-
+2026-05-24 04:07:50,913 DEBUG    [manga_local_translator.render] Estimated start font size: size=13 base=28 text_len=9 render_box=(358, 338, 453, 396) source_box=(377, 343, 434, 392)
+2026-05-24 04:07:50,913 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=13
+2026-05-24 04:07:50,913 DEBUG    [manga_local_translator.render] Text fit: font_size=13 lines=2 box=(358, 338, 453, 396) text=しあきんたみじらか
+2026-05-24 04:07:50,913 DEBUG    [manga_local_translator.render] Estimated start font size: size=14 base=28 text_len=6 render_box=(332, 405, 457, 482) source_box=(377, 412, 412, 474)
+2026-05-24 04:07:50,914 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=14
+2026-05-24 04:07:50,914 DEBUG    [manga_local_translator.render] Text fit: font_size=14 lines=1 box=(332, 405, 457, 482) text=くくんはだし
+2026-05-24 04:07:50,914 DEBUG    [manga_local_translator.render] Estimated start font size: size=12 base=28 text_len=4 render_box=(390, 635, 464, 679) source_box=(410, 642, 444, 673)
+2026-05-24 04:07:50,914 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=12
+2026-05-24 04:07:50,914 DEBUG    [manga_local_translator.render] Text fit: font_size=12 lines=1 box=(390, 635, 464, 679) text=ねろがろ
+2026-05-24 04:07:50,914 INFO     [manga_local_translator.render] Planned 5 render text fit(s)
+2026-05-24 04:07:50,915 DEBUG    [manga_local_translator.render] Estimated start font size: size=15 base=28 text_len=5 render_box=(371, 117, 454, 192) source_box=(393, 128, 431, 180)
+2026-05-24 04:07:50,915 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=15
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Text fit: font_size=15 lines=1 box=(371, 117, 454, 192) text=ニンひぼっ
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Estimated start font size: size=18 base=28 text_len=5 render_box=(358, 266, 475, 313) source_box=(387, 273, 474, 306)
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=18
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Text fit: font_size=18 lines=1 box=(358, 266, 475, 313) text=遠藤達哉-
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Estimated start font size: size=13 base=28 text_len=9 render_box=(358, 338, 453, 396) source_box=(377, 343, 434, 392)
+2026-05-24 04:07:50,916 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=13
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Text fit: font_size=13 lines=2 box=(358, 338, 453, 396) text=しあきんたみじらか
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Estimated start font size: size=14 base=28 text_len=6 render_box=(332, 405, 457, 482) source_box=(377, 412, 412, 474)
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=14
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Text fit: font_size=14 lines=1 box=(332, 405, 457, 482) text=くくんはだし
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Estimated start font size: size=12 base=28 text_len=4 render_box=(390, 635, 464, 679) source_box=(410, 642, 444, 673)
+2026-05-24 04:07:50,917 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=12
+2026-05-24 04:07:50,918 DEBUG    [manga_local_translator.render] Text fit: font_size=12 lines=1 box=(390, 635, 464, 679) text=ねろがろ
+2026-05-24 04:07:50,918 INFO     [manga_local_translator.render] Planned 5 render text fit(s)
+2026-05-24 04:07:50,919 INFO     [manga_local_translator.debug_report] OCR debug report written: C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.ocr.json
+2026-05-24 04:07:50,919 INFO     [manga_local_translator.debug_report] Page debug summary: {'kept_blocks': 5, 'skipped_blocks': 15, 'fallback_blocks': 0, 'ellipsis_outputs': 0, 'qwen_used': 0, 'qwen_rejected': 0, 'qwen_repairs_attempted': 0, 'qwen_repairs_accepted': 0, 'qwen_fallback_attempted': 0, 'qwen_fallback_accepted': 0, 'suspected_bad_translations': 0}
+2026-05-24 04:07:50,919 DEBUG    [manga_local_translator.pipeline] Erase block expansion complete: render_blocks=5 erase_blocks=5
+2026-05-24 04:07:50,919 INFO     [manga_local_translator.erase] Erasing 5 text block(s) with mode=white padding=8
+2026-05-24 04:07:50,920 DEBUG    [manga_local_translator.erase] White erase box: original=(393, 128, 431, 180) padded=(385, 120, 439, 188)
+2026-05-24 04:07:50,920 DEBUG    [manga_local_translator.erase] White erase box: original=(387, 273, 474, 306) padded=(379, 265, 475, 314)
+2026-05-24 04:07:50,920 DEBUG    [manga_local_translator.erase] White erase box: original=(377, 343, 434, 392) padded=(369, 335, 442, 400)
+2026-05-24 04:07:50,920 DEBUG    [manga_local_translator.erase] White erase box: original=(377, 412, 412, 474) padded=(369, 404, 420, 482)
+2026-05-24 04:07:50,920 DEBUG    [manga_local_translator.erase] White erase box: original=(410, 642, 444, 673) padded=(402, 634, 452, 681)
+2026-05-24 04:07:50,920 INFO     [manga_local_translator.render] Rendering 5 translated text block(s)
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Rendering block: source=ニンひぼっ translated=ニンひぼっ original_box=(393, 128, 431, 180) render_box=(371, 117, 454, 192)
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Estimated start font size: size=15 base=28 text_len=5 render_box=(371, 117, 454, 192) source_box=(393, 128, 431, 180)
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=15
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Text fit: font_size=15 lines=1 box=(371, 117, 454, 192) text=ニンひぼっ
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Rendering block: source=遠藤達哉- translated=遠藤達哉- original_box=(387, 273, 474, 306) render_box=(358, 266, 475, 313)
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Estimated start font size: size=18 base=28 text_len=5 render_box=(358, 266, 475, 313) source_box=(387, 273, 474, 306)
+2026-05-24 04:07:50,921 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=18
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Text fit: font_size=18 lines=1 box=(358, 266, 475, 313) text=遠藤達哉-
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Rendering block: source=しあきんたみじらか translated=しあきんたみじらか original_box=(377, 343, 434, 392) render_box=(358, 338, 453, 396)
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Estimated start font size: size=13 base=28 text_len=9 render_box=(358, 338, 453, 396) source_box=(377, 343, 434, 392)
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=13
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Text fit: font_size=13 lines=2 box=(358, 338, 453, 396) text=しあきんたみじらか
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Rendering block: source=くくんはだし translated=くくんはだし original_box=(377, 412, 412, 474) render_box=(332, 405, 457, 482)
+2026-05-24 04:07:50,922 DEBUG    [manga_local_translator.render] Estimated start font size: size=14 base=28 text_len=6 render_box=(332, 405, 457, 482) source_box=(377, 412, 412, 474)
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=14
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Text fit: font_size=14 lines=1 box=(332, 405, 457, 482) text=くくんはだし
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Rendering block: source=ねろがろ translated=ねろがろ original_box=(410, 642, 444, 673) render_box=(390, 635, 464, 679)
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Estimated start font size: size=12 base=28 text_len=4 render_box=(390, 635, 464, 679) source_box=(410, 642, 444, 673)
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Loading font: C:\Windows\Fonts\arial.ttf size=12
+2026-05-24 04:07:50,923 DEBUG    [manga_local_translator.render] Text fit: font_size=12 lines=1 box=(390, 635, 464, 679) text=ねろがろ
+2026-05-24 04:07:50,925 INFO     [manga_local_translator.image_io] Writing translated image: C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.png
+2026-05-24 04:07:50,933 INFO     [manga_local_translator.pipeline] Translated image written: C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.png
+2026-05-24 04:07:50,933 INFO     [manga_local_translator.pipeline] Writing debug OCR box image
+2026-05-24 04:07:50,943 INFO     [manga_local_translator.debug_report] Debug image written: C:\Users\migue\Desktop\pythonscripts\Translator\refactor-smoke-tesseract.debug.png
+2026-05-24 04:07:50,944 INFO     [manga_local_translator.pipeline] Process folder finished: processed=1 skipped=0
+2026-05-24 04:07:50,944 INFO     [manga_local_translator.cli] CLI finished
