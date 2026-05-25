@@ -188,11 +188,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write debug OCR JSON but skip final image rendering. Intended for translation benchmarks.",
     )
+    parser.add_argument(
+        "--render-only",
+        action="store_true",
+        help="Render images from existing batched cache only. Fails if prepared/translation cache is missing.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.render_only and args.skip_render:
+        raise SystemExit("--render-only cannot be combined with --skip-render")
     log_path = configure_logging(reset=True)
     logger.info("CLI started")
     logger.debug("CLI args: %s", args)
@@ -227,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
         resume=args.resume,
         work_dir=args.work_dir,
         skip_render=args.skip_render,
+        render_only=args.render_only,
     )
     from .pipeline import process_folder
 

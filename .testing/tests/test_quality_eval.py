@@ -4,8 +4,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from manga_local_translator.quality_eval import benchmark_variants, summarize_debug_reports, write_review_artifacts
+from manga_local_translator.quality_eval import benchmark_variants, run_profile, summarize_debug_reports, write_review_artifacts
 
 
 class QualityEvalTests(unittest.TestCase):
@@ -139,6 +140,34 @@ class QualityEvalTests(unittest.TestCase):
 
         self.assertIn("Manga Translation Human Review", markdown)
         self.assertIn("cat_chatter", markdown)
+
+    def test_run_profile_render_only_uses_cache_render_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            completed = mock.Mock(returncode=0)
+            with mock.patch("manga_local_translator.quality_eval.subprocess.run", return_value=completed) as run:
+                run_profile(
+                    root / "input",
+                    root / "output",
+                    "quality",
+                    qwen_model=None,
+                    qwen_fallback_model=None,
+                    qwen_critic_model=None,
+                    translator="cat",
+                    cat_model=".models/CAT-Translate/CAT-Translate-7b.Q8_0.gguf",
+                    qwen_mode="block",
+                    vision=False,
+                    vision_facts=False,
+                    vision_trigger="suspicious",
+                    resume=True,
+                    skip_render=False,
+                    render_only=True,
+                )
+
+        command = run.call_args.args[0]
+        self.assertIn("--render-only", command)
+        self.assertIn("--resume", command)
+        self.assertNotIn("--skip-render", command)
 
 
 if __name__ == "__main__":

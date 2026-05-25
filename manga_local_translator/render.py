@@ -4,6 +4,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -15,6 +16,10 @@ from .line_identity import lookup_translation
 from .logging_utils import shorten
 
 logger = logging.getLogger(__name__)
+
+
+_FONT_REGISTRY: dict[tuple[str, int], ImageFont.ImageFont] = {}
+_TEXT_FIT_CACHE: dict[tuple[str, tuple[int, int, int, int], str | None, int, tuple[int, int, int, int] | None], TextFit] = {}
 
 
 @dataclass(frozen=True)
@@ -73,7 +78,63 @@ def avoid_render_collisions(layouts: list[RenderLayout]) -> list[RenderLayout]:
             render_box = trim_render_box_away_from_source(render_box, layout.source_box, other_layout.source_box)
             render_box = trim_render_box_away_from_source(render_box, layout.source_box, other_layout.render_box)
         adjusted.append(RenderLayout(source_box=layout.source_box, render_box=render_box, bubble_box=layout.bubble_box))
+    return trim_residual_render_overlaps(adjusted)
+
+
+def trim_residual_render_overlaps(layouts: list[RenderLayout]) -> list[RenderLayout]:
+    adjusted = list(layouts)
+    for index, layout in enumerate(adjusted):
+        render_box = layout.render_box
+        for other_index, other_layout in enumerate(adjusted):
+            if other_index == index or not boxes_intersect(render_box, other_layout.render_box):
+                continue
+            if boxes_intersect(layout.source_box, other_layout.source_box):
+                continue
+            render_box = trim_small_render_overlap(render_box, layout.source_box, other_layout.render_box)
+        if render_box != layout.render_box:
+            adjusted[index] = RenderLayout(source_box=layout.source_box, render_box=render_box, bubble_box=layout.bubble_box)
     return adjusted
+
+
+def trim_small_render_overlap(
+    render_box: tuple[int, int, int, int],
+    source_box: tuple[int, int, int, int],
+    other_box: tuple[int, int, int, int],
+    *,
+    margin: int = 1,
+) -> tuple[int, int, int, int]:
+    ix1 = max(render_box[0], other_box[0])
+    iy1 = max(render_box[1], other_box[1])
+    ix2 = min(render_box[2], other_box[2])
+    iy2 = min(render_box[3], other_box[3])
+    overlap_width = ix2 - ix1
+    overlap_height = iy2 - iy1
+    if overlap_width <= 0 or overlap_height <= 0:
+        return render_box
+
+    x1, y1, x2, y2 = render_box
+    sx, sy = box_center(source_box)
+    ox, oy = box_center(other_box)
+    candidates: list[tuple[int, int, int, int]] = []
+    if overlap_width <= overlap_height:
+        if ox >= sx:
+            candidates.append((x1, y1, min(x2, other_box[0] - margin), y2))
+        else:
+            candidates.append((max(x1, other_box[2] + margin), y1, x2, y2))
+    else:
+        if oy >= sy:
+            candidates.append((x1, y1, x2, min(y2, other_box[1] - margin)))
+        else:
+            candidates.append((x1, max(y1, other_box[3] + margin), x2, y2))
+
+    valid = [
+        candidate
+        for candidate in candidates
+        if box_area(candidate) >= box_area(source_box) and candidate_keeps_source_anchor(candidate, source_box)
+    ]
+    if not valid:
+        return render_box
+    return max(valid, key=box_area)
 
 
 def trim_render_box_away_from_source(
@@ -320,15 +381,11 @@ def choose_render_layout(
     if box_area(source_box) < 700:
         return RenderLayout(source_box=source_box, render_box=expanded)
 
-    bubble_box = find_white_region_box(image_bgr, source_box, expanded)
+    source_area = box_area(source_box)
+    bubble_box = find_usable_bubble_box(image_bgr, source_box, expanded, image_width, image_height)
     if bubble_box is None:
         return RenderLayout(source_box=source_box, render_box=fallback_render_box(source_box, expanded))
-
-    source_area = box_area(source_box)
     bubble_area = box_area(bubble_box)
-    if not is_usable_bubble_box(source_box, expanded, bubble_box, image_width, image_height):
-        logger.debug("Ignoring unusable bubble candidate: source=%s expanded=%s bubble=%s", source_box, expanded, bubble_box)
-        return RenderLayout(source_box=source_box, render_box=fallback_render_box(source_box, expanded))
 
     if bubble_area < source_area * 1.2:
         logger.debug("Ignoring tiny bubble candidate: source=%s bubble=%s", source_box, bubble_box)
@@ -338,7 +395,10 @@ def choose_render_layout(
         return RenderLayout(source_box=source_box, render_box=fallback_render_box(source_box, expanded))
 
     safe_bubble_box = inset_text_box(bubble_box)
-    render_box = clamp_box_to_container(tighten_large_text_box(source_box, safe_bubble_box), safe_bubble_box)
+    if is_outline_bubble_candidate(source_box, bubble_box, image_width, image_height):
+        render_box = safe_bubble_box
+    else:
+        render_box = clamp_box_to_container(tighten_large_text_box(source_box, safe_bubble_box), safe_bubble_box)
     logger.debug(
         "Using white-region render box: source=%s expanded=%s bubble=%s safe_bubble=%s render=%s",
         source_box,
@@ -348,6 +408,27 @@ def choose_render_layout(
         render_box,
     )
     return RenderLayout(source_box=source_box, render_box=render_box, bubble_box=bubble_box)
+
+
+def find_usable_bubble_box(
+    image_bgr: np.ndarray,
+    source_box: tuple[int, int, int, int],
+    expanded: tuple[int, int, int, int],
+    image_width: int,
+    image_height: int,
+) -> tuple[int, int, int, int] | None:
+    bubble_box = find_white_region_box(image_bgr, source_box, expanded)
+    if bubble_box is not None and is_usable_bubble_box(source_box, expanded, bubble_box, image_width, image_height):
+        return bubble_box
+    if bubble_box is not None:
+        logger.debug("Ignoring unusable white bubble candidate: source=%s expanded=%s bubble=%s", source_box, expanded, bubble_box)
+
+    outline_box = find_dark_outline_bubble_box(image_bgr, source_box, expanded)
+    if outline_box is not None and is_usable_outline_bubble_box(source_box, outline_box, image_width, image_height):
+        return outline_box
+    if outline_box is not None:
+        logger.debug("Ignoring unusable outline bubble candidate: source=%s expanded=%s bubble=%s", source_box, expanded, outline_box)
+    return None
 
 
 def fallback_render_box(
@@ -439,6 +520,39 @@ def is_usable_bubble_box(
     return True
 
 
+def is_usable_outline_bubble_box(
+    source_box: tuple[int, int, int, int],
+    bubble_box: tuple[int, int, int, int],
+    image_width: int,
+    image_height: int,
+) -> bool:
+    source_area = max(1, box_area(source_box))
+    bubble_area = max(1, box_area(bubble_box))
+    image_area = max(1, image_width * image_height)
+    bubble_width = max(1, bubble_box[2] - bubble_box[0])
+    bubble_height = max(1, bubble_box[3] - bubble_box[1])
+    aspect = bubble_width / bubble_height
+
+    if not point_in_box(box_center(source_box), bubble_box):
+        return False
+    if bubble_area / image_area > 0.18:
+        return False
+    if bubble_area < source_area * 2.0 or bubble_area > source_area * 10.0:
+        return False
+    if aspect > 3.2 or aspect < 0.31:
+        return False
+    return True
+
+
+def is_outline_bubble_candidate(
+    source_box: tuple[int, int, int, int],
+    bubble_box: tuple[int, int, int, int],
+    image_width: int,
+    image_height: int,
+) -> bool:
+    return is_usable_outline_bubble_box(source_box, bubble_box, image_width, image_height)
+
+
 def touches_panel_edge(box: tuple[int, int, int, int], image_width: int, image_height: int) -> bool:
     margin = 3
     return box[0] <= margin or box[1] <= margin or box[2] >= image_width - 1 - margin or box[3] >= image_height - 1 - margin
@@ -494,6 +608,59 @@ def find_white_region_box(
         gx2 -= inset
         gy2 -= inset
     return clamp_box((gx1, gy1, gx2, gy2), width, height)
+
+
+def find_dark_outline_bubble_box(
+    image_bgr: np.ndarray,
+    source_box: tuple[int, int, int, int],
+    expanded_box: tuple[int, int, int, int],
+) -> tuple[int, int, int, int] | None:
+    source_width = max(1, source_box[2] - source_box[0])
+    source_height = max(1, source_box[3] - source_box[1])
+    if source_width < source_height * 0.8:
+        return None
+
+    height, width = image_bgr.shape[:2]
+    search_padding = max(36, min(72, max(source_width, source_height)))
+    search_box = pad_box(expanded_box, width, height, search_padding)
+    sx1, sy1, sx2, sy2 = search_box
+    if sx2 <= sx1 or sy2 <= sy1:
+        return None
+
+    gray = cv2.cvtColor(image_bgr[sy1:sy2, sx1:sx2], cv2.COLOR_BGR2GRAY)
+    dark_mask = (gray <= 120).astype("uint8")
+    component_count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(dark_mask, 8)
+    source_local = (source_box[0] - sx1, source_box[1] - sy1, source_box[2] - sx1, source_box[3] - sy1)
+    source_center = box_center(source_local)
+    source_area = max(1, box_area(source_local))
+
+    best_box = None
+    best_score = 0.0
+    for index in range(1, component_count):
+        x, y, component_width, component_height, area = stats[index]
+        if area < 80:
+            continue
+        local_box = (int(x), int(y), int(x + component_width), int(y + component_height))
+        local_area = box_area(local_box)
+        if local_area < source_area * 2.0:
+            continue
+        if not point_in_box(source_center, local_box):
+            continue
+        fill_ratio = area / max(1, local_area)
+        if fill_ratio > 0.35:
+            continue
+        aspect = max(1, component_width) / max(1, component_height)
+        if aspect > 3.2 or aspect < 0.31:
+            continue
+        score = local_area / source_area - fill_ratio
+        if score > best_score:
+            best_score = score
+            best_box = local_box
+
+    if best_box is None:
+        return None
+
+    return clamp_box((best_box[0] + sx1, best_box[1] + sy1, best_box[2] + sx1, best_box[3] + sy1), width, height)
 
 
 def pad_box(
@@ -617,16 +784,24 @@ def fit_text(
     min_dimension = min(box_width, box_height)
     padding = max(4, min_dimension // 14)
     if min_dimension < 52:
-        padding = max(padding, 8)
+        padding = max(padding, 6)
     usable_width = max(1, box_width - padding * 2)
     usable_height = max(1, box_height - padding * 2)
 
     start_font_size = min(base_font_size, estimate_start_font_size(text, box, source_box, base_font_size))
     min_font_size = 5
+    cache_key = text_fit_cache_key(text, box, font_path, base_font_size, source_box)
+    cached_fit = _TEXT_FIT_CACHE.get(cache_key)
+    if draw_text and cached_fit is not None:
+        draw_cached_text_fit(draw, cached_fit, box, font_path=font_path, padding=padding)
+        return cached_fit
+
     selected: tuple[int, ImageFont.ImageFont, list[str], int, int, int, float, tuple[str, ...], int, int] | None = None
     candidate_font_sizes: list[int] = []
 
     for font_size in range(start_font_size, min_font_size - 1, -1):
+        if selected is not None and selected[0] > 8 and font_size <= 8:
+            break
         font = load_font(font_path, font_size)
         candidate_font_sizes.append(font_size)
         if font_size > min_font_size and has_overwide_word(draw, text, font, usable_width):
@@ -643,8 +818,10 @@ def fit_text(
             split_count = split_word_count(text, lines)
             orphan_count = orphan_line_count(lines)
             score = render_fit_score(lines, font_size, start_font_size, warnings=warnings, split_word_count=split_count, orphan_line_count=orphan_count)
-            if selected is None or score < selected[6]:
+            if selected is None or is_better_fit_candidate(font_size, score, selected[0], selected[6]):
                 selected = (font_size, font, lines, line_height, total_height, widest, score, warnings, split_count, orphan_count)
+                if can_accept_fit_early(font_size, lines, score, warnings, split_count, orphan_count):
+                    break
 
     if selected is not None:
         font_size, font, lines, line_height, total_height, widest, score, warnings, split_count, orphan_count = selected
@@ -665,7 +842,7 @@ def fit_text(
                 draw.text((x, y), line, font=font, fill=(0, 0, 0))
                 y += line_height
         status = "fit" if font_size > min_font_size else "fit_min_font"
-        return TextFit(
+        fit = TextFit(
             font_size=font_size,
             line_count=len(lines),
             fit_status=status,
@@ -683,6 +860,8 @@ def fit_text(
             orphan_line_count=orphan_count,
             candidate_font_sizes=tuple(candidate_font_sizes),
         )
+        _TEXT_FIT_CACHE[cache_key] = fit
+        return fit
 
     logger.warning("Text did not fit cleanly; drawing clipped fallback at font size %d: box=%s text=%s", min_font_size, box, shorten(text))
     font = load_font(font_path, min_font_size)
@@ -704,7 +883,7 @@ def fit_text(
                 break
             draw.text((x, y), line, font=font, fill=(0, 0, 0))
             y += line_height
-    return TextFit(
+    fit = TextFit(
         font_size=min_font_size,
         line_count=len(lines),
         fit_status="clipped",
@@ -724,6 +903,66 @@ def fit_text(
         orphan_line_count=orphan_count,
         candidate_font_sizes=tuple(candidate_font_sizes),
     )
+    _TEXT_FIT_CACHE[cache_key] = fit
+    return fit
+
+
+def is_better_fit_candidate(
+    font_size: int,
+    score: float,
+    selected_font_size: int,
+    selected_score: float,
+) -> bool:
+    if font_size > 8 and selected_font_size <= 8:
+        return True
+    if font_size <= 8 and selected_font_size > 8:
+        return False
+    return score < selected_score
+
+
+def can_accept_fit_early(
+    font_size: int,
+    lines: list[str],
+    score: float,
+    warnings: tuple[str, ...],
+    split_word_count: int,
+    orphan_line_count: int,
+) -> bool:
+    if font_size <= 8 or len(lines) > 4 or score > 80:
+        return False
+    if split_word_count > 0 or orphan_line_count > 0:
+        return False
+    return not warnings
+
+
+def text_fit_cache_key(
+    text: str,
+    box: tuple[int, int, int, int],
+    font_path: Path | None,
+    base_font_size: int,
+    source_box: tuple[int, int, int, int] | None,
+) -> tuple[str, tuple[int, int, int, int], str | None, int, tuple[int, int, int, int] | None]:
+    return text, box, str(font_path) if font_path is not None else None, base_font_size, source_box
+
+
+def draw_cached_text_fit(
+    draw: ImageDraw.ImageDraw,
+    fit: TextFit,
+    box: tuple[int, int, int, int],
+    *,
+    font_path: Path | None,
+    padding: int,
+) -> None:
+    x1, y1, _x2, y2 = box
+    font = load_font(font_path, fit.font_size)
+    y = y1 + padding + max(0, (fit.usable_height - fit.total_height) // 2)
+    for line in fit.lines:
+        line_width = text_width(draw, line, font)
+        x = x1 + padding + max(0, (fit.usable_width - line_width) // 2)
+        if fit.clipped and y + fit.line_height > y2 - padding + 1:
+            break
+        draw.text((x, y), line, font=font, fill=(0, 0, 0))
+        y += fit.line_height
 
 
 def render_fit_score(
@@ -872,6 +1111,8 @@ def estimate_start_font_size(
     width_cap = int(width * (0.42 if aspect < 1.25 else 0.32))
     dimension_cap = max(6, min(height_cap, width_cap))
     estimated = max(5, min(base_font_size, dimension_cap, max(6, density_cap)))
+    if text_len >= 70:
+        estimated = min(estimated, 12)
     if source_box is not None and is_long_translation_from_narrow_vertical_source(text, source_box):
         estimated = min(estimated, 16)
     logger.debug(
@@ -914,7 +1155,7 @@ def wrap_text(
         return []
     if any(text_width(draw, word, font) > max_width for word in words):
         return wrap_text_greedy(draw, text, font, max_width)
-    if len(words) <= 18:
+    if len(words) <= 14:
         balanced = wrap_text_balanced(draw, words, font, max_width)
         if balanced:
             return balanced
@@ -1098,6 +1339,7 @@ def is_tiny_word_chunk(text: str) -> bool:
     return False
 
 
+@lru_cache(maxsize=64)
 def load_font(font_path: Path | None, size: int) -> ImageFont.ImageFont:
     candidates = []
     if font_path:
@@ -1113,16 +1355,44 @@ def load_font(font_path: Path | None, size: int) -> ImageFont.ImageFont:
     for candidate in candidates:
         if candidate.exists():
             logger.debug("Loading font: %s size=%d", candidate, size)
-            return ImageFont.truetype(str(candidate), size=size)
+            font = ImageFont.truetype(str(candidate), size=size)
+            _FONT_REGISTRY[(str(candidate), size)] = font
+            return font
     logger.warning("No TrueType font found; using Pillow default font at requested size=%d", size)
     return ImageFont.load_default()
 
 
 def text_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont) -> int:
-    bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[2] - bbox[0]
+    width, _height = text_size(draw, text, font)
+    return width
 
 
 def text_height(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont) -> int:
+    _width, height = text_size(draw, text, font)
+    return height
+
+
+def text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont) -> tuple[int, int]:
+    font_key = registered_font_key(font)
+    if font_key is not None:
+        return cached_text_size(font_key, text)
     bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[3] - bbox[1]
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def registered_font_key(font: ImageFont.ImageFont) -> tuple[str, int] | None:
+    path = getattr(font, "path", None)
+    size = getattr(font, "size", None)
+    if path is None or size is None:
+        return None
+    key = (str(path), int(size))
+    if key in _FONT_REGISTRY:
+        return key
+    return None
+
+
+@lru_cache(maxsize=8192)
+def cached_text_size(font_key: tuple[str, int], text: str) -> tuple[int, int]:
+    font = _FONT_REGISTRY[font_key]
+    bbox = font.getbbox(text)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]

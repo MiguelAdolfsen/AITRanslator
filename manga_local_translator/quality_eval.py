@@ -129,6 +129,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Render translated image files during benchmark runs. By default benchmarks write OCR JSON/review reports only.",
     )
+    parser.add_argument(
+        "--render-only",
+        action="store_true",
+        help="Render images from existing benchmark caches only; no OCR or translation work is allowed.",
+    )
     return parser
 
 
@@ -165,7 +170,8 @@ def main(argv: list[str] | None = None) -> int:
                 vision_facts=args.vision_facts,
                 vision_trigger=args.vision_trigger,
                 resume=args.resume,
-                skip_render=not args.render_images,
+                skip_render=not args.render_images and not args.render_only,
+                render_only=args.render_only,
             )
         rows = summarize_debug_reports(output_dir, profile=label)
         all_rows.extend(rows)
@@ -232,6 +238,7 @@ def run_profile(
     vision_trigger: str,
     resume: bool,
     skip_render: bool,
+    render_only: bool,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
@@ -255,6 +262,8 @@ def run_profile(
     ]
     if skip_render:
         command.append("--skip-render")
+    if render_only:
+        command.append("--render-only")
     if qwen_model is not None:
         command.extend(["--qwen-model", str(qwen_model)])
     if qwen_fallback_model is not None:

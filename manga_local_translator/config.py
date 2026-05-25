@@ -36,3 +36,4 @@ class PipelineConfig:
     resume: bool = False
     work_dir: Path | None = None
     skip_render: bool = False
+    render_only: bool = False

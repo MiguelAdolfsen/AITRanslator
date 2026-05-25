@@ -5,6 +5,7 @@ import os
 import re
 import hashlib
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -81,17 +82,22 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
     logger.debug("Pipeline config: %s", config)
     previous_transformers_offline, previous_hf_offline = enable_hf_offline_runtime()
     try:
-        if config.detector == "tesseract" or config.ocr_engine == "tesseract":
-            configure_tesseract(config.tesseract_cmd)
-        if config.detector == "ctd":
-            from .ctd_setup import require_ctd_installed
+        if not config.render_only:
+            if config.detector == "tesseract" or config.ocr_engine == "tesseract":
+                configure_tesseract(config.tesseract_cmd)
+            if config.detector == "ctd":
+                from .ctd_setup import require_ctd_installed
 
-            require_ctd_installed()
+                require_ctd_installed()
         image_paths = list(iter_images(input_path, recursive=config.recursive))
         logger.info("Found %d supported image(s)", len(image_paths))
         if not image_paths:
             logger.error("No supported images found in %s", input_path)
             raise SystemExit(f"No supported images found in {input_path}")
+
+        if config.render_only:
+            render_cached_pages_only(input_path, output_path, image_paths, config)
+            return
 
         if config.translator == "cat" or config.translator == "qwen" and (
             config.qwen_fallback_model_path is not None
@@ -135,6 +141,88 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
         restore_env_var("HF_HUB_OFFLINE", previous_hf_offline)
 
     logger.info("Process folder finished: processed=%d skipped=%d", processed, skipped)
+
+
+def render_cached_pages_only(
+    input_path: Path,
+    output_path: Path,
+    image_paths: list[Path],
+    config: PipelineConfig,
+) -> None:
+    work_dir = resolve_work_dir(output_path, config)
+    if not work_dir.exists():
+        raise RuntimeError(f"Render-only cache folder does not exist: {work_dir}")
+    render_config = replace(config, skip_render=False, vision_enabled=False)
+    processed = 0
+    skipped = 0
+    missing: list[str] = []
+    logger.info("Starting render-only flow from cache: work_dir=%s", work_dir)
+    for index, image_path in enumerate(tqdm(image_paths, desc="Rendering cached pages", unit="page"), start=1):
+        target_path = resolve_output_path(input_path, output_path, image_path)
+        logger.info("Render-only page %d/%d: %s -> %s", index, len(image_paths), image_path, target_path)
+        if target_path.exists() and not config.overwrite:
+            skipped += 1
+            logger.info("Skipping existing output because overwrite is off: %s", target_path)
+            continue
+        prepared_cache = cache_page_path(work_dir, index, image_path, "prepared")
+        if not prepared_cache.exists():
+            missing.append(str(prepared_cache))
+            continue
+        translation_cache = find_render_only_translation_cache(work_dir, index, image_path, config)
+        if translation_cache is None:
+            expected = ", ".join(render_only_translation_stages(config))
+            missing.append(f"{cache_page_path(work_dir, index, image_path, '<translation-stage>')} expected one of: {expected}")
+            continue
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        page = load_prepared_page_cache(prepared_cache, output_path=target_path)
+        load_translation_cache(page, translation_cache)
+        refresh_translation_fallback_blocks(page, config)
+        render_prepared_page(page, render_config)
+        processed += 1
+    if missing:
+        missing_preview = "\n".join(missing[:8])
+        extra = f"\n...and {len(missing) - 8} more" if len(missing) > 8 else ""
+        raise RuntimeError(
+            "Render-only cache is incomplete. Re-run the matching translation benchmark first, "
+            "or pass the same translator/model/critic/fallback flags used when the cache was created.\n"
+            f"{missing_preview}{extra}"
+        )
+    logger.info("Render-only flow finished: processed=%d skipped=%d", processed, skipped)
+
+
+def find_render_only_translation_cache(
+    work_dir: Path,
+    page_index: int,
+    image_path: Path,
+    config: PipelineConfig,
+) -> Path | None:
+    for stage in render_only_translation_stages(config):
+        cache_path = cache_page_path(work_dir, page_index, image_path, stage)
+        if cache_path.exists():
+            logger.info("Loaded render-only translation cache: %s", cache_path)
+            return cache_path
+    return None
+
+
+def render_only_translation_stages(config: PipelineConfig) -> list[str]:
+    stage_names: list[str] = []
+    if config.qwen_fallback_model_path is not None:
+        stage_names.append("hybrid")
+    if config.qwen_critic_model_path is not None:
+        stage_names.append("critic")
+    stage_names.append("primary")
+    if config.qwen_fallback_model_path is None:
+        stage_names.append("hybrid")
+    if config.qwen_critic_model_path is None:
+        stage_names.append("critic")
+    seen: set[str] = set()
+    stages: list[str] = []
+    for stage in stage_names:
+        cache_stage = translation_cache_stage(config, stage)
+        if cache_stage not in seen:
+            seen.add(cache_stage)
+            stages.append(cache_stage)
+    return stages
 
 
 def process_folder_qwen_hybrid_batch(
