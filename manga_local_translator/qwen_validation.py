@@ -590,11 +590,17 @@ def accept_qwen_translation(
         return False, "stage_direction_only"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", candidate):
         return False, "malformed_hyphen_chain"
+    if has_cleanup_residue_pattern(candidate):
+        return False, "cleanup_residue"
     if has_malformed_english_pattern(candidate):
         return False, "grammar_problem"
+    if has_awkward_literal_pattern(candidate):
+        return False, "awkward_literal"
     if short_kana_fragment_gets_unsupported_first_person_detail(source_text, candidate):
         return False, "unsupported_first_person_salvage"
     if identity_fragment_invents_detail(source_text, candidate):
+        return False, "invented_identity_detail"
+    if honorific_name_reading_changed(source_text, candidate):
         return False, "invented_identity_detail"
     if ruby_annotation_literal_gloss(source_text, candidate):
         return False, "ruby_literal_gloss"
@@ -618,6 +624,8 @@ def accept_qwen_translation(
         return False, "unnecessary_gendering"
     if source_has_confirmation_ending(source_text) and not translation_preserves_confirmation_ending(candidate):
         return False, "dropped_confirmation_tone"
+    if source_has_exclamation_tone(source_text) and translation_drops_exclamation_tone(candidate):
+        return False, "dropped_exclamation_tone"
     candidate_words = candidate.split()
     baseline_words = baseline.split()
     if baseline_words and len(candidate_words) > max(18, len(baseline_words) * 2 + 6):
@@ -641,7 +649,9 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "too_long",
         "stage_direction_only",
         "malformed_hyphen_chain",
+        "cleanup_residue",
         "grammar_problem",
+        "awkward_literal",
         "invented_identity_detail",
         "ruby_literal_gloss",
         "ocr_risk_fluent_sentence",
@@ -653,6 +663,7 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "dropped_honorific",
         "unnecessary_gendering",
         "dropped_confirmation_tone",
+        "dropped_exclamation_tone",
         "much_longer_than_baseline",
         "short_source_long_translation",
         "hedging_or_explanation",
@@ -688,8 +699,25 @@ def translation_preserves_confirmation_ending(candidate: str) -> bool:
     )
 
 
+def source_has_exclamation_tone(source_text: str) -> bool:
+    return "!" in source_text or "\uff01" in source_text
+
+
+def translation_drops_exclamation_tone(candidate: str) -> bool:
+    stripped = candidate.strip()
+    return bool(stripped.endswith("...") and "!" not in stripped)
+
+
 def source_has_bracket_term(source_text: str) -> bool:
     return enforced_bracket_term_kind(source_text) is not None
+
+
+def has_cleanup_residue_pattern(candidate: str) -> bool:
+    stripped = candidate.strip()
+    return bool(
+        re.fullmatch(r"[A-Za-z][A-Za-z']*(?:\s+[A-Za-z][A-Za-z']*)?,", stripped)
+        or re.search(r"\b[A-Za-z]{2,}/[A-Za-z]{2,}\b", stripped)
+    )
 
 
 def has_malformed_english_pattern(candidate: str) -> bool:
@@ -698,6 +726,19 @@ def has_malformed_english_pattern(candidate: str) -> bool:
         re.search(r"\bbeing\s+(?:the\s+)?[a-z]{3,}\s+of\b", lower)
         or re.search(r"\b(?:is|are|was|were)\s+the\s+[a-z]{3,}\s+of\s+[a-z]{3,}\b", lower)
         or re.search(r"\b(?:feeling|thought|voice)\s+of\s+(?:chest|body|heart|mind)\b", lower)
+        or re.search(r"\ban\s+h(?!our\b|onest\b|onor\b|eir\b)[a-z]+\b", lower)
+        or re.search(
+            r"\b(?:has|have|had)\s+(?:defeated|beaten|killed|broken|found|lost|seen|caught|met|saved|stopped)\s*[.!?]?$",
+            lower,
+        )
+    )
+
+
+def has_awkward_literal_pattern(candidate: str) -> bool:
+    lower = " ".join(candidate.lower().split())
+    return bool(
+        re.fullmatch(r"[a-z]{3,}\s+(?:return|run|go|come|walk|jump|move)\?", lower)
+        or re.search(r"\b[a-z]+(?:ance|ence|ment|tion|sion)\s+(?:run|walk|return|go|jump|move)\b", lower)
     )
 
 
@@ -726,6 +767,25 @@ def has_unsupported_english_name(candidate: str) -> bool:
     blocked = {"I", "Is", "Are", "Am", "Who", "What", "Where", "When", "Why", "How", "That", "This", "The"}
     names = re.findall(r"\b[A-Z][a-z]{2,}\b", candidate)
     return any(name not in blocked for name in names)
+
+
+def honorific_name_reading_changed(source_text: str, candidate: str) -> bool:
+    readings = source_honorific_name_readings(source_text)
+    if not readings:
+        return False
+    normalized_candidate = re.sub(r"[^a-z]+", "", candidate.lower())
+    return not any(reading and reading in normalized_candidate for reading in readings)
+
+
+def source_honorific_name_readings(source_text: str) -> list[str]:
+    suffixes = [marker for markers, _rendered in HONORIFIC_MARKERS for marker in markers]
+    suffix_pattern = "|".join(re.escape(marker) for marker in suffixes)
+    readings: list[str] = []
+    for match in re.finditer(rf"([\u30a1-\u30fa\u30fc]{{2,12}})(?:{suffix_pattern})", str(source_text)):
+        reading = kana_to_rough_romaji(match.group(1))
+        if reading:
+            readings.append(reading)
+    return list(dict.fromkeys(readings))
 
 
 def ruby_annotation_literal_gloss(source_text: str, candidate: str) -> bool:
