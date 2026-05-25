@@ -93,7 +93,7 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             logger.error("No supported images found in %s", input_path)
             raise SystemExit(f"No supported images found in {input_path}")
 
-        if config.translator in {"qwen", "cat"} and (
+        if config.translator == "cat" or config.translator == "qwen" and (
             config.qwen_fallback_model_path is not None
             or config.qwen_critic_model_path is not None
             or (config.translator == "qwen" and config.vision_facts_enabled)
@@ -224,6 +224,20 @@ def process_folder_qwen_hybrid_batch(
         for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{config.translator.upper()} primary pass", unit="page"):
             translate_prepared_page(page, primary_translator, config)
             save_translation_cache(page, primary_cache)
+        if config.translator == "cat":
+            total_cat_retry_attempted = 0
+            total_cat_retry_accepted = 0
+            for _page_index, page, primary_cache in tqdm(primary_jobs, desc="CAT retry pass", unit="page"):
+                attempted, accepted = retry_cat_failures(page, primary_translator, config)
+                if attempted:
+                    save_translation_cache(page, primary_cache)
+                total_cat_retry_attempted += attempted
+                total_cat_retry_accepted += accepted
+            logger.info(
+                "CAT retry scan complete: attempted=%d accepted=%d",
+                total_cat_retry_attempted,
+                total_cat_retry_accepted,
+            )
         release_qwen_translator(primary_translator)
         del primary_translator
     else:
@@ -362,15 +376,16 @@ def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
     if config.translator == "qwen":
         suffix = f"{stage}-{config.qwen_mode}"
     elif config.translator == "cat":
-        from .hf_translators import CAT_PROMPT_VERSION, CAT_VALIDATION_VERSION, find_cat_gguf_path
+        from .hf_translators import CAT_BYPASS_VERSION, CAT_PROMPT_VERSION, CAT_RETRY_PROMPT_VERSION, CAT_VALIDATION_VERSION, cat_bypass_enabled, cat_num_predict, find_cat_gguf_path
 
         cat_model = str(config.cat_model_name or "")
         cat_path = find_cat_gguf_path(Path(cat_model)) if cat_model else find_cat_gguf_path()
         model_identity = str(cat_path or cat_model or "default")
         identity = cache_identity_token(
-            f"{model_identity}|{CAT_PROMPT_VERSION}|{CAT_VALIDATION_VERSION}"
+            f"{model_identity}|{CAT_PROMPT_VERSION}|{CAT_RETRY_PROMPT_VERSION}|{CAT_VALIDATION_VERSION}|{CAT_BYPASS_VERSION}|bypass={cat_bypass_enabled()}|num_predict={cat_num_predict()}"
         )
-        suffix = f"{stage}-cat-{identity}-{CAT_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}"
+        bypass_token = "bypass" if cat_bypass_enabled() else "nobypass"
+        suffix = f"{stage}-cat-{identity}-{CAT_PROMPT_VERSION}-{CAT_RETRY_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}-{CAT_BYPASS_VERSION}-{bypass_token}-np{cat_num_predict()}"
     else:
         return stage
     if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
@@ -442,6 +457,56 @@ def apply_translation_evidence(
         context = lookup_context(translation_contexts, block)
         context.update(build_evidence_context(block.text, translated, memory))
         set_context(translation_contexts, block, context)
+
+
+def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -> tuple[int, int]:
+    if not hasattr(translator, "retry_translation"):
+        return (0, 0)
+    from .translate import translation_debug_info
+
+    attempted = 0
+    accepted = 0
+    for block in page.render_blocks:
+        context = lookup_context(page.translation_contexts, block)
+        if context.get("cat_rejected") is not True:
+            continue
+        attempted += 1
+        previous_translation = lookup_translation(page.translations, block, "")
+        previous_reason = str(context.get("cat_reject_reason") or "")
+        logger.info(
+            "Retrying CAT rejected line: reason=%s source=%s",
+            previous_reason,
+            shorten(block.text),
+        )
+        retry_translation = translator.retry_translation(block.text)
+        retry_debug = translator_debug_info_for(translator, block)
+        context.update(
+            {
+                "cat_retry_attempted": True,
+                "cat_retry_previous_translation": previous_translation,
+                "cat_retry_previous_reject_reason": previous_reason,
+                **retry_debug,
+            }
+        )
+        if retry_debug.get("cat_retry_accepted") is True:
+            set_translation(page.translations, block, retry_translation)
+            context.update(translation_debug_info(block.text, retry_translation, glossary_path=config.glossary_path))
+            accepted += 1
+            logger.info(
+                "Accepted CAT retry translation: source=%s retry=%s",
+                shorten(block.text),
+                shorten(retry_translation),
+            )
+        else:
+            logger.info(
+                "Rejected CAT retry translation: source=%s reason=%s",
+                shorten(block.text),
+                retry_debug.get("cat_retry_reject_reason", "unknown"),
+            )
+        set_context(page.translation_contexts, block, context)
+    if attempted:
+        logger.info("CAT retry pass finished for %s: attempted=%d accepted=%d", page.image_path, attempted, accepted)
+    return attempted, accepted
 
 
 def prepare_page_for_translation(
@@ -653,6 +718,11 @@ def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
     from .render import plan_render_layouts, plan_text_fits, render_translations
     from .vision_service import apply_vision_repair
 
+    if config.skip_render:
+        write_translation_only_debug_report(page, config)
+        logger.info("Skipped translated image rendering for benchmark: %s", page.output_path)
+        return page.output_path
+
     render_layouts = plan_render_layouts(
         page.image_bgr,
         page.render_blocks,
@@ -778,6 +848,39 @@ def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
             actual_output_path,
         )
     return actual_output_path
+
+
+class TranslationOnlyLayout:
+    def __init__(self, render_box: tuple[int, int, int, int]) -> None:
+        self.render_box = render_box
+        self.bubble_box = None
+
+
+def write_translation_only_debug_report(page: PreparedPage, config: PipelineConfig) -> None:
+    if not config.debug:
+        return
+    render_layouts = [TranslationOnlyLayout(block.box) for block in page.render_blocks]
+    render_fits = [None for _block in page.render_blocks]
+    write_debug_report(
+        page.image_path,
+        page.output_path,
+        config,
+        page.raw_blocks,
+        page.render_blocks,
+        page.translations,
+        page.skipped_blocks,
+        page.translation_fallback_blocks,
+        page.grouping_report,
+        render_layouts,
+        render_fits,
+        page.width,
+        page.height,
+        config.padding,
+        page.page_order_report,
+        page.translation_contexts,
+        vision_artifact=page.vision_artifact,
+        vision_facts_artifact=page.vision_facts_artifact,
+    )
 
 
 def enable_hf_offline_runtime() -> tuple[str | None, str | None]:
@@ -946,6 +1049,32 @@ def process_image(
             evidence_memory=evidence_memory,
         )
     logger.debug("Translation map contains %d line id(s)", len(translations))
+    if config.skip_render:
+        if config.debug:
+            render_layouts = [TranslationOnlyLayout(block.box) for block in render_blocks]
+            render_fits = [None for _block in render_blocks]
+            write_debug_report(
+                image_path,
+                output_path,
+                config,
+                raw_blocks,
+                render_blocks,
+                translations,
+                skipped_blocks,
+                translation_fallback_blocks,
+                grouping_report,
+                render_layouts,
+                render_fits,
+                width,
+                height,
+                config.padding,
+                page_order_report,
+                translation_contexts,
+                vision_artifact=None,
+                vision_facts_artifact=vision_facts_artifact,
+            )
+        logger.info("Skipped translated image rendering for benchmark: %s", output_path)
+        return page_order_report[-1]["source_text"] if page_order_report else None
     render_layouts = plan_render_layouts(
         image_bgr,
         render_blocks,
@@ -1511,6 +1640,8 @@ def should_try_qwen_fallback(
     primary_context: dict[str, object],
 ) -> bool:
     if primary_context.get("cat_rejected") is True:
+        return True
+    if primary_context.get("cat_bypassed") is True:
         return True
     if primary_context.get("qwen_critic_should_repair") is True:
         return True

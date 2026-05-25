@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from manga_local_translator.quality_eval import benchmark_variants, summarize_debug_reports
+from manga_local_translator.quality_eval import benchmark_variants, summarize_debug_reports, write_review_artifacts
 
 
 class QualityEvalTests(unittest.TestCase):
@@ -106,6 +106,39 @@ class QualityEvalTests(unittest.TestCase):
         self.assertEqual(rows[0]["page"], "chapter-a/001")
         self.assertEqual(rows[0]["kept_blocks"], 1)
         self.assertEqual(rows[1]["kept_blocks"], 1)
+
+    def test_write_review_artifacts_creates_markdown_with_html_and_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            report_path = root / "001.ocr.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "kept_blocks": [
+                            {
+                                "page_order": 1,
+                                "source_text": "\u6bcd",
+                                "translated_text": "...",
+                                "cat_rejected": True,
+                                "cat_reject_reason": "cat_chatter",
+                            }
+                        ],
+                        "skipped_blocks": [],
+                        "fallback_blocks": [],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            write_review_artifacts(root)
+
+            self.assertTrue((root / "translation_review.html").exists())
+            self.assertTrue((root / "translation_review.csv").exists())
+            markdown = (root / "translation_review.md").read_text(encoding="utf-8")
+
+        self.assertIn("Manga Translation Human Review", markdown)
+        self.assertIn("cat_chatter", markdown)
 
 
 if __name__ == "__main__":

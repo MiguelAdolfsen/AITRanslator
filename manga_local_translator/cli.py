@@ -183,6 +183,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional folder for batched hybrid intermediate files.",
     )
+    parser.add_argument(
+        "--skip-render",
+        action="store_true",
+        help="Write debug OCR JSON but skip final image rendering. Intended for translation benchmarks.",
+    )
     return parser
 
 
@@ -221,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
         debug=args.debug,
         resume=args.resume,
         work_dir=args.work_dir,
+        skip_render=args.skip_render,
     )
     from .pipeline import process_folder
 

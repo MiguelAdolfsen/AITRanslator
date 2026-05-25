@@ -35,3 +35,4 @@ class PipelineConfig:
     debug: bool = False
     resume: bool = False
     work_dir: Path | None = None
+    skip_render: bool = False

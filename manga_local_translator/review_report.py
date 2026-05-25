@@ -5,6 +5,7 @@ import csv
 import html
 import json
 import re
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,11 @@ class ReviewRow:
     cat_cleaned_translation: str = ""
     cat_final: str = ""
     cat_reject_reason: str = ""
+    cat_bypass_reason: str = ""
+    cat_retry_raw_translation: str = ""
+    cat_retry_cleaned_translation: str = ""
+    cat_retry_final: str = ""
+    cat_retry_reject_reason: str = ""
     qwen_baseline: str = ""
     qwen_candidate: str = ""
     qwen_final: str = ""
@@ -69,6 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="CSV output path. Defaults to the HTML path with .csv suffix.",
     )
     parser.add_argument(
+        "--markdown",
+        type=Path,
+        default=None,
+        help="Human-readable Markdown output path. Defaults to the HTML path with .md suffix.",
+    )
+    parser.add_argument(
         "--suspicious-only",
         action="store_true",
         help="Only include rows with review issues.",
@@ -90,10 +102,13 @@ def main(argv: list[str] | None = None) -> int:
 
     output_path = args.output or default_output_path(args.input)
     csv_path = args.csv or output_path.with_suffix(".csv")
+    markdown_path = args.markdown or output_path.with_suffix(".md")
     write_html_report(rows, output_path)
     write_csv_report(rows, csv_path)
+    write_markdown_report(rows, markdown_path)
     print(f"Review report written: {output_path}")
     print(f"Review CSV written: {csv_path}")
+    print(f"Review Markdown written: {markdown_path}")
     return 0
 
 
@@ -146,6 +161,11 @@ def row_from_block(run: str, page: str, block: dict[str, Any], report_path: Path
         cat_cleaned_translation=text_value(block.get("cat_cleaned_translation") or block.get("cat_candidate")),
         cat_final=text_value(block.get("cat_final")),
         cat_reject_reason=text_value(block.get("cat_reject_reason")),
+        cat_bypass_reason=text_value(block.get("cat_bypass_reason")),
+        cat_retry_raw_translation=text_value(block.get("cat_retry_raw_translation")),
+        cat_retry_cleaned_translation=text_value(block.get("cat_retry_cleaned_translation")),
+        cat_retry_final=text_value(block.get("cat_retry_final")),
+        cat_retry_reject_reason=text_value(block.get("cat_retry_reject_reason")),
         qwen_baseline=text_value(block.get("qwen_baseline")),
         qwen_candidate=text_value(block.get("qwen_candidate")),
         qwen_final=text_value(block.get("qwen_final")),
@@ -183,10 +203,18 @@ def detect_review_issues(
         issues.append("suspected_bad_translation")
     if block.get("cat_rejected") is True:
         issues.append("cat_rejected")
+    if block.get("cat_bypassed") is True:
+        issues.append("cat_bypassed")
     if block.get("cat_chatter_rejected") is True:
         issues.append("cat_chatter")
     if block.get("cat_reject_reason") == "cat_untranslated_japanese":
         issues.append("cat_untranslated")
+    if block.get("cat_retry_attempted") is True:
+        issues.append("cat_retry_attempted")
+    if block.get("cat_retry_accepted") is True:
+        issues.append("cat_retry_accepted")
+    elif block.get("cat_retry_attempted") is True:
+        issues.append("cat_retry_failed")
     if text_value(block.get("cat_final")) and len(text_value(block.get("cat_final"))) > 180:
         issues.append("cat_verbose")
     if block.get("cat_q8_fallback_accepted") is True:
@@ -256,6 +284,11 @@ def csv_row(row: ReviewRow) -> dict[str, str | int]:
         "cat_cleaned_translation": row.cat_cleaned_translation,
         "cat_final": row.cat_final,
         "cat_reject_reason": row.cat_reject_reason,
+        "cat_bypass_reason": row.cat_bypass_reason,
+        "cat_retry_raw_translation": row.cat_retry_raw_translation,
+        "cat_retry_cleaned_translation": row.cat_retry_cleaned_translation,
+        "cat_retry_final": row.cat_retry_final,
+        "cat_retry_reject_reason": row.cat_retry_reject_reason,
         "qwen_baseline": row.qwen_baseline,
         "qwen_candidate": row.qwen_candidate,
         "qwen_final": row.qwen_final,
@@ -292,6 +325,221 @@ def write_html_report(rows: list[ReviewRow], path: Path) -> None:
             issue_counts[issue] = issue_counts.get(issue, 0) + 1
     html_text = render_html(rows, issue_counts)
     path.write_text(html_text, encoding="utf-8")
+
+
+def write_markdown_report(rows: list[ReviewRow], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_markdown(rows), encoding="utf-8")
+
+
+def render_markdown(rows: list[ReviewRow]) -> str:
+    issue_counts = Counter(issue for row in rows for issue in row.issues)
+    run_counts: dict[str, list[int]] = {}
+    page_counts: Counter[tuple[str, str]] = Counter()
+    for row in rows:
+        total, flagged = run_counts.setdefault(row.run, [0, 0])
+        total += 1
+        if row.issues:
+            flagged += 1
+            page_counts[(row.run, row.page)] += 1
+        run_counts[row.run] = [total, flagged]
+
+    suspicious = [row for row in rows if row.issues]
+    cat_reject_counts = Counter(row.cat_reject_reason for row in rows if row.cat_reject_reason)
+    cat_retry_rows = [
+        row
+        for row in rows
+        if row.cat_retry_raw_translation or row.cat_retry_cleaned_translation or row.cat_retry_final or row.cat_retry_reject_reason
+    ]
+    cat_retry_reject_counts = Counter(row.cat_retry_reject_reason for row in cat_retry_rows if row.cat_retry_reject_reason)
+    cat_q8_changed = [row for row in rows if "cat_q8_changed" in row.issues]
+
+    lines: list[str] = [
+        "# Manga Translation Human Review",
+        "",
+        f"- Total reviewed lines: **{len(rows)}**",
+        f"- Lines with review flags: **{len(suspicious)}**",
+        f"- CAT rejected lines: **{sum(1 for row in rows if row.cat_reject_reason)}**",
+        f"- CAT retries: **{len(cat_retry_rows)}**",
+        f"- CAT retries still rejected: **{sum(1 for row in cat_retry_rows if row.cat_retry_reject_reason)}**",
+        f"- CAT -> Q8 accepted changes: **{len(cat_q8_changed)}**",
+        "",
+        "## Top Review Flags",
+        "",
+    ]
+    if issue_counts:
+        for issue, count in issue_counts.most_common(20):
+            lines.append(f"- `{issue}`: {count}")
+    else:
+        lines.append("- No review flags found.")
+
+    lines.extend(["", "## Run / Chapter Summary", "", "| Run / Chapter | Lines | Flagged lines |", "|---|---:|---:|"])
+    for run, (total, flagged) in sorted(run_counts.items(), key=lambda item: natural_sort_key(item[0])):
+        lines.append(f"| {markdown_cell(run, 120)} | {total} | {flagged} |")
+
+    lines.extend(["", "## Pages With Most Flags", ""])
+    if page_counts:
+        lines.extend(["| Page | Flagged lines |", "|---|---:|"])
+        for (run, page), count in page_counts.most_common(20):
+            lines.append(f"| {markdown_cell(run, 80)} / `{markdown_cell(page, 40)}` | {count} |")
+    else:
+        lines.append("- No flagged pages.")
+
+    lines.extend(["", "## CAT Rejections", ""])
+    if cat_reject_counts:
+        for reason, count in cat_reject_counts.most_common():
+            lines.append(f"- `{reason}`: {count}")
+    else:
+        lines.append("- No CAT rejections.")
+
+    if cat_retry_rows:
+        lines.extend(["", "## CAT Retries", ""])
+        lines.extend(["| Page | Order | Source | Retry cleaned/final | Retry reject |", "|---|---:|---|---|---|"])
+        for row in cat_retry_rows[:80]:
+            lines.append(
+                "| {page} | {order} | {source} | {retry} | {reject} |".format(
+                    page=f"{markdown_cell(row.run, 60)} / `{markdown_cell(row.page, 20)}`",
+                    order=markdown_cell(str(row.page_order), 8),
+                    source=markdown_cell(row.source_text, 120),
+                    retry=markdown_cell(row.cat_retry_cleaned_translation or row.cat_retry_final or row.cat_retry_raw_translation, 160),
+                    reject=markdown_cell(row.cat_retry_reject_reason or "accepted", 80),
+                )
+            )
+        if len(cat_retry_rows) > 80:
+            lines.append(f"- ... {len(cat_retry_rows) - 80} more CAT retry rows omitted from this section.")
+        if cat_retry_reject_counts:
+            lines.append("")
+            lines.append(
+                "Retry reject reasons: "
+                + ", ".join(f"`{reason}`={count}" for reason, count in cat_retry_reject_counts.most_common())
+            )
+
+    lines.extend(["", "## Q8 Rescues After CAT", ""])
+    if cat_q8_changed:
+        lines.extend(["| Page | Order | Source | CAT cleaned/final | Q8 replacement |", "|---|---:|---|---|---|"])
+        for row in cat_q8_changed[:40]:
+            lines.append(
+                "| {page} | {order} | {source} | {cat} | {q8} |".format(
+                    page=f"{markdown_cell(row.run, 60)} / `{markdown_cell(row.page, 20)}`",
+                    order=markdown_cell(str(row.page_order), 8),
+                    source=markdown_cell(row.source_text, 120),
+                    cat=markdown_cell(row.cat_cleaned_translation or row.cat_final, 140),
+                    q8=markdown_cell(row.qwen_fallback_translation or row.translated_text, 140),
+                )
+            )
+    else:
+        lines.append("- No accepted Q8 rescues after CAT.")
+
+    lines.extend(["", "## Rows Needing Human Review", ""])
+    if suspicious:
+        grouped: dict[tuple[str, str], list[ReviewRow]] = defaultdict(list)
+        for row in suspicious:
+            grouped[(row.run, row.page)].append(row)
+        for (run, page), group in sorted(grouped.items(), key=lambda item: (natural_sort_key(item[0][0]), natural_sort_key(item[0][1]))):
+            lines.extend(
+                [
+                    f"### {markdown_cell(run, 120)} / {markdown_cell(page, 80)}",
+                    "",
+                    "| Order | Flags | Source | Final English | CAT | Critic / Q8 notes |",
+                    "|---:|---|---|---|---|---|",
+                ]
+            )
+            for row in group:
+                lines.append(
+                    "| {order} | {issues} | {source} | {final} | {cat} | {notes} |".format(
+                        order=markdown_cell(str(row.page_order), 8),
+                        issues="<br>".join(f"`{markdown_cell(issue, 60)}`" for issue in row.issues),
+                        source=markdown_cell(row.source_text, 140),
+                        final=markdown_cell(row.translated_text, 140),
+                        cat=markdown_cell(markdown_cat_summary(row), 160),
+                        notes=markdown_cell(markdown_notes_summary(row), 180),
+                    )
+                )
+            lines.append("")
+    else:
+        lines.append("- No flagged rows.")
+
+    lines.extend(
+        [
+            "",
+            "## Suggested Manual Review Order",
+            "",
+            "1. Check `empty_or_ellipsis`, `suspected_bad_translation`, and final `...` rows first.",
+            "2. Review `cat_rejected`, `cat_chatter`, and `cat_q8_changed` rows to judge whether Q8 rescue helped.",
+            "3. Review critic-flagged evidence rows before making prompt or validation changes.",
+            "4. Treat layout-only rows separately from translation-quality rows.",
+            "5. Avoid global phrasebook/prompt changes from one chapter-specific example.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def markdown_cat_summary(row: ReviewRow) -> str:
+    parts: list[str] = []
+    if row.cat_reject_reason:
+        parts.append(f"reject: {row.cat_reject_reason}")
+    if row.cat_bypass_reason:
+        parts.append(f"bypass: {row.cat_bypass_reason}")
+    if row.cat_retry_final or row.cat_retry_cleaned_translation or row.cat_retry_raw_translation or row.cat_retry_reject_reason:
+        retry_text = row.cat_retry_cleaned_translation or row.cat_retry_final or row.cat_retry_raw_translation
+        retry_status = row.cat_retry_reject_reason or "accepted"
+        parts.append(f"retry {retry_status}: {retry_text}")
+    if row.cat_cleaned_translation:
+        parts.append(row.cat_cleaned_translation)
+    elif row.cat_final:
+        parts.append(row.cat_final)
+    elif row.cat_raw_translation:
+        parts.append(row.cat_raw_translation)
+    return " / ".join(parts)
+
+
+def markdown_notes_summary(row: ReviewRow) -> str:
+    parts: list[str] = []
+    if row.qwen_critic_issues:
+        parts.append("critic: " + "; ".join(row.qwen_critic_issues))
+    if row.qwen_critic_reason:
+        parts.append(row.qwen_critic_reason)
+    if row.qwen_fallback_translation and "cat_q8_changed" in row.issues:
+        parts.append("Q8 accepted: " + row.qwen_fallback_translation)
+    if row.qwen_fallback_reject_reason:
+        parts.append("Q8 reject: " + row.qwen_fallback_reject_reason)
+    return " / ".join(parts)
+
+
+def markdown_cell(value: str, limit: int) -> str:
+    text = repair_common_mojibake(str(value or "").replace("\r\n", "\n")).strip()
+    text = re.sub(r"\s+", " ", text)
+    if len(text) > limit:
+        text = text[: max(0, limit - 1)].rstrip() + "?"
+    return text.replace("|", "\\|")
+
+
+def repair_common_mojibake(text: str) -> str:
+    if not text or not any(marker in text for marker in ("ã", "æ", "é", "ï", "â")):
+        return text
+    original_score = japanese_char_count(text)
+    best = text
+    best_score = original_score
+    for encoding in ("cp1252", "latin1"):
+        try:
+            fixed = text.encode(encoding, errors="strict").decode("utf-8", errors="strict")
+        except UnicodeError:
+            continue
+        score = japanese_char_count(fixed)
+        if score > best_score:
+            best = fixed
+            best_score = score
+    return best
+
+
+def japanese_char_count(text: str) -> int:
+    return sum(
+        0x3040 <= ord(char) <= 0x30FF
+        or 0x31F0 <= ord(char) <= 0x31FF
+        or 0x3400 <= ord(char) <= 0x4DBF
+        or 0x4E00 <= ord(char) <= 0x9FFF
+        for char in text
+    )
 
 
 def render_html(rows: list[ReviewRow], issue_counts: dict[str, int]) -> str:
@@ -364,6 +612,11 @@ def render_row(row: ReviewRow) -> str:
         label_value("Cleaned", row.cat_cleaned_translation),
         label_value("Final", row.cat_final),
         label_value("Reject", row.cat_reject_reason),
+        label_value("Bypass", row.cat_bypass_reason),
+        label_value("Retry raw", row.cat_retry_raw_translation),
+        label_value("Retry cleaned", row.cat_retry_cleaned_translation),
+        label_value("Retry final", row.cat_retry_final),
+        label_value("Retry reject", row.cat_retry_reject_reason),
     ]
     verifier_bits = [
         label_value("Choice", row.qwen_verify_choice),

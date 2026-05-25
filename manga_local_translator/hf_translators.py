@@ -28,8 +28,11 @@ MADLAD_MODEL_NAME = "google/madlad400-3b-mt"
 OPUS_MODEL_NAME = "Helsinki-NLP/opus-mt-ja-en"
 CAT_MODEL_NAME = "cyberagent/CAT-Translate-7b"
 CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
-CAT_PROMPT_VERSION = "cat-translate-v2"
-CAT_VALIDATION_VERSION = "cat-validation-v2"
+CAT_PROMPT_VERSION = "cat-translate-v5-hf-chat-template"
+CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
+CAT_VALIDATION_VERSION = "cat-validation-v6"
+CAT_BYPASS_VERSION = "cat-bypass-v1"
+CAT_DEFAULT_NUM_PREDICT = 128
 
 
 class CatTranslator(Translator):
@@ -106,7 +109,13 @@ class CatTranslator(Translator):
         if not self._ollama:
             raise RuntimeError("Ollama was not found. Install/start Ollama to use CAT GGUF models.")
         self._ollama_model_name = ensure_cat_ollama_model(self._ollama, self._model_name, gguf_path)
-        self._cat_settings = QwenGenerationSettings(temperature=0.0, top_p=1.0, top_k=1, min_p=0.0, num_predict=128)
+        self._cat_settings = QwenGenerationSettings(
+            temperature=0.0,
+            top_p=1.0,
+            top_k=1,
+            min_p=0.0,
+            num_predict=cat_num_predict(),
+        )
         self._run_cat_prompt = run_ollama_prompt
         logger.info("CAT Ollama translator ready: %s", self._ollama_model_name)
 
@@ -121,11 +130,50 @@ class CatTranslator(Translator):
             logger.debug("CAT translation cache hit for text=%s", shorten(text))
         return self._cache[text]
 
+    def retry_translation(self, text: str) -> str:
+        logger.debug("CAT retry translating text=%s", shorten(text))
+        translated, debug = self._translate_normalized(text, retry=True)
+        self._cache[text] = translated
+        existing = dict(self._debug.get(text, {}))
+        primary_debug = {
+            "cat_primary_prompt": existing.get("cat_prompt", ""),
+            "cat_primary_prompt_version": existing.get("cat_prompt_version", ""),
+            "cat_primary_raw_translation": existing.get("cat_raw_translation", ""),
+            "cat_primary_cleaned_translation": existing.get("cat_cleaned_translation", ""),
+            "cat_primary_final": existing.get("cat_final", ""),
+            "cat_primary_rejected": existing.get("cat_rejected", False),
+            "cat_primary_reject_reason": existing.get("cat_reject_reason", ""),
+        }
+        merged = {
+            **existing,
+            **primary_debug,
+            "cat_retry_attempted": True,
+            "cat_retry_raw_translation": debug.get("cat_raw_translation", ""),
+            "cat_retry_cleaned_translation": debug.get("cat_cleaned_translation", ""),
+            "cat_retry_final": debug.get("cat_final", translated),
+            "cat_retry_rejected": debug.get("cat_rejected", False),
+            "cat_retry_reject_reason": debug.get("cat_reject_reason", ""),
+            "cat_retry_prompt": debug.get("cat_prompt", ""),
+            "cat_retry_prompt_version": debug.get("cat_prompt_version", CAT_RETRY_PROMPT_VERSION),
+            "cat_retry_chatter_rejected": debug.get("cat_chatter_rejected", False),
+            "cat_retried": True,
+        }
+        if debug.get("cat_rejected") is not True:
+            merged.update(debug)
+            merged["cat_retry_accepted"] = True
+            merged["cat_rejected"] = False
+            merged["cat_reject_reason"] = ""
+        else:
+            merged["cat_retry_accepted"] = False
+        self._debug[text] = merged
+        logger.debug("CAT retry result=%s rejected=%s", shorten(translated), debug.get("cat_rejected"))
+        return translated
+
     def debug_info_for(self, text: str, debug_id: str | None = None) -> dict[str, object]:
         _ = debug_id
         return dict(self._debug.get(text, {}))
 
-    def _translate_normalized(self, text: str) -> tuple[str, dict[str, object]]:
+    def _translate_normalized(self, text: str, *, retry: bool = False) -> tuple[str, dict[str, object]]:
         normalized = normalize_japanese_for_translation(text)
         prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
         phrase = translate_known_phrase(normalized, self._glossary) or translate_known_phrase(prepared, self._glossary)
@@ -139,11 +187,29 @@ class CatTranslator(Translator):
                 "cat_backend": getattr(self, "_backend", "unknown"),
                 "cat_prompt_version": CAT_PROMPT_VERSION,
                 "cat_validation_version": CAT_VALIDATION_VERSION,
+                "cat_num_predict": cat_num_predict(),
                 "cat_rejected": False,
                 "cat_final": phrase,
             }
+        bypass_reason = cat_bypass_reason(normalized)
+        if bypass_reason is not None:
+            return "", {
+                "primary_translator": "cat",
+                "cat_used": False,
+                "cat_bypassed": True,
+                "cat_bypass_reason": bypass_reason,
+                "cat_model": self._model_name,
+                "cat_model_path": str(getattr(self, "_gguf_path", "")),
+                "cat_backend": getattr(self, "_backend", "unknown"),
+                "cat_prompt_version": CAT_PROMPT_VERSION,
+                "cat_validation_version": CAT_VALIDATION_VERSION,
+                "cat_num_predict": cat_num_predict(),
+                "cat_rejected": False,
+                "cat_final": "",
+            }
 
-        prompt = build_cat_prompt(prepared)
+        prompt_version = CAT_RETRY_PROMPT_VERSION if retry else CAT_PROMPT_VERSION
+        prompt = build_cat_prompt(prepared, retry=retry)
         if getattr(self, "_backend", "") == "ollama":
             raw = self._run_cat_prompt(self._ollama, self._ollama_model_name, prompt, settings=self._cat_settings).strip()
             translated, result, reject_reason = finalize_cat_translation(normalized, prepared, raw, self._glossary)
@@ -153,8 +219,9 @@ class CatTranslator(Translator):
                 "cat_model": self._ollama_model_name,
                 "cat_model_path": str(self._gguf_path),
                 "cat_backend": "ollama",
-                "cat_prompt_version": CAT_PROMPT_VERSION,
+                "cat_prompt_version": prompt_version,
                 "cat_validation_version": CAT_VALIDATION_VERSION,
+                "cat_num_predict": self._cat_settings.num_predict,
                 "cat_prompt": prompt,
                 "cat_raw_translation": raw,
                 "cat_cleaned_translation": translated,
@@ -193,8 +260,9 @@ class CatTranslator(Translator):
             "cat_model_path": str(model_path_for_debug(self._model_name)),
             "cat_backend": self._backend,
             "cat_device": str(self._device),
-            "cat_prompt_version": CAT_PROMPT_VERSION,
+            "cat_prompt_version": prompt_version,
             "cat_validation_version": CAT_VALIDATION_VERSION,
+            "cat_num_predict": CAT_DEFAULT_NUM_PREDICT,
             "cat_prompt": prompt,
             "cat_raw_translation": raw,
             "cat_cleaned_translation": translated,
@@ -206,12 +274,59 @@ class CatTranslator(Translator):
         }
 
 
-def build_cat_prompt(prepared_text: str) -> str:
-    return (
-        "Translate the following Japanese text into English. "
-        "Return only the translation, no explanation.\n\n"
-        f"{prepared_text}"
-    )
+def build_cat_prompt(prepared_text: str, *, retry: bool = False) -> str:
+    if retry:
+        return f"Japanese:\n{prepared_text}\n\nEnglish:"
+    return f"Translate the following Japanese text into English.\n\n{prepared_text}"
+
+
+def cat_num_predict() -> int:
+    raw = os.environ.get("MANGA_CAT_NUM_PREDICT", "").strip()
+    if not raw:
+        return CAT_DEFAULT_NUM_PREDICT
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid MANGA_CAT_NUM_PREDICT=%s", raw)
+        return CAT_DEFAULT_NUM_PREDICT
+    return max(16, min(256, value))
+
+
+def cat_bypass_reason(source_text: str) -> str | None:
+    if not cat_bypass_enabled():
+        return None
+    text = str(source_text).strip()
+    if not text:
+        return "empty_source"
+    japanese_count = count_japanese_chars_local(text)
+    if japanese_count == 0:
+        return None
+    if has_noisy_credit_markers(text):
+        return "noisy_credit_or_metadata"
+    if japanese_count <= 5:
+        return "short_ambiguous_fragment"
+    if is_short_kana_name_or_term(text):
+        return "short_kana_name_or_term"
+    return None
+
+
+def has_noisy_credit_markers(text: str) -> bool:
+    if any(marker in text for marker in ("▽", "▼", "■", "□", "◆", "◇", "©", "＠", "@", "http")):
+        return True
+    if "『" in text and "』" not in text:
+        return True
+    return False
+
+
+def is_short_kana_name_or_term(text: str) -> bool:
+    stripped = re.sub(r"[\s\u3000・ーｰ！!？?。．…,\.\-―〜～]+", "", text)
+    if not stripped or len(stripped) > 8:
+        return False
+    return all(0x3040 <= ord(char) <= 0x30FF or 0x31F0 <= ord(char) <= 0x31FF for char in stripped)
+
+
+def cat_bypass_enabled() -> bool:
+    return os.environ.get("MANGA_CAT_BYPASS_RISKY_SOURCE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str, glossary) -> tuple[str, str, str | None]:
@@ -231,6 +346,8 @@ def clean_cat_output(text: str) -> str:
     if cleaned.startswith('"') and cleaned.endswith('"') and len(cleaned) >= 2:
         cleaned = cleaned[1:-1].strip()
     if cleaned.lower().startswith("translation:"):
+        cleaned = cleaned.split(":", 1)[1].strip()
+    if cleaned.lower().startswith("english:"):
         cleaned = cleaned.split(":", 1)[1].strip()
     if cleaned.startswith('"') and cleaned.endswith('"') and len(cleaned) >= 2:
         cleaned = cleaned[1:-1].strip()
@@ -270,6 +387,8 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
         return "cat_schema_fragment"
     if count_japanese_chars_local(text) > 0:
         return "cat_untranslated_japanese"
+    if looks_repetitive_or_verbose(source_text, text):
+        return "cat_verbose_or_repetitive"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", text):
         return "cat_malformed_hyphen_chain"
     if source_text.strip() and text.strip() == source_text.strip():
@@ -286,9 +405,32 @@ def looks_like_cat_chatter(text: str) -> bool:
         "i do not see any japanese",
         "i don't understand what you",
         "i do not understand what you",
+        "i don't understand the japanese",
+        "i do not understand the japanese",
+        "i don't understand the text",
+        "i do not understand the text",
         "i can't provide that translation",
         "i cannot provide that translation",
+        "i can't help with that",
+        "i cannot help with that",
+        "could you please clarify",
+        "please clarify",
+        "provide more context",
+        "this will help me give",
+        "if you have any other questions",
+        "feel free to ask",
         "please let me know how i can assist",
+        "translated by:",
+        "the user provided",
+        "the user has requested",
+        "the assistant has translated",
+        "here is the english translation",
+        "english translation of the japanese sentence",
+        "if you have specific information",
+        "assist with translations",
+        "assist with the translation",
+        "provide accurate translations",
+        "assistive technology",
         "japanese translator who specializes",
         "translation services",
         "quality assurance",
@@ -297,8 +439,22 @@ def looks_like_cat_chatter(text: str) -> bool:
     return any(pattern in lower for pattern in chatter_patterns)
 
 
+def looks_repetitive_or_verbose(source_text: str, translated_text: str) -> bool:
+    text = str(translated_text).strip()
+    source = str(source_text).strip()
+    if len(source) <= 24 and len(text) > 180:
+        return True
+    words = re.findall(r"[A-Za-z']+", text.lower())
+    if len(words) < 10:
+        return False
+    most_common = max((words.count(word) for word in set(words)), default=0)
+    return most_common >= 8 or most_common / max(1, len(words)) >= 0.6
+
+
 def has_cat_prompt_fragment(text: str) -> bool:
     lower = " ".join(str(text).lower().split())
+    if "japanese:" in lower and "english:" in lower:
+        return True
     fragments = (
         "translate the following japanese text",
         "return only the translation",
@@ -354,7 +510,7 @@ def model_path_for_debug(model_name: str) -> str:
 def cat_ollama_model_name(model_path: Path) -> str:
     stem = re.sub(r"[^a-z0-9]+", "-", model_path.stem.lower()).strip("-")
     stem = re.sub(r"-+", "-", stem)
-    return f"manga-cat-{stem or 'translate'}"
+    return f"manga-cat-{stem or 'translate'}-hfchat"
 
 
 def ensure_cat_ollama_model(ollama: str, model_name: str, gguf_path: Path) -> str:
@@ -373,7 +529,15 @@ def ensure_cat_ollama_model(ollama: str, model_name: str, gguf_path: Path) -> st
                 "PARAMETER temperature 0",
                 "PARAMETER top_p 1",
                 "PARAMETER top_k 1",
-                'SYSTEM """You are a professional Japanese-to-English translation engine. Return the English translation only."""',
+                'PARAMETER stop "<|im_end|>"',
+                'PARAMETER stop "<|im_start|>"',
+                'SYSTEM """You are a helpful assistant."""',
+                'TEMPLATE """<s><|im_start|>system',
+                '{{ .System }}<|im_end|>',
+                '<|im_start|>user',
+                '{{ .Prompt }}<|im_end|>',
+                '<|im_start|>assistant',
+                '"""',
                 "",
             ]
         ),

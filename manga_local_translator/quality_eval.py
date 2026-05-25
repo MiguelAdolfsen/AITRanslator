@@ -124,6 +124,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Pass --resume to the translator for batched hybrid runs.",
     )
+    parser.add_argument(
+        "--render-images",
+        action="store_true",
+        help="Render translated image files during benchmark runs. By default benchmarks write OCR JSON/review reports only.",
+    )
     return parser
 
 
@@ -160,14 +165,37 @@ def main(argv: list[str] | None = None) -> int:
                 vision_facts=args.vision_facts,
                 vision_trigger=args.vision_trigger,
                 resume=args.resume,
+                skip_render=not args.render_images,
             )
         rows = summarize_debug_reports(output_dir, profile=label)
         all_rows.extend(rows)
         write_summary_files(output_dir, rows)
+        write_review_artifacts(output_dir)
 
     write_summary_files(run_root, all_rows)
+    write_review_artifacts(run_root)
     print(f"Quality evaluation written to: {run_root}")
     return 0
+
+
+def write_review_artifacts(input_dir: Path) -> None:
+    from .review_report import common_root, iter_reports, rows_from_report, write_csv_report, write_html_report, write_markdown_report
+
+    reports = sorted({path.resolve() for path in iter_reports(input_dir)}, key=lambda item: natural_report_sort_key(input_dir, item))
+    if not reports:
+        return
+    root_hint = common_root(reports)
+    review_rows = [
+        row
+        for report_path in reports
+        for row in rows_from_report(report_path, root_hint=root_hint)
+    ]
+    html_path = input_dir / "translation_review.html"
+    csv_path = input_dir / "translation_review.csv"
+    markdown_path = input_dir / "translation_review.md"
+    write_html_report(review_rows, html_path)
+    write_csv_report(review_rows, csv_path)
+    write_markdown_report(review_rows, markdown_path)
 
 
 def benchmark_variants(
@@ -203,6 +231,7 @@ def run_profile(
     vision_facts: bool,
     vision_trigger: str,
     resume: bool,
+    skip_render: bool,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
@@ -224,6 +253,8 @@ def run_profile(
         "--debug",
         "--overwrite",
     ]
+    if skip_render:
+        command.append("--skip-render")
     if qwen_model is not None:
         command.extend(["--qwen-model", str(qwen_model)])
     if qwen_fallback_model is not None:
@@ -259,9 +290,15 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "fallback_blocks": len(report.get("fallback_blocks", [])),
                 "ellipsis_outputs": count_blocks(kept_blocks, lambda block: block.get("translated_text") == "..."),
                 "cat_used": count_blocks(kept_blocks, lambda block: block.get("cat_used") is True),
+                "cat_bypassed": count_blocks(kept_blocks, lambda block: block.get("cat_bypassed") is True),
+                "cat_bypass_reasons": json.dumps(count_values(block.get("cat_bypass_reason") for block in kept_blocks if block.get("cat_bypassed") is True), ensure_ascii=False, sort_keys=True),
                 "cat_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_rejected") is True),
                 "cat_reject_reasons": json.dumps(count_values(block.get("cat_reject_reason") for block in kept_blocks if block.get("cat_rejected") is True), ensure_ascii=False, sort_keys=True),
                 "cat_chatter_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_chatter_rejected") is True),
+                "cat_retry_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_retry_attempted") is True),
+                "cat_retry_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_retry_accepted") is True),
+                "cat_retry_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_retry_attempted") is True and block.get("cat_retry_accepted") is not True),
+                "cat_retry_reject_reasons": json.dumps(count_values(block.get("cat_retry_reject_reason") for block in kept_blocks if block.get("cat_retry_attempted") is True and block.get("cat_retry_accepted") is not True), ensure_ascii=False, sort_keys=True),
                 "cat_q8_fallback_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_attempted") is True),
                 "cat_q8_fallback_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_accepted") is True),
                 "qwen_used": count_blocks(kept_blocks, lambda block: block.get("qwen_used") is True),
@@ -360,8 +397,12 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "fallback_blocks",
         "ellipsis_outputs",
         "cat_used",
+        "cat_bypassed",
         "cat_rejected",
         "cat_chatter_rejected",
+        "cat_retry_attempted",
+        "cat_retry_accepted",
+        "cat_retry_rejected",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
         "qwen_used",
@@ -398,7 +439,9 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
     for key in numeric_keys:
         total[key] = sum(int(row.get(key, 0)) for row in rows)
     total["layout_warning_types"] = json.dumps(aggregate_json_counts(rows, "layout_warning_types"), ensure_ascii=False, sort_keys=True)
+    total["cat_bypass_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_bypass_reasons"), ensure_ascii=False, sort_keys=True)
     total["cat_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_reject_reasons"), ensure_ascii=False, sort_keys=True)
+    total["cat_retry_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_retry_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_issue_types"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_issue_types"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_evidence_gate_reasons"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_evidence_gate_reasons"), ensure_ascii=False, sort_keys=True)
     total["evidence_risk_types"] = json.dumps(aggregate_json_counts(rows, "evidence_risk_types"), ensure_ascii=False, sort_keys=True)
@@ -443,9 +486,15 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "fallback_blocks",
         "ellipsis_outputs",
         "cat_used",
+        "cat_bypassed",
+        "cat_bypass_reasons",
         "cat_rejected",
         "cat_reject_reasons",
         "cat_chatter_rejected",
+        "cat_retry_attempted",
+        "cat_retry_accepted",
+        "cat_retry_rejected",
+        "cat_retry_reject_reasons",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
         "qwen_used",
