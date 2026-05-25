@@ -26,6 +26,8 @@ class TranslationRulesTests(unittest.TestCase):
         self.assertEqual(translate_known_phrase("ドキドキ"), "Thump thump.")
         self.assertEqual(translate_known_phrase("たたた"), "Tap tap tap.")
         self.assertEqual(translate_known_phrase("ポリポリボリ"), "Crunch crunch.")
+        self.assertEqual(translate_known_phrase("\uff0e\uff0e\uff0e\u305d\u3093\u306a"), "...No way.")
+        self.assertEqual(translate_known_phrase("\u6b8b\u5ff5\u306a"), "What a shame.")
 
     def test_phrasebook_handles_common_sasuga_senpai_phrase(self) -> None:
         self.assertEqual(translate_known_phrase("さすがっす先輩"), "A-as expected, senpai...!")

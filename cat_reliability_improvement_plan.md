@@ -10,13 +10,13 @@ For this goal, an approved CAT line means:
 - The output is not obvious assistant chatter, prompt echo, untranslated Japanese, or repetitive boilerplate.
 
 Current best CAT-only result:
-- Run: `quality-runs/cat-second-retry-safe-salvage-norender-20260525`
-- CAT-used lines: `88`
-- CAT rejected: `6`
-- CAT approved: `82 / 88`, about `93.2%`
-- Ellipsis outputs: `6`
-- Suspected bad translations: `7`
-- Method: HF-style CAT GGUF primary, source-only retry, then strict incomplete-fragment retry only after retry failure, with conservative quoted-translation salvage.
+- Run: `quality-runs/cat-source-risk-salvage-phrasebook-v2-norender-20260525`
+- CAT-used lines: `86`
+- CAT rejected: `5`
+- CAT approved: `81 / 86`, about `94.2%`
+- Ellipsis outputs: `5`
+- Suspected bad translations: `5`
+- Method: HF-style CAT GGUF primary, source-only retry, strict incomplete-fragment retry after retry failure, conservative source-risk-gated salvage, and common manga fragment phrasebook handling for `．．．そんな` and `残念な`.
 
 Target:
 - CAT rejected: `<= 8 / 88`
@@ -38,6 +38,14 @@ Previous strict HF-chat baseline before safe salvage/second retry:
 - CAT approved: `77 / 88`, about `87.5%`
 - Ellipsis outputs: `11`
 - Suspected bad translations: `12`
+
+Previous best before source-risk salvage/phrasebook routing:
+- Run: `quality-runs/cat-second-retry-safe-salvage-norender-20260525`
+- CAT-used lines: `88`
+- CAT rejected: `6`
+- CAT approved: `82 / 88`, about `93.2%`
+- Ellipsis outputs: `6`
+- Suspected bad translations: `7`
 
 ## Tested Hypothesis 1: Raw Ollama Template
 
@@ -440,6 +448,38 @@ Run these in order, keeping the benchmark fixed:
      - `きめらちょうかんだ`
      - `わたしがひみつそしき〈ぴーつー〉のぼす`
    - Decision: keep the second retry as normal CAT behavior, with `MANGA_CAT_SECOND_RETRY=0` available to disable it for comparison runs.
+
+10. **Source-risk-gated salvage plus common fragment phrasebook**
+   - Hypothesis:
+     - Some remaining suspected bad outputs are safe, common manga fragments that should bypass CAT entirely.
+     - Some rejected CAT lines include a usable quoted translation after `means`, but only clean dialogue sources should be allowed to use that salvage path.
+   - Implementation tested:
+     - Added common phrasebook entries:
+       - `．．．そんな` / `…そんな` -> `...No way.`
+       - `残念` / `残念な` -> `What a shame.`
+     - Added source-risk gating before direct explanatory salvage:
+       - reject salvage for noisy credit/metadata markers,
+       - reject very short ambiguous fragments,
+       - reject short kana/name-like terms,
+       - reject bracketed-term sources.
+     - Allowed quoted salvage from CAT `means` explanations only after the source-risk gate passes.
+   - Result:
+     - Run: `quality-runs/cat-source-risk-salvage-phrasebook-v2-norender-20260525`
+     - CAT-used lines: `86`
+     - CAT rejected: `5`
+     - CAT approved: `81 / 86`, about `94.2%`
+     - Ellipsis outputs: `5`
+     - Suspected bad translations: `5`
+   - Confirmed improvements:
+     - `．．．そんな` -> `...No way.` through phrasebook.
+     - `残念な` -> `What a shame.` through phrasebook.
+     - `また頭からかけますよ。` -> `I'll start over from the beginning again.` through source-risk-gated salvage.
+   - Still rejected, correctly:
+     - `ガスがいて`
+     - noisy credit/name OCR
+     - `きめらちょうかんだ`
+     - bracketed playful/possibly OCR-corrupted secret-organization line.
+   - Decision: keep. This improves final suspected bad outputs without accepting the unsafe cases that broad salvage previously allowed.
 
 ## Tracking Requirements
 

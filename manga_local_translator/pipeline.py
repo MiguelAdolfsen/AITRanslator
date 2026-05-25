@@ -478,29 +478,50 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
 
     attempted = 0
     accepted = 0
+    suspect_attempted = 0
+    suspect_accepted = 0
     for block in page.render_blocks:
         context = lookup_context(page.translation_contexts, block)
-        if context.get("cat_rejected") is not True:
+        previous_translation = lookup_translation(page.translations, block, "")
+        if context.get("cat_rejected") is not True and not should_retry_suspected_cat_translation(
+            block.text,
+            previous_translation,
+            context,
+            translator,
+        ):
             continue
         attempted += 1
-        previous_translation = lookup_translation(page.translations, block, "")
         previous_reason = str(context.get("cat_reject_reason") or "")
-        logger.info(
-            "Retrying CAT rejected line: reason=%s source=%s",
-            previous_reason,
-            shorten(block.text),
-        )
-        retry_translation = translator.retry_translation(block.text)
+        if context.get("cat_rejected") is True:
+            logger.info(
+                "Retrying CAT rejected line: reason=%s source=%s",
+                previous_reason,
+                shorten(block.text),
+            )
+            retry_translation = translator.retry_translation(block.text)
+            retry_mode = "rejected"
+        else:
+            suspect_attempted += 1
+            logger.info(
+                "Retrying suspected bad CAT line with strict second pass: translation=%s source=%s",
+                shorten(previous_translation),
+                shorten(block.text),
+            )
+            retry_translation = translator.second_retry_translation(block.text, previous_translation)
+            retry_mode = "suspected_bad"
         retry_debug = translator_debug_info_for(translator, block)
         context.update(
             {
                 "cat_retry_attempted": True,
                 "cat_retry_previous_translation": previous_translation,
                 "cat_retry_previous_reject_reason": previous_reason,
+                "cat_retry_mode": retry_mode,
                 **retry_debug,
             }
         )
-        if retry_debug.get("cat_retry_accepted") is True:
+        if retry_debug.get("cat_retry_accepted") is True or retry_debug.get("cat_suspect_second_pass_accepted") is True:
+            if retry_debug.get("cat_suspect_second_pass_accepted") is True:
+                suspect_accepted += 1
             set_translation(page.translations, block, retry_translation)
             context.update(translation_debug_info(block.text, retry_translation, glossary_path=config.glossary_path))
             accepted += 1
@@ -513,12 +534,42 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
             logger.info(
                 "Rejected CAT retry translation: source=%s reason=%s",
                 shorten(block.text),
-                retry_debug.get("cat_retry_reject_reason", "unknown"),
+                retry_debug.get("cat_retry_reject_reason")
+                or retry_debug.get("cat_suspect_second_pass_reject_reason")
+                or "unknown",
             )
         set_context(page.translation_contexts, block, context)
     if attempted:
-        logger.info("CAT retry pass finished for %s: attempted=%d accepted=%d", page.image_path, attempted, accepted)
+        logger.info(
+            "CAT retry pass finished for %s: attempted=%d accepted=%d suspect_attempted=%d suspect_accepted=%d",
+            page.image_path,
+            attempted,
+            accepted,
+            suspect_attempted,
+            suspect_accepted,
+        )
     return attempted, accepted
+
+
+def should_retry_suspected_cat_translation(
+    source_text: str,
+    translated_text: str,
+    context: dict[str, object],
+    translator,
+) -> bool:
+    if not hasattr(translator, "second_retry_translation"):
+        return False
+    if context.get("cat_used") is not True:
+        return False
+    if context.get("cat_reason") == "phrasebook":
+        return False
+    if context.get("cat_retry_attempted") is True or context.get("cat_suspect_second_pass_attempted") is True:
+        return False
+    if context.get("cat_rejected") is True:
+        return False
+    if unusable_translation_reason(source_text, translated_text, translator_name="cat") is not None:
+        return True
+    return suspected_bad_translation(translated_text)
 
 
 def prepare_page_for_translation(

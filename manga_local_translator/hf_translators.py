@@ -31,7 +31,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v5-hf-chat-template"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v9-safe-salvage"
+CAT_VALIDATION_VERSION = "cat-validation-v12-source-risk-salvage"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 128
 
@@ -195,6 +195,41 @@ class CatTranslator(Translator):
             merged["cat_retry_accepted"] = False
         self._debug[text] = merged
         logger.debug("CAT retry result=%s rejected=%s", shorten(translated), debug.get("cat_rejected"))
+        return translated
+
+    def second_retry_translation(self, text: str, previous_translation: str = "") -> str:
+        logger.debug("CAT strict second-pass translating text=%s", shorten(text))
+        translated, debug = self._translate_normalized(
+            text,
+            retry=True,
+            retry_variant="incomplete_fragment",
+        )
+        existing = dict(self._debug.get(text, {}))
+        merged = {
+            **existing,
+            "cat_suspect_second_pass_attempted": True,
+            "cat_suspect_second_pass_previous_translation": previous_translation,
+            "cat_suspect_second_pass_raw_translation": debug.get("cat_raw_translation", ""),
+            "cat_suspect_second_pass_cleaned_translation": debug.get("cat_cleaned_translation", ""),
+            "cat_suspect_second_pass_final": debug.get("cat_final", translated),
+            "cat_suspect_second_pass_rejected": debug.get("cat_rejected", False),
+            "cat_suspect_second_pass_reject_reason": debug.get("cat_reject_reason", ""),
+            "cat_suspect_second_pass_prompt": debug.get("cat_prompt", ""),
+            "cat_suspect_second_pass_prompt_version": debug.get(
+                "cat_prompt_version",
+                CAT_SECOND_RETRY_PROMPT_VERSION,
+            ),
+        }
+        if debug.get("cat_rejected") is not True:
+            self._cache[text] = translated
+            merged.update(debug)
+            merged["cat_suspect_second_pass_accepted"] = True
+            merged["cat_rejected"] = False
+            merged["cat_reject_reason"] = ""
+        else:
+            merged["cat_suspect_second_pass_accepted"] = False
+        self._debug[text] = merged
+        logger.debug("CAT strict second-pass result=%s rejected=%s", shorten(translated), debug.get("cat_rejected"))
         return translated
 
     def debug_info_for(self, text: str, debug_id: str | None = None) -> dict[str, object]:
@@ -398,7 +433,7 @@ def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str
     cleaned = clean_cat_output(raw_text)
     reject_reason = cat_reject_reason(source_text, cleaned, raw_text)
     if reject_reason is not None:
-        salvaged = salvage_cat_translation(raw_text)
+        salvaged = salvage_cat_translation(raw_text, source_text=source_text)
         if salvaged:
             salvage_reject_reason = cat_reject_reason(source_text, salvaged, salvaged)
             if salvage_reject_reason is None:
@@ -414,15 +449,15 @@ def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str
     return cleaned, result, None
 
 
-def salvage_cat_translation(raw_text: str) -> str:
+def salvage_cat_translation(raw_text: str, *, source_text: str = "") -> str:
     raw = str(raw_text).strip()
     candidates: list[str] = []
     english_match = re.search(r"\bEnglish:\s*(.+?)(?:\n|$)", raw, flags=re.IGNORECASE)
     if english_match:
         candidates.append(clean_salvaged_english_marker(english_match.group(1)))
-    if can_salvage_explanatory_cat_answer(raw):
+    if can_salvage_explanatory_cat_answer(raw, source_text=source_text):
         candidates.extend(extract_salvage_quoted_candidates(raw))
-    if can_salvage_direct_translation_explanation(raw):
+    if can_salvage_direct_translation_explanation(raw, source_text=source_text):
         candidates.extend(extract_salvage_quoted_candidates(raw))
     for candidate in candidates:
         cleaned = clean_cat_output(candidate)
@@ -437,7 +472,7 @@ def salvage_cat_translation(raw_text: str) -> str:
     return ""
 
 
-def can_salvage_explanatory_cat_answer(raw_text: str) -> bool:
+def can_salvage_explanatory_cat_answer(raw_text: str, *, source_text: str = "") -> bool:
     lower = " ".join(str(raw_text).lower().split())
     if "can be translated as" not in lower and "could be translated as" not in lower:
         return False
@@ -458,16 +493,19 @@ def can_salvage_explanatory_cat_answer(raw_text: str) -> bool:
     return not any(marker in lower for marker in unsafe_markers)
 
 
-def can_salvage_direct_translation_explanation(raw_text: str) -> bool:
+def can_salvage_direct_translation_explanation(raw_text: str, *, source_text: str = "") -> bool:
     raw = str(raw_text)
     lower = " ".join(raw.lower().split())
     direct_markers = (
+        " means ",
         "translates to",
         "translation is",
         "correct english translation is",
         "translation of what you provided",
     )
     if not any(marker in lower for marker in direct_markers):
+        return False
+    if cat_source_salvage_risk(source_text):
         return False
     unsafe_markers = (
         "not standard",
@@ -486,6 +524,22 @@ def can_salvage_direct_translation_explanation(raw_text: str) -> bool:
     if re.search(r"[\u30A0-\u30FF\u31F0-\u31FF]", raw):
         return False
     return True
+
+
+def cat_source_salvage_risk(source_text: str) -> str | None:
+    text = str(source_text).strip()
+    if not text:
+        return "empty_source"
+    if has_noisy_credit_markers(text):
+        return "noisy_credit_or_metadata"
+    japanese_count = count_japanese_chars_local(text)
+    if japanese_count <= 5:
+        return "short_ambiguous_fragment"
+    if is_short_kana_name_or_term(text):
+        return "short_kana_name_or_term"
+    if any(marker in text for marker in ("〈", "〉", "《", "》")):
+        return "bracketed_term_source"
+    return None
 
 
 def extract_salvage_quoted_candidates(raw_text: str) -> list[str]:
@@ -569,7 +623,11 @@ def looks_like_cat_chatter(text: str) -> bool:
     lower = " ".join(str(text).lower().split())
     chatter_patterns = (
         "please provide the japanese",
+        "provide the japanese passage",
+        "provide the japanese text",
         "could you please provide",
+        "i need you to provide",
+        "i need the complete japanese",
         "i don't see any japanese",
         "i do not see any japanese",
         "i don't understand what you",

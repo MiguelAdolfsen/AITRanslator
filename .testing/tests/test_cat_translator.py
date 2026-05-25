@@ -173,6 +173,10 @@ class CatTranslatorTests(unittest.TestCase):
             "cat_chatter",
         )
         self.assertEqual(
+            cat_reject_reason("\u6bcd", "I'm ready to translate your text, but I need you to provide the Japanese passage."),
+            "cat_chatter",
+        )
+        self.assertEqual(
             cat_reject_reason("母", "Translate the following Japanese text into English."),
             "cat_prompt_fragment",
         )
@@ -225,12 +229,25 @@ class CatTranslatorTests(unittest.TestCase):
             "",
         )
         self.assertEqual(
-            salvage_cat_translation("The Japanese phrase \"\u76ee\u7acb\u3063\u3066\u306f\u3044\u3051\u306a\u3044\" translates to: **\"You shouldn't stand out.\"**"),
+            salvage_cat_translation(
+                "The Japanese phrase \"\u76ee\u7acb\u3063\u3066\u306f\u3044\u3051\u306a\u3044\" translates to: **\"You shouldn't stand out.\"**",
+                source_text="\u76ee\u7acb\u3063\u3066\u306f\u3044\u3051\u306a\u3044",
+            ),
             "You shouldn't stand out.",
         )
         self.assertEqual(
-            salvage_cat_translation("The Japanese phrase \"\u30ac\u30b9\u304c\u3044\u3066\" translates to \"Is there gas?\""),
+            salvage_cat_translation(
+                "The Japanese phrase \"\u30ac\u30b9\u304c\u3044\u3066\" translates to \"Is there gas?\"",
+                source_text="\u30ac\u30b9\u304c\u3044\u3066",
+            ),
             "",
+        )
+        self.assertEqual(
+            salvage_cat_translation(
+                'The Japanese phrase "\u307e\u305f\u982d\u304b\u3089\u304b\u3051\u307e\u3059\u3088." means "I\'ll start over from the beginning again."',
+                source_text="\u307e\u305f\u982d\u304b\u3089\u304b\u3051\u307e\u3059\u3088\u3002",
+            ),
+            "I'll start over from the beginning again.",
         )
 
     def test_cat_rejected_translation_triggers_qwen_fallback(self) -> None:
@@ -332,6 +349,65 @@ class CatTranslatorTests(unittest.TestCase):
         self.assertTrue(page.translation_contexts["line-1"]["cat_retry_attempted"])
         self.assertTrue(page.translation_contexts["line-1"]["cat_retry_accepted"])
         self.assertFalse(page.translation_contexts["line-1"]["cat_rejected"])
+
+    def test_cat_suspected_bad_translation_uses_strict_second_pass(self) -> None:
+        class FakeCat:
+            def __init__(self) -> None:
+                self.debug = {}
+
+            def retry_translation(self, text):
+                raise AssertionError("normal retry should not be used for accepted suspected translations")
+
+            def second_retry_translation(self, text, previous_translation=""):
+                self.debug[text] = {
+                    "cat_suspect_second_pass_attempted": True,
+                    "cat_suspect_second_pass_accepted": True,
+                    "cat_suspect_second_pass_previous_translation": previous_translation,
+                    "cat_suspect_second_pass_raw_translation": "You should not stand out...",
+                    "cat_suspect_second_pass_cleaned_translation": "You should not stand out...",
+                    "cat_suspect_second_pass_final": "You should not stand out...",
+                    "cat_suspect_second_pass_rejected": False,
+                    "cat_suspect_second_pass_reject_reason": "",
+                    "cat_rejected": False,
+                    "cat_reject_reason": "",
+                    "cat_final": "You should not stand out...",
+                }
+                return "You should not stand out..."
+
+            def debug_info_for(self, text, debug_id=None):
+                return self.debug.get(text, {})
+
+        block = TextBlock("\u76ee\u7acb\u3063\u3066\u306f\u3044\u3051\u306a\u3044", (0, 0, 10, 10), 90)
+        block.metadata["line_id"] = "line-1"
+        page = PreparedPage(
+            image_path=Path("1.png"),
+            output_path=Path("out.png"),
+            image_bgr=None,
+            width=10,
+            height=10,
+            raw_blocks=[block],
+            render_blocks=[block],
+            skipped_blocks=[],
+            grouping_report=[],
+            page_order_report=[{"line_id": "line-1", "source_text": block.text, "page_order": 1}],
+            translations={"line-1": "Could you please provide the Japanese passage?"},
+            translation_contexts={
+                "line-1": {
+                    "primary_translator": "cat",
+                    "cat_used": True,
+                    "cat_rejected": False,
+                    "cat_reject_reason": "",
+                }
+            },
+        )
+
+        attempted, accepted = retry_cat_failures(page, FakeCat(), PipelineConfig(translator="cat"))
+
+        self.assertEqual((attempted, accepted), (1, 1))
+        self.assertEqual(page.translations["line-1"], "You should not stand out...")
+        self.assertEqual(page.translation_contexts["line-1"]["cat_retry_mode"], "suspected_bad")
+        self.assertTrue(page.translation_contexts["line-1"]["cat_suspect_second_pass_attempted"])
+        self.assertTrue(page.translation_contexts["line-1"]["cat_suspect_second_pass_accepted"])
 
     def test_cat_cache_stage_includes_model_prompt_and_validation_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

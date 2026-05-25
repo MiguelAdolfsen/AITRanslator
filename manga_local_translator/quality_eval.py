@@ -299,6 +299,10 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "cat_retry_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_retry_accepted") is True),
                 "cat_retry_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_retry_attempted") is True and block.get("cat_retry_accepted") is not True),
                 "cat_retry_reject_reasons": json.dumps(count_values(block.get("cat_retry_reject_reason") for block in kept_blocks if block.get("cat_retry_attempted") is True and block.get("cat_retry_accepted") is not True), ensure_ascii=False, sort_keys=True),
+                "cat_suspect_second_pass_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_suspect_second_pass_attempted") is True),
+                "cat_suspect_second_pass_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_suspect_second_pass_accepted") is True),
+                "cat_suspect_second_pass_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_suspect_second_pass_attempted") is True and block.get("cat_suspect_second_pass_accepted") is not True),
+                "cat_suspect_second_pass_reject_reasons": json.dumps(count_values(block.get("cat_suspect_second_pass_reject_reason") for block in kept_blocks if block.get("cat_suspect_second_pass_attempted") is True and block.get("cat_suspect_second_pass_accepted") is not True), ensure_ascii=False, sort_keys=True),
                 "cat_q8_fallback_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_attempted") is True),
                 "cat_q8_fallback_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_accepted") is True),
                 "qwen_used": count_blocks(kept_blocks, lambda block: block.get("qwen_used") is True),
@@ -403,6 +407,9 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "cat_retry_attempted",
         "cat_retry_accepted",
         "cat_retry_rejected",
+        "cat_suspect_second_pass_attempted",
+        "cat_suspect_second_pass_accepted",
+        "cat_suspect_second_pass_rejected",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
         "qwen_used",
@@ -442,6 +449,7 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
     total["cat_bypass_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_bypass_reasons"), ensure_ascii=False, sort_keys=True)
     total["cat_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["cat_retry_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_retry_reject_reasons"), ensure_ascii=False, sort_keys=True)
+    total["cat_suspect_second_pass_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_suspect_second_pass_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_issue_types"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_issue_types"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_evidence_gate_reasons"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_evidence_gate_reasons"), ensure_ascii=False, sort_keys=True)
     total["evidence_risk_types"] = json.dumps(aggregate_json_counts(rows, "evidence_risk_types"), ensure_ascii=False, sort_keys=True)
@@ -495,6 +503,10 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "cat_retry_accepted",
         "cat_retry_rejected",
         "cat_retry_reject_reasons",
+        "cat_suspect_second_pass_attempted",
+        "cat_suspect_second_pass_accepted",
+        "cat_suspect_second_pass_rejected",
+        "cat_suspect_second_pass_reject_reasons",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
         "qwen_used",
