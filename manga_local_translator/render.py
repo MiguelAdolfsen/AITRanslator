@@ -1193,12 +1193,13 @@ def wrap_text_balanced(
     greedy_lines = wrap_text_greedy(draw, " ".join(words), font, max_width)
     if not greedy_lines:
         return None
+    line_options = build_line_options(draw, words, font, max_width)
     min_lines = max(1, len(greedy_lines) - 1)
     max_lines = min(len(words), len(greedy_lines) + 2)
     best_lines: list[str] | None = None
     best_score: float | None = None
     for line_count in range(min_lines, max_lines + 1):
-        candidate = best_line_break_for_count(draw, words, font, max_width, line_count, target_lines=len(greedy_lines))
+        candidate = best_line_break_for_count(words, max_width, line_count, target_lines=len(greedy_lines), line_options=line_options)
         if candidate is None:
             continue
         lines, score = candidate
@@ -1208,26 +1209,34 @@ def wrap_text_balanced(
     return best_lines
 
 
-def best_line_break_for_count(
+def build_line_options(
     draw: ImageDraw.ImageDraw,
     words: list[str],
     font: ImageFont.ImageFont,
     max_width: int,
-    line_count: int,
-    *,
-    target_lines: int,
-) -> tuple[list[str], float] | None:
-    if line_count <= 0 or line_count > len(words):
-        return None
+) -> dict[tuple[int, int], tuple[int, str, float]]:
     target_width = max_width * 0.78
-    line_options: dict[tuple[int, int], list[tuple[int, str, float]]] = {}
+    line_options: dict[tuple[int, int], tuple[int, str, float]] = {}
     for start in range(len(words)):
         for end in range(start + 1, len(words) + 1):
             text = " ".join(words[start:end])
             width = text_width(draw, text, font)
             if width > max_width:
                 break
-            line_options.setdefault((start, end), []).append((width, text, line_cost(text, width, max_width, target_width)))
+            line_options[(start, end)] = (width, text, line_cost(text, width, max_width, target_width))
+    return line_options
+
+
+def best_line_break_for_count(
+    words: list[str],
+    max_width: int,
+    line_count: int,
+    *,
+    target_lines: int,
+    line_options: dict[tuple[int, int], tuple[int, str, float]],
+) -> tuple[list[str], float] | None:
+    if line_count <= 0 or line_count > len(words):
+        return None
 
     states: dict[tuple[int, int], tuple[float, list[str], list[int]]] = {(0, 0): (0.0, [], [])}
     for used_lines in range(line_count):
@@ -1240,7 +1249,7 @@ def best_line_break_for_count(
                 options = line_options.get((start, end))
                 if not options:
                     continue
-                width, line, cost = options[0]
+                width, line, cost = options
                 if used_lines + 1 < line_count and line.endswith((",", ":", ";", "-", "and", "or", "the", "a", "an")):
                     cost += 10
                 if used_lines + 1 == line_count and line_count > 1:
