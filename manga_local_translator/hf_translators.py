@@ -175,7 +175,8 @@ class CatTranslator(Translator):
 
     def _translate_normalized(self, text: str, *, retry: bool = False) -> tuple[str, dict[str, object]]:
         normalized = normalize_japanese_for_translation(text)
-        prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
+        prompt_source = normalized
+        prepared, _replacements = prepare_source_for_translation(prompt_source, self._glossary)
         phrase = translate_known_phrase(normalized, self._glossary) or translate_known_phrase(prepared, self._glossary)
         if phrase is not None:
             return phrase, {
@@ -188,6 +189,8 @@ class CatTranslator(Translator):
                 "cat_prompt_version": CAT_PROMPT_VERSION,
                 "cat_validation_version": CAT_VALIDATION_VERSION,
                 "cat_num_predict": cat_num_predict(),
+                "cat_source_text": normalized,
+                "cat_prompt_source_text": prompt_source,
                 "cat_rejected": False,
                 "cat_final": phrase,
             }
@@ -204,6 +207,8 @@ class CatTranslator(Translator):
                 "cat_prompt_version": CAT_PROMPT_VERSION,
                 "cat_validation_version": CAT_VALIDATION_VERSION,
                 "cat_num_predict": cat_num_predict(),
+                "cat_source_text": normalized,
+                "cat_prompt_source_text": prompt_source,
                 "cat_rejected": False,
                 "cat_final": "",
             }
@@ -222,6 +227,8 @@ class CatTranslator(Translator):
                 "cat_prompt_version": prompt_version,
                 "cat_validation_version": CAT_VALIDATION_VERSION,
                 "cat_num_predict": self._cat_settings.num_predict,
+                "cat_source_text": normalized,
+                "cat_prompt_source_text": prompt_source,
                 "cat_prompt": prompt,
                 "cat_raw_translation": raw,
                 "cat_cleaned_translation": translated,
@@ -263,6 +270,8 @@ class CatTranslator(Translator):
             "cat_prompt_version": prompt_version,
             "cat_validation_version": CAT_VALIDATION_VERSION,
             "cat_num_predict": CAT_DEFAULT_NUM_PREDICT,
+            "cat_source_text": normalized,
+            "cat_prompt_source_text": prompt_source,
             "cat_prompt": prompt,
             "cat_raw_translation": raw,
             "cat_cleaned_translation": translated,

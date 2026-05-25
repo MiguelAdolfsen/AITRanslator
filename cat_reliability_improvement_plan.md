@@ -311,8 +311,31 @@ Run these in order, keeping the benchmark fixed:
    - For normal CAT failures only, retry with neighboring source lines.
    - Keep primary CAT unchanged.
    - Accept only if validation passes.
+   - Result: failed. Run `quality-runs/cat-context-retry-norender-20260525` stayed at `77 / 88`, about `87.5%` approved. It did not reduce final CAT rejections and added no useful rescue behavior.
+   - Decision: revert. The extra context appears to make malformed/prompt-fragment failures more likely without improving the accepted count.
 
-4. **Numbered mini-batch CAT**
+4. **Trimmed-source CAT retry**
+   - For rejected CAT lines only, retry with leading/trailing ellipsis, dash, and punctuation noise stripped from the retry prompt.
+   - Keep validation against the original OCR source.
+   - Result: failed. Run `quality-runs/cat-trimmed-retry-norender-20260525` dropped to `75 / 88`, about `85.2%` approved, with `13` CAT rejections and `14` suspected bad translations.
+   - Decision: revert. Punctuation trimming removed useful manga tone/context and increased untranslated-Japanese retry failures.
+
+5. **CAT bypass + Qwen fallback routing**
+   - Use the existing opt-in `MANGA_CAT_BYPASS_RISKY_SOURCE=1` routing, but benchmark it with Qwen fallback instead of CAT-only.
+   - Hypothesis: CAT approval can stay above `90%` on lines CAT actually handles, while Qwen handles the short/noisy fragments that CAT is bad at.
+   - This is more relevant than CAT-only bypass because the actual quality pipeline already has Qwen fallback available.
+   - Result: succeeded. Run `quality-runs/cat-bypass-q8-hybrid-norender-20260525`:
+     - CAT-used lines: `70`
+     - CAT approved: `65 / 70`, about `92.9%`
+     - CAT rejected: `5`
+     - CAT bypassed: `18`
+     - Q8 fallback attempted: `28`
+     - Q8 fallback accepted: `21`
+     - Ellipsis outputs: `3`
+     - Suspected bad translations: `3`
+   - Decision: keep this as the current best CAT quality routing strategy. CAT-only bypass is not acceptable because it creates too many ellipses, but CAT bypass + Q8 fallback substantially improves final usability while preserving the above-90% CAT handled-line target.
+
+6. **Numbered mini-batch CAT**
    - Only after the above.
    - Test on the same 12-page set and manually inspect line mixing.
 
@@ -342,4 +365,4 @@ Keep the current normal CAT Ollama path, CAT retry scan, and strict validation.
 Do not use raw CAT by default.
 
 Next best implementation target:
-**CAT token-budget sweep**, because it is local, simple, measurable, and directly attacks the verbose/repetitive failure mode without changing translation logic.
+**Tighten Q8 fallback acceptance for bypassed CAT lines**, because the best run still rejected `7 / 28` Q8 fallback attempts and left `3` ellipsis outputs. The next work should inspect those seven rejection reasons before changing CAT again.
