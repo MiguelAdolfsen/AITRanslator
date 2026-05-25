@@ -9,13 +9,14 @@ For this goal, an approved CAT line means:
 - The output did not require Qwen fallback to become usable.
 - The output is not obvious assistant chatter, prompt echo, untranslated Japanese, or repetitive boilerplate.
 
-Current best CAT-only baseline:
-- Run: `quality-runs/cat-only-hfchat-v6-20260525`
+Current best CAT-only result:
+- Run: `quality-runs/cat-second-retry-safe-salvage-norender-20260525`
 - CAT-used lines: `88`
-- CAT rejected: `11`
-- CAT approved: `77 / 88`, about `87.5%`
-- Ellipsis outputs: `11`
-- Suspected bad translations: `12`
+- CAT rejected: `6`
+- CAT approved: `82 / 88`, about `93.2%`
+- Ellipsis outputs: `6`
+- Suspected bad translations: `7`
+- Method: HF-style CAT GGUF primary, source-only retry, then strict incomplete-fragment retry only after retry failure, with conservative quoted-translation salvage.
 
 Target:
 - CAT rejected: `<= 8 / 88`
@@ -29,6 +30,14 @@ Previous baseline before the HF chat-template fix:
 - CAT approved: `66 / 88`, about `75%`
 - Ellipsis outputs: `22`
 - Suspected bad translations: `23`
+
+Previous strict HF-chat baseline before safe salvage/second retry:
+- Run: `quality-runs/cat-current-strict-baseline-norender-20260525`
+- CAT-used lines: `88`
+- CAT rejected: `11`
+- CAT approved: `77 / 88`, about `87.5%`
+- Ellipsis outputs: `11`
+- Suspected bad translations: `12`
 
 ## Tested Hypothesis 1: Raw Ollama Template
 
@@ -203,6 +212,50 @@ Risk:
 
 ## More Promising Hypotheses
 
+### Hypothesis 6: Exact Transformers Runtime Is Not Practical Here
+The creator example and public Space use Hugging Face Transformers with:
+- the model chat template,
+- a system/user message pair,
+- `do_sample=False`,
+- `num_beams=1`,
+- decoding only tokens generated after the prompt,
+- tight `max_new_tokens` for short fragments.
+
+The existing GGUF/Ollama path already uses deterministic sampling controls, but it may still differ from the official Transformers runtime in chat-template handling, stop behavior, tokenization, or generation defaults.
+
+Decision:
+- The unquantized/Hugging Face runtime is too large for the current GPU target.
+- Do not pursue the full Transformers benchmark for now.
+- Keep CAT reliability work focused on quantized GGUF/Ollama.
+- The useful lesson still applies: quantized CAT experiments should mimic deterministic decoding as closely as Ollama allows, with tight fragment token caps, stop strings, and stricter short-fragment prompts.
+
+Quantized follow-up:
+- Test a separate GGUF/Ollama short-fragment model profile or prompt path rather than trying to run the full HF model.
+- Keep the existing HF-template Ollama model as the stable baseline until a quantized-only experiment beats it.
+
+### Tested Hypothesis 7: Quantized Short-Fragment Prompt Path
+Hypothesis:
+- Remaining CAT failures are concentrated around short manga fragments.
+- A separate GGUF/Ollama prompt with a lower token cap might reduce assistant chatter without needing the full unquantized Transformers runtime.
+
+Implementation tested:
+- Opt-in short-fragment detection for lines with `1-10` Japanese characters.
+- Fragment-specific prompt path.
+- Fragment `num_predict` defaulted to `32`.
+- Normal-length lines kept the existing CAT prompt.
+
+Results:
+- `quality-runs/cat-fragment-prompt-v2-norender-20260525`
+  - Initial instruction-heavy fragment prompt appeared to reach `80 / 88`, but this was invalid because several accepted lines were prompt echoes or assistant chatter.
+  - After tightening validation, the same run was effectively worse than baseline: `76 / 88`, with `12` CAT rejections.
+- `quality-runs/cat-fragment-simple-norender-20260525`
+  - Simpler creator-style fragment prompt dropped further to `74 / 88`, with `14` CAT rejections.
+
+Decision:
+- Revert the fragment prompt path.
+- Keep the stricter generic validation for prompt echo and fragment-chatter patterns.
+- Short fragments are still the main problem, but prompt-only specialization made GGUF CAT more chatty, not less.
+
 ### Hypothesis 2: CAT Needs A Different Prompt For Short Manga Fragments
 Many CAT failures are very short or fragmentary:
 - `何あれ`
@@ -320,24 +373,73 @@ Run these in order, keeping the benchmark fixed:
    - Result: failed. Run `quality-runs/cat-trimmed-retry-norender-20260525` dropped to `75 / 88`, about `85.2%` approved, with `13` CAT rejections and `14` suspected bad translations.
    - Decision: revert. Punctuation trimming removed useful manga tone/context and increased untranslated-Japanese retry failures.
 
-5. **CAT bypass + Qwen fallback routing**
-   - Use the existing opt-in `MANGA_CAT_BYPASS_RISKY_SOURCE=1` routing, but benchmark it with Qwen fallback instead of CAT-only.
-   - Hypothesis: CAT approval can stay above `90%` on lines CAT actually handles, while Qwen handles the short/noisy fragments that CAT is bad at.
-   - This is more relevant than CAT-only bypass because the actual quality pipeline already has Qwen fallback available.
-   - Result: succeeded. Run `quality-runs/cat-bypass-q8-hybrid-norender-20260525`:
-     - CAT-used lines: `70`
-     - CAT approved: `65 / 70`, about `92.9%`
-     - CAT rejected: `5`
-     - CAT bypassed: `18`
-     - Q8 fallback attempted: `28`
-     - Q8 fallback accepted: `21`
-     - Ellipsis outputs: `3`
-     - Suspected bad translations: `3`
-   - Decision: keep this as the current best CAT quality routing strategy. CAT-only bypass is not acceptable because it creates too many ellipses, but CAT bypass + Q8 fallback substantially improves final usability while preserving the above-90% CAT handled-line target.
+5. **Translation-focused CAT system prompt**
+   - Keep the HF-style chat template but replace `SYSTEM "You are a helpful assistant."` with a stricter manga-translator system prompt.
+   - Hypothesis: remaining chatter/refusal failures are caused by the model role behaving too much like a general assistant.
+   - Result: failed. Run `quality-runs/cat-translator-system-norender-20260525` dropped to `63 / 88`, about `71.6%` approved, with `25` CAT rejections and `25` suspected bad translations.
+   - Decision: revert. The creator-style helpful-assistant system is unexpectedly better for this GGUF/Ollama setup.
 
-6. **Numbered mini-batch CAT**
-   - Only after the above.
-   - Test on the same 12-page set and manually inspect line mixing.
+6. **CAT bypass + Qwen fallback routing**
+   - This was tested briefly as a full-pipeline idea, but it is not the current CAT reliability goal.
+   - Run `quality-runs/cat-bypass-q8-hybrid-norender-20260525` showed useful final-pipeline behavior, but it relies on Qwen and therefore does not count as CAT-alone reliability.
+   - Decision: do not use this as proof that CAT is reliable. Keep the CAT-alone benchmark as the main target.
+
+7. **Numbered mini-batch CAT**
+   - Send the page's ordered lines together and parse numbered English output back onto CAT-rejected lines.
+   - Hypothesis: nearby page text would give CAT enough context to avoid assistant chatter on short fragments.
+   - Result: failed as a reliability solution. Run `quality-runs/cat-numbered-batch-norender-20260525` appeared to reach `88 / 88` by local validation, but manual inspection showed unacceptable line mixing and hallucinated rescues:
+     - `きめらちょうかんだ` -> `It's a beautiful day today.`
+     - `わたしがひみつそしき〈ぴーつー〉のぼす` -> `I'm going to climb the secret "P-Twin" mountain.`
+     - noisy credit text was turned into plausible-looking names.
+   - Decision: revert the batch retry code. The experiment proves page batching can suppress obvious chatter, but it replaces it with harder-to-detect hallucinations. It should not count toward CAT-alone reliability.
+
+8. **Conservative CAT output salvage**
+   - Hypothesis: a few CAT chatter responses contain a valid translation embedded after a clear marker, especially `English:`.
+   - First broad salvage result:
+     - Run: `quality-runs/cat-salvage-norender-20260525`
+     - CAT approved appeared to improve to `82 / 88`, but manual inspection found unsafe accepted outputs:
+       - `ガスがいて` -> `I have gas.`
+       - `きめらちょうかんだ` -> `the time for the decision.`
+     - Decision: reject broad salvage as unsafe.
+   - Marker-only salvage result:
+     - Run: `quality-runs/cat-salvage-marker-only-norender-20260525`
+     - CAT approved `78 / 88`, about `88.6%`
+     - This safely rescued `確かに．．．！` -> `Indeed...!`.
+   - Safer explanatory salvage result:
+     - Run: `quality-runs/cat-safe-explanatory-salvage-norender-20260525`
+     - CAT approved `79 / 88`, about `89.8%`
+     - It also rescued `あっかれん！` from an explanatory retry by extracting a quoted candidate only when CAT did not mention typos, unclear text, or "if you mean..." uncertainty.
+   - Decision: keep conservative salvage. It is generic and low-risk when paired with local validation.
+
+9. **Second strict incomplete-fragment retry**
+   - Hypothesis: after CAT primary and source-only retry fail, a final stricter prompt can make CAT produce a direct translation or a salvageable explanatory answer for incomplete manga fragments.
+   - Implementation tested:
+     - Only runs after primary and first retry fail.
+     - Prompt:
+       ```text
+       Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.
+       Japanese: "{source}"
+       English:
+       ```
+     - Accepted only if the normal CAT validation and safe salvage pass.
+     - Remains CAT-only; no Qwen or other translator is used.
+   - Result:
+     - Run: `quality-runs/cat-second-retry-safe-salvage-norender-20260525`
+     - CAT-used lines: `88`
+     - CAT rejected: `6`
+     - CAT approved: `82 / 88`, about `93.2%`
+     - Ellipsis outputs: `6`
+     - Suspected bad translations: `7`
+   - Accepted second-retry rescues:
+     - `胸の内を明かしてくれると` -> `If you could reveal your true feelings.`
+     - `残念な` -> `unfortunate`
+     - `目立ってはいけない．．．` -> `You should not stand out...`
+   - Still rejected, correctly:
+     - `ガスがいて`
+     - noisy credit/name OCR
+     - `きめらちょうかんだ`
+     - `わたしがひみつそしき〈ぴーつー〉のぼす`
+   - Decision: keep the second retry as normal CAT behavior, with `MANGA_CAT_SECOND_RETRY=0` available to disable it for comparison runs.
 
 ## Tracking Requirements
 
@@ -360,9 +462,18 @@ Benchmark folders should use stable names like:
 
 ## Current Recommendation
 
-Keep the current normal CAT Ollama path, CAT retry scan, and strict validation.
+Keep:
+- HF-style CAT GGUF/Ollama model.
+- Source-only retry.
+- Second strict incomplete-fragment retry.
+- Conservative marker/explanatory salvage.
+- Strict chatter/prompt/Japanese validation.
 
-Do not use raw CAT by default.
+Do not use:
+- raw CAT by default.
+- numbered mini-batch CAT.
+- broad quote salvage.
+- Qwen fallback as evidence that CAT itself is reliable.
 
 Next best implementation target:
-**Tighten Q8 fallback acceptance for bypassed CAT lines**, because the best run still rejected `7 / 28` Q8 fallback attempts and left `3` ellipsis outputs. The next work should inspect those seven rejection reasons before changing CAT again.
+**Better handling of the remaining rejected OCR-risk lines**, especially noisy credits, katakana/name fragments, and OCR-corrupted playful phrases. These should probably be routed or reviewed by source-type rules rather than forced through CAT.

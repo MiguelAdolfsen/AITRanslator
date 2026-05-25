@@ -376,16 +376,28 @@ def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
     if config.translator == "qwen":
         suffix = f"{stage}-{config.qwen_mode}"
     elif config.translator == "cat":
-        from .hf_translators import CAT_BYPASS_VERSION, CAT_PROMPT_VERSION, CAT_RETRY_PROMPT_VERSION, CAT_VALIDATION_VERSION, cat_bypass_enabled, cat_num_predict, find_cat_gguf_path
+        from .hf_translators import (
+            CAT_BYPASS_VERSION,
+            CAT_PROMPT_VERSION,
+            CAT_RETRY_PROMPT_VERSION,
+            CAT_SECOND_RETRY_PROMPT_VERSION,
+            CAT_VALIDATION_VERSION,
+            cat_bypass_enabled,
+            cat_num_predict,
+            cat_second_retry_enabled,
+            resolve_cat_gguf_path,
+        )
 
         cat_model = str(config.cat_model_name or "")
-        cat_path = find_cat_gguf_path(Path(cat_model)) if cat_model else find_cat_gguf_path()
+        cat_path = resolve_cat_gguf_path(Path(cat_model)) if cat_model else resolve_cat_gguf_path("cyberagent/CAT-Translate-7b")
         model_identity = str(cat_path or cat_model or "default")
+        backend_identity = "ollama" if cat_path else "transformers"
         identity = cache_identity_token(
-            f"{model_identity}|{CAT_PROMPT_VERSION}|{CAT_RETRY_PROMPT_VERSION}|{CAT_VALIDATION_VERSION}|{CAT_BYPASS_VERSION}|bypass={cat_bypass_enabled()}|num_predict={cat_num_predict()}"
+            f"{model_identity}|{backend_identity}|{CAT_PROMPT_VERSION}|{CAT_RETRY_PROMPT_VERSION}|{CAT_SECOND_RETRY_PROMPT_VERSION}|{CAT_VALIDATION_VERSION}|{CAT_BYPASS_VERSION}|bypass={cat_bypass_enabled()}|second_retry={cat_second_retry_enabled()}|num_predict={cat_num_predict()}"
         )
         bypass_token = "bypass" if cat_bypass_enabled() else "nobypass"
-        suffix = f"{stage}-cat-{identity}-{CAT_PROMPT_VERSION}-{CAT_RETRY_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}-{CAT_BYPASS_VERSION}-{bypass_token}-np{cat_num_predict()}"
+        second_retry_token = "secondretry" if cat_second_retry_enabled() else "nosecondretry"
+        suffix = f"{stage}-cat-{identity}-{backend_identity}-{CAT_PROMPT_VERSION}-{CAT_RETRY_PROMPT_VERSION}-{CAT_SECOND_RETRY_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}-{CAT_BYPASS_VERSION}-{bypass_token}-{second_retry_token}-np{cat_num_predict()}"
     else:
         return stage
     if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:

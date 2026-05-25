@@ -10,16 +10,20 @@ from manga_local_translator.detect_types import TextBlock
 from manga_local_translator import hf_translators
 from manga_local_translator.hf_translators import (
     CAT_PROMPT_VERSION,
+    CAT_SECOND_RETRY_PROMPT_VERSION,
     CAT_VALIDATION_VERSION,
     build_cat_prompt,
     cat_bypass_reason,
     cat_num_predict,
     cat_ollama_model_name,
     cat_reject_reason,
+    cat_second_retry_enabled,
     clean_cat_output,
     ensure_cat_ollama_model,
     find_cat_gguf_path,
     finalize_cat_translation,
+    resolve_cat_gguf_path,
+    salvage_cat_translation,
 )
 from manga_local_translator.pipeline import (
     apply_qwen_fallback_translations,
@@ -48,6 +52,19 @@ class CatTranslatorTests(unittest.TestCase):
             explicit.write_text("model", encoding="utf-8")
 
             self.assertEqual(find_cat_gguf_path(explicit), explicit.resolve())
+
+    def test_resolve_cat_gguf_uses_gguf_only_for_default_or_explicit_gguf(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_dir = Path(temp_dir)
+            q8 = model_dir / "CAT-Translate-7b.Q8_0.gguf"
+            hf_dir = model_dir / "hf-model"
+            q8.write_text("q8", encoding="utf-8")
+            hf_dir.mkdir()
+
+            with patch.object(hf_translators, "CAT_MODEL_DIR", model_dir):
+                self.assertEqual(resolve_cat_gguf_path("cyberagent/CAT-Translate-7b"), q8.resolve())
+                self.assertEqual(resolve_cat_gguf_path(q8), q8.resolve())
+                self.assertIsNone(resolve_cat_gguf_path(hf_dir))
 
     def test_cat_ollama_model_name_is_stable(self) -> None:
         self.assertEqual(
@@ -103,6 +120,10 @@ class CatTranslatorTests(unittest.TestCase):
     def test_cat_prompts_use_short_default_and_source_only_retry(self) -> None:
         self.assertEqual(build_cat_prompt("\u6bcd"), "Translate the following Japanese text into English.\n\n\u6bcd")
         self.assertEqual(build_cat_prompt("\u6bcd", retry=True), "Japanese:\n\u6bcd\n\nEnglish:")
+        self.assertEqual(
+            build_cat_prompt("\u6bcd", retry=True, retry_variant="incomplete_fragment"),
+            'Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\nJapanese: "\u6bcd"\nEnglish:',
+        )
 
     def test_cat_num_predict_reads_bounded_environment_value(self) -> None:
         with patch.dict("os.environ", {"MANGA_CAT_NUM_PREDICT": "48"}):
@@ -111,6 +132,12 @@ class CatTranslatorTests(unittest.TestCase):
             self.assertEqual(cat_num_predict(), 16)
         with patch.dict("os.environ", {"MANGA_CAT_NUM_PREDICT": "bad"}):
             self.assertEqual(cat_num_predict(), 128)
+
+    def test_cat_second_retry_is_enabled_by_default_with_env_disable(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertTrue(cat_second_retry_enabled())
+        with patch.dict("os.environ", {"MANGA_CAT_SECOND_RETRY": "0"}):
+            self.assertFalse(cat_second_retry_enabled())
 
     def test_cat_bypass_reason_catches_short_and_noisy_sources(self) -> None:
         self.assertIsNone(cat_bypass_reason("\u4f55\u3042\u308c"))
@@ -138,6 +165,10 @@ class CatTranslatorTests(unittest.TestCase):
             "cat_chatter",
         )
         self.assertEqual(
+            cat_reject_reason("\u6bcd", "I'm sorry, but I can't provide a translation of that text."),
+            "cat_chatter",
+        )
+        self.assertEqual(
             cat_reject_reason("\u6bcd", "I don't understand the Japanese text. Could you please clarify?"),
             "cat_chatter",
         )
@@ -150,6 +181,8 @@ class CatTranslatorTests(unittest.TestCase):
             cat_reject_reason("\u6bcd", "Japanese: English:"),
             "cat_prompt_fragment",
         )
+        self.assertEqual(cat_reject_reason("\u6bcd", "Here's a short English fragment: Indeed...!"), "cat_chatter")
+        self.assertEqual(cat_reject_reason("\u6bcd", "Return only a short English fragment. Do not explain."), "cat_prompt_fragment")
         self.assertEqual(
             cat_reject_reason("\u6bcd", "William " * 12),
             "cat_verbose_or_repetitive",
@@ -166,6 +199,39 @@ class CatTranslatorTests(unittest.TestCase):
         self.assertEqual(cleaned, "")
         self.assertEqual(final, "")
         self.assertEqual(reason, "cat_chatter")
+
+    def test_finalize_cat_translation_can_salvage_explicit_english_answer(self) -> None:
+        cleaned, final, reason = finalize_cat_translation(
+            "\u78ba\u304b\u306b\uff0e\uff0e\uff0e\uff01",
+            "\u78ba\u304b\u306b\uff0e\uff0e\uff0e\uff01",
+            "Sure thing! Here's the translation for you:\nJapanese: \u78ba\u304b\u306b\u2026!\nEnglish: Indeed...!",
+            None,
+        )
+
+        self.assertEqual(cleaned, "Indeed...!")
+        self.assertEqual(final, "Indeed...!")
+        self.assertIsNone(reason)
+
+    def test_salvage_cat_translation_uses_explicit_english_marker_only(self) -> None:
+        self.assertEqual(salvage_cat_translation("Japanese: 確かに…!\nEnglish: Indeed...!  This captures the sense."), "Indeed...!")
+        self.assertEqual(salvage_cat_translation('It can be translated as "Oh my!" depending on context.'), "Oh my!")
+        self.assertEqual(salvage_cat_translation('It means "\u3042\u3063\u304b\u308c\u3093!" in Japanese.'), "")
+        self.assertEqual(
+            salvage_cat_translation('It appears to be a typo. It can be translated as "time for the decision."'),
+            "",
+        )
+        self.assertEqual(
+            salvage_cat_translation('If you mean fuel, it would be expressed as "I have gas."'),
+            "",
+        )
+        self.assertEqual(
+            salvage_cat_translation("The Japanese phrase \"\u76ee\u7acb\u3063\u3066\u306f\u3044\u3051\u306a\u3044\" translates to: **\"You shouldn't stand out.\"**"),
+            "You shouldn't stand out.",
+        )
+        self.assertEqual(
+            salvage_cat_translation("The Japanese phrase \"\u30ac\u30b9\u304c\u3044\u3066\" translates to \"Is there gas?\""),
+            "",
+        )
 
     def test_cat_rejected_translation_triggers_qwen_fallback(self) -> None:
         self.assertTrue(
