@@ -5,6 +5,151 @@ import re
 
 from .qwen_types import QwenCriticDecision, QwenPageTranslation, QwenVerificationDecision
 
+FULLWIDTH_DIGITS = str.maketrans("０１２３４５６７８９", "0123456789")
+ENGLISH_NUMBER_WORDS = {
+    "0": ("zero",),
+    "1": ("one", "single"),
+    "2": ("two", "second", "both"),
+    "3": ("three", "third"),
+    "4": ("four", "fourth"),
+    "5": ("five", "fifth"),
+    "6": ("six", "sixth"),
+    "7": ("seven", "seventh"),
+    "8": ("eight", "eighth"),
+    "9": ("nine", "ninth"),
+    "10": ("ten", "tenth"),
+    "11": ("eleven", "eleventh"),
+    "12": ("twelve", "twelfth", "midnight", "noon"),
+}
+HONORIFIC_MARKERS = (
+    (("さん", "サン"), "san"),
+    (("さま", "サマ", "様"), "sama"),
+    (("ちゃん", "チャン"), "chan"),
+    (("くん", "クン", "君"), "kun"),
+    (("先輩", "せんぱい", "センパイ"), "senpai"),
+    (("先生", "せんせい", "センセイ"), "sensei"),
+    (("殿", "どの", "ドノ"), "dono"),
+    (("氏",), "shi"),
+)
+HONORIFIC_FAMILY_BASES = (
+    "父",
+    "母",
+    "兄",
+    "姉",
+    "弟",
+    "妹",
+    "お父",
+    "お母",
+    "お兄",
+    "お姉",
+)
+KANA_ROMAJI = {
+    "あ": "a",
+    "い": "i",
+    "う": "u",
+    "え": "e",
+    "お": "o",
+    "か": "ka",
+    "き": "ki",
+    "く": "ku",
+    "け": "ke",
+    "こ": "ko",
+    "さ": "sa",
+    "し": "shi",
+    "す": "su",
+    "せ": "se",
+    "そ": "so",
+    "た": "ta",
+    "ち": "chi",
+    "つ": "tsu",
+    "て": "te",
+    "と": "to",
+    "な": "na",
+    "に": "ni",
+    "ぬ": "nu",
+    "ね": "ne",
+    "の": "no",
+    "は": "ha",
+    "ひ": "hi",
+    "ふ": "fu",
+    "へ": "he",
+    "ほ": "ho",
+    "ま": "ma",
+    "み": "mi",
+    "む": "mu",
+    "め": "me",
+    "も": "mo",
+    "や": "ya",
+    "ゆ": "yu",
+    "よ": "yo",
+    "ら": "ra",
+    "り": "ri",
+    "る": "ru",
+    "れ": "re",
+    "ろ": "ro",
+    "わ": "wa",
+    "を": "o",
+    "ん": "n",
+    "が": "ga",
+    "ぎ": "gi",
+    "ぐ": "gu",
+    "げ": "ge",
+    "ご": "go",
+    "ざ": "za",
+    "じ": "ji",
+    "ず": "zu",
+    "ぜ": "ze",
+    "ぞ": "zo",
+    "だ": "da",
+    "ぢ": "ji",
+    "づ": "zu",
+    "で": "de",
+    "ど": "do",
+    "ば": "ba",
+    "び": "bi",
+    "ぶ": "bu",
+    "べ": "be",
+    "ぼ": "bo",
+    "ぱ": "pa",
+    "ぴ": "pi",
+    "ぷ": "pu",
+    "ぺ": "pe",
+    "ぽ": "po",
+    "きゃ": "kya",
+    "きゅ": "kyu",
+    "きょ": "kyo",
+    "しゃ": "sha",
+    "しゅ": "shu",
+    "しょ": "sho",
+    "ちゃ": "cha",
+    "ちゅ": "chu",
+    "ちょ": "cho",
+    "にゃ": "nya",
+    "にゅ": "nyu",
+    "にょ": "nyo",
+    "ひゃ": "hya",
+    "ひゅ": "hyu",
+    "ひょ": "hyo",
+    "みゃ": "mya",
+    "みゅ": "myu",
+    "みょ": "myo",
+    "りゃ": "rya",
+    "りゅ": "ryu",
+    "りょ": "ryo",
+    "ぎゃ": "gya",
+    "ぎゅ": "gyu",
+    "ぎょ": "gyo",
+    "じゃ": "ja",
+    "じゅ": "ju",
+    "じょ": "jo",
+    "びゃ": "bya",
+    "びゅ": "byu",
+    "びょ": "byo",
+    "ぴゃ": "pya",
+    "ぴゅ": "pyu",
+    "ぴょ": "pyo",
+}
+
 
 def clean_qwen_output(text: str) -> str:
     cleaned = strip_qwen_wrappers(text)
@@ -433,24 +578,46 @@ def accept_qwen_translation(
         return False, "markup_or_thinking_tag"
     if re.search(r"\b(translation|japanese|baseline|context|ocr|json)\b", candidate, flags=re.IGNORECASE):
         return False, "explanatory_output"
+    if re.match(r"^\s*english\s*:", candidate, flags=re.IGNORECASE):
+        return False, "explanatory_output"
     if candidate.lower() in {"unclear", "[unclear]", "unknown"}:
         return False, "unclear"
     if not any(char.isascii() and char.isalnum() for char in candidate):
         return False, "no_english_words"
     if len(candidate) > 180:
         return False, "too_long"
-    if len(source_text) > 12 and re.fullmatch(r"\([A-Za-z][A-Za-z\s.'!?-]{2,}\)", candidate):
+    if count_japanese_chars(source_text) > 0 and re.fullmatch(r"\([A-Za-z][A-Za-z\s.'!?-]{2,}\)", candidate):
         return False, "stage_direction_only"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", candidate):
         return False, "malformed_hyphen_chain"
+    if has_malformed_english_pattern(candidate):
+        return False, "grammar_problem"
+    if short_kana_fragment_gets_unsupported_first_person_detail(source_text, candidate):
+        return False, "unsupported_first_person_salvage"
+    if identity_fragment_invents_detail(source_text, candidate):
+        return False, "invented_identity_detail"
+    if ruby_annotation_literal_gloss(source_text, candidate):
+        return False, "ruby_literal_gloss"
+    if kana_only_fragment_gets_fluent_sentence(source_text, candidate):
+        return False, "ocr_risk_fluent_sentence"
+    if mixed_symbol_noise_gets_translation(source_text, candidate):
+        return False, "ocr_symbol_noise_translation"
     if source_has_bracket_term(source_text) and not translation_preserves_bracket_term(source_text, candidate):
         return False, "dropped_bracket_term"
+    if source_has_latin_code(source_text) and not translation_preserves_latin_codes(source_text, candidate):
+        return False, "dropped_latin_code"
+    if source_has_number(source_text) and not translation_preserves_numbers(source_text, candidate):
+        return False, "dropped_number"
+    if source_has_honorific(source_text) and not translation_preserves_honorific(source_text, candidate):
+        return False, "dropped_honorific"
     if source_uses_gender_neutral_group_address(source_text) and re.search(
         r"\b(boys|girls|men|women|ladies|gentlemen)\b",
         candidate,
         flags=re.IGNORECASE,
     ):
         return False, "unnecessary_gendering"
+    if source_has_confirmation_ending(source_text) and not translation_preserves_confirmation_ending(candidate):
+        return False, "dropped_confirmation_tone"
     candidate_words = candidate.split()
     baseline_words = baseline.split()
     if baseline_words and len(candidate_words) > max(18, len(baseline_words) * 2 + 6):
@@ -474,8 +641,18 @@ def should_try_qwen_repair(reason: str | None) -> bool:
         "too_long",
         "stage_direction_only",
         "malformed_hyphen_chain",
+        "grammar_problem",
+        "invented_identity_detail",
+        "ruby_literal_gloss",
+        "ocr_risk_fluent_sentence",
+        "ocr_symbol_noise_translation",
+        "unsupported_first_person_salvage",
         "dropped_bracket_term",
+        "dropped_latin_code",
+        "dropped_number",
+        "dropped_honorific",
         "unnecessary_gendering",
+        "dropped_confirmation_tone",
         "much_longer_than_baseline",
         "short_source_long_translation",
         "hedging_or_explanation",
@@ -485,11 +662,228 @@ def should_try_qwen_repair(reason: str | None) -> bool:
 
 def source_uses_gender_neutral_group_address(source_text: str) -> bool:
     compact = re.sub(r"\s+", "", source_text)
-    return any(marker in compact for marker in ("\u304a\u307e\u3048\u3089", "\u304a\u524d\u3089", "\u30aa\u30de\u30a8\u3089"))
+    return any(
+        marker in compact
+        for marker in (
+            "\u304a\u307e\u3048\u3089",
+            "\u304a\u524d\u3089",
+            "\u30aa\u30de\u30a8\u3089",
+            "\u307f\u3093\u306a",
+            "\u307f\u306a",
+            "\u7686",
+        )
+    )
+
+
+def source_has_confirmation_ending(source_text: str) -> bool:
+    compact = re.sub(r"\s+", "", source_text)
+    return compact.endswith(("\u3060\u308d", "\u3060\u308d\u3046", "\u3067\u3057\u3087", "\u3067\u3057\u3087\u3046"))
+
+
+def translation_preserves_confirmation_ending(candidate: str) -> bool:
+    lower = candidate.lower()
+    return bool(
+        "?" in candidate
+        or re.search(r"\b(?:right|isn't it|aren't you|aren't we|don't you|don't we|didn't you|didn't we|didn't i|wouldn't you|wouldn't we)\b", lower)
+    )
 
 
 def source_has_bracket_term(source_text: str) -> bool:
     return enforced_bracket_term_kind(source_text) is not None
+
+
+def has_malformed_english_pattern(candidate: str) -> bool:
+    lower = " ".join(candidate.lower().split())
+    return bool(
+        re.search(r"\bbeing\s+(?:the\s+)?[a-z]{3,}\s+of\b", lower)
+        or re.search(r"\b(?:is|are|was|were)\s+the\s+[a-z]{3,}\s+of\s+[a-z]{3,}\b", lower)
+        or re.search(r"\b(?:feeling|thought|voice)\s+of\s+(?:chest|body|heart|mind)\b", lower)
+    )
+
+
+def identity_fragment_invents_detail(source_text: str, candidate: str) -> bool:
+    source = re.sub(r"\s+", "", str(source_text))
+    words = re.findall(r"[A-Za-z']+", candidate)
+    lower = " ".join(candidate.lower().split())
+    if is_short_katakana_name_source(source) and len(words) > 2:
+        return True
+    if "あの人" in source and has_unsupported_english_name(candidate):
+        return True
+    if "あの子" in source and re.search(
+        r"\b(?:my|his|her|our|their)\s+(?:little\s+|big\s+|older\s+|younger\s+)?"
+        r"(?:sister|brother|mother|father|mom|dad|daughter|son|wife|husband)\b",
+        lower,
+    ):
+        return True
+    return False
+
+
+def is_short_katakana_name_source(source_text: str) -> bool:
+    return bool(re.fullmatch(r"[\u30a1-\u30fa\u30fc]{2,8}", source_text))
+
+
+def has_unsupported_english_name(candidate: str) -> bool:
+    blocked = {"I", "Is", "Are", "Am", "Who", "What", "Where", "When", "Why", "How", "That", "This", "The"}
+    names = re.findall(r"\b[A-Z][a-z]{2,}\b", candidate)
+    return any(name not in blocked for name in names)
+
+
+def ruby_annotation_literal_gloss(source_text: str, candidate: str) -> bool:
+    source = re.sub(r"\s+", "", str(source_text))
+    match = re.search(r"([\u3040-\u30ff\u30fc]{2,})[（(][\u3400-\u9fff]{1,4}[）)]", source)
+    if not match:
+        return False
+    words = re.findall(r"[A-Za-z]+", candidate)
+    if len(words) != 1:
+        return False
+    reading_romaji = kana_to_rough_romaji(match.group(1))
+    candidate_word = words[0].lower()
+    return bool(reading_romaji and candidate_word != reading_romaji)
+
+
+def kana_to_rough_romaji(text: str) -> str:
+    kana = "".join(katakana_to_hiragana(char) for char in text)
+    result: list[str] = []
+    index = 0
+    double_next = False
+    while index < len(kana):
+        char = kana[index]
+        if char == "っ":
+            double_next = True
+            index += 1
+            continue
+        if char == "ー":
+            index += 1
+            continue
+        piece = ""
+        if index + 1 < len(kana):
+            pair = kana[index : index + 2]
+            piece = KANA_ROMAJI.get(pair, "")
+            if piece:
+                index += 2
+            else:
+                piece = KANA_ROMAJI.get(char, "")
+                index += 1
+        else:
+            piece = KANA_ROMAJI.get(char, "")
+            index += 1
+        if not piece:
+            continue
+        if double_next:
+            piece = piece[0] + piece
+            double_next = False
+        result.append(piece)
+    return "".join(result)
+
+
+def katakana_to_hiragana(char: str) -> str:
+    code = ord(char)
+    if 0x30A1 <= code <= 0x30F6:
+        return chr(code - 0x60)
+    return char
+
+
+def kana_only_fragment_gets_fluent_sentence(source_text: str, candidate: str) -> bool:
+    source = re.sub(r"\s+", "", str(source_text))
+    if not re.fullmatch(r"[\u3040-\u30ff\u30fc]{7,12}", source):
+        return False
+    if any(char in source for char in ("\u3002", "\uff1f", "\uff01", "\u2026", "?", "!")):
+        return False
+    words = re.findall(r"[A-Za-z']+", candidate)
+    return len(words) >= 5
+
+
+def mixed_symbol_noise_gets_translation(source_text: str, candidate: str) -> bool:
+    source = re.sub(r"\s+", "", str(source_text))
+    japanese_count = count_japanese_chars(source)
+    if not (1 <= japanese_count <= 3):
+        return False
+    if not (re.search(r"[☆★♡♥]", source) or re.search(r"[!?！？]{2,}", source)):
+        return False
+    return bool(re.search(r"[A-Za-z]", candidate))
+
+
+def short_kana_fragment_gets_unsupported_first_person_detail(source_text: str, candidate: str) -> bool:
+    source = re.sub(r"\s+", "", str(source_text))
+    if count_japanese_chars(source) > 6:
+        return False
+    if not re.search(r"[\u30a1-\u30fa\u30fc]{2,}", source):
+        return False
+    if any(marker in source for marker in ("\u79c1", "\u50d5", "\u4ffa", "\u3042\u305f\u3057")):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:i|we)\s+(?:have|had|am|was|were|will|want|need|love|hate|own|remember)\b",
+            candidate,
+            flags=re.IGNORECASE,
+        )
+        or re.search(r"\bmy\s+[a-z]{3,}\b", candidate, flags=re.IGNORECASE)
+    )
+
+
+def source_has_number(source_text: str) -> bool:
+    return bool(source_numbers(source_text))
+
+
+def translation_preserves_numbers(source_text: str, candidate: str) -> bool:
+    normalized = candidate.translate(FULLWIDTH_DIGITS)
+    lower = normalized.lower()
+    for number in source_numbers(source_text):
+        if number in normalized:
+            continue
+        words = ENGLISH_NUMBER_WORDS.get(number, ())
+        if words and any(re.search(rf"\b{re.escape(word)}\b", lower) for word in words):
+            continue
+        return False
+    return True
+
+
+def source_numbers(source_text: str) -> list[str]:
+    return list(dict.fromkeys(re.findall(r"\d+", str(source_text).translate(FULLWIDTH_DIGITS))))
+
+
+def source_has_latin_code(source_text: str) -> bool:
+    return bool(source_latin_codes(source_text))
+
+
+def translation_preserves_latin_codes(source_text: str, candidate: str) -> bool:
+    normalized = re.sub(r"[^A-Za-z0-9]+", "", candidate).lower()
+    return all(re.sub(r"[^A-Za-z0-9]+", "", code).lower() in normalized for code in source_latin_codes(source_text))
+
+
+def source_latin_codes(source_text: str) -> list[str]:
+    codes = re.findall(r"\b[A-Z][A-Z0-9_-]*\d[A-Z0-9_-]*\b", str(source_text).translate(FULLWIDTH_DIGITS))
+    return list(dict.fromkeys(code for code in codes if len(code) >= 2))
+
+
+def source_has_honorific(source_text: str) -> bool:
+    return any(source_honorifics(source_text))
+
+
+def translation_preserves_honorific(source_text: str, candidate: str) -> bool:
+    lower = candidate.lower()
+    return all(re.search(rf"\b{re.escape(honorific)}\b", lower) for honorific in source_honorifics(source_text))
+
+
+def source_honorifics(source_text: str) -> list[str]:
+    text = str(source_text)
+    expected: list[str] = []
+    for markers, rendered in HONORIFIC_MARKERS:
+        if any(source_has_non_family_honorific(text, marker) for marker in markers):
+            expected.append(rendered)
+    return list(dict.fromkeys(expected))
+
+
+def source_has_non_family_honorific(source_text: str, marker: str) -> bool:
+    start = 0
+    while True:
+        index = source_text.find(marker, start)
+        if index < 0:
+            return False
+        prefix = source_text[:index]
+        if not any(prefix.endswith(base) for base in HONORIFIC_FAMILY_BASES):
+            return True
+        start = index + len(marker)
 
 
 def translation_preserves_bracket_term(source_text: str, candidate: str) -> bool:

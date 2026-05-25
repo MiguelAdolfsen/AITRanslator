@@ -223,6 +223,9 @@ class QwenValidationTests(unittest.TestCase):
     def test_candidate_rejects_common_manga_drift_patterns(self) -> None:
         cases = [
             ("\u3072\u307f\u3064\u305d\u3057\u304d\u3008PII2\u3009\u306e\u30dc\u30b9", "boss of PII2", "I'm the boss of the secret organization.", "dropped_bracket_term"),
+            ("\u80f8\u306e\u5185\u3092", "Your true feelings.", "Being the burden of responsibility.", "grammar_problem"),
+            ("\u3042\u304b\u308a\uff08\u706f\uff09", "Akari.", "Light.", "ruby_literal_gloss"),
+            ("\u30e1\u30e2", "Memo.", "I have notes.", "unsupported_first_person_salvage"),
         ]
 
         for source, baseline, candidate, reason in cases:
@@ -231,6 +234,18 @@ class QwenValidationTests(unittest.TestCase):
                     accept_qwen_translation(source_text=source, baseline=baseline, candidate=candidate),
                     (False, reason),
                 )
+
+    def test_candidate_allows_safe_forms_near_drift_guards(self) -> None:
+        cases = [
+            ("\u80f8\u304c\u75db\u3044", "My chest hurts."),
+            ("\u3042\u304b\u308a\uff08\u706f\uff09", "Akari."),
+            ("\u30e1\u30e2", "Memo."),
+        ]
+
+        for source, candidate in cases:
+            with self.subTest(source=source):
+                accepted, reason = accept_qwen_translation(source_text=source, baseline=candidate, candidate=candidate)
+                self.assertTrue(accepted, reason)
 
     def test_candidate_allows_unknown_or_noisy_bracket_terms_without_hard_reject(self) -> None:
         cases = [

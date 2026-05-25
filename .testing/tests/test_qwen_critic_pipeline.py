@@ -281,6 +281,51 @@ class QwenCriticPipelineTests(unittest.TestCase):
         self.assertEqual((attempted, accepted), (1, 0))
         self.assertIn("fallback_evidence_failure", contexts[block.text]["qwen_fallback_reject_reason"])
 
+    def test_fallback_does_not_block_on_consistency_conflict_only(self) -> None:
+        class FakeFallback:
+            def __init__(self) -> None:
+                self.debug = {}
+
+            def repair_translation_with_guidance(self, text, **kwargs):
+                self.debug[text] = {"qwen_model": "fake-q8"}
+                return "Ah, Maki-chan too?"
+
+            def debug_info_for(self, text):
+                return self.debug.get(text, {})
+
+        block = TextBlock("\u3042\u3063\u30de\u30ad\u3061\u3083\u3093\u3082\uff1f", (0, 0, 10, 10), 90)
+        translations = {block.text: "Is that so?"}
+        contexts = {
+            block.text: {
+                "evidence_repair_reasons": ["consistency_conflict"],
+                "translation_evidence": {"preservation_failures": ["consistency_conflict"]},
+            }
+        }
+        memory = build_consistency_memory(
+            [
+                ("\u30de\u30ad\u306f\u6765\u305f", "Maki came."),
+                ("\u30de\u30ad\u3092\u52b1\u307e\u3057\u3066", "Encourage Maki."),
+            ]
+        )
+
+        attempted, accepted = apply_qwen_fallback_translations(
+            [block],
+            translations,
+            contexts,
+            [{"source_text": block.text, "box": block.box, "page_order": 1}],
+            FakeFallback(),
+            PipelineConfig(translator="cat"),
+            evidence_memory=memory,
+        )
+
+        self.assertEqual((attempted, accepted), (1, 1))
+        self.assertEqual(translations[block.text], "Ah, Maki-chan too?")
+        self.assertIn(
+            "consistency_conflict",
+            contexts[block.text]["qwen_fallback_translation_evidence"]["preservation_failures"],
+        )
+        self.assertNotIn("qwen_fallback_reject_reason", contexts[block.text])
+
 
 if __name__ == "__main__":
     unittest.main()

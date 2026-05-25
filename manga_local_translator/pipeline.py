@@ -1826,7 +1826,6 @@ def fallback_reject_reason(
         "dropped_number",
         "dropped_bracket_term",
         "invented_english_name_on_noisy_source",
-        "consistency_conflict",
         "broken_english",
         "untranslated_japanese",
     }
