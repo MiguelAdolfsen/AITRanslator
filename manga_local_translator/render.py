@@ -77,9 +77,70 @@ def avoid_render_collisions(layouts: list[RenderLayout]) -> list[RenderLayout]:
             if other_index == index:
                 continue
             render_box = trim_render_box_away_from_source(render_box, layout.source_box, other_layout.source_box)
-            render_box = trim_render_box_away_from_source(render_box, layout.source_box, other_layout.render_box)
         adjusted.append(RenderLayout(source_box=layout.source_box, render_box=render_box, bubble_box=layout.bubble_box))
+    adjusted = balance_overlapping_bubble_rows(adjusted)
     return trim_residual_render_overlaps(adjusted)
+
+
+def balance_overlapping_bubble_rows(layouts: list[RenderLayout]) -> list[RenderLayout]:
+    adjusted = list(layouts)
+    indexed = sorted(
+        [(index, layout) for index, layout in enumerate(adjusted) if layout.bubble_box is not None],
+        key=lambda item: box_center(item[1].source_box)[0],
+    )
+    used: set[int] = set()
+    for start, (index, layout) in enumerate(indexed):
+        if index in used:
+            continue
+        group = [(index, layout)]
+        _, cy = box_center(layout.source_box)
+        for other_index, other_layout in indexed[start + 1 :]:
+            if other_index in used:
+                continue
+            _ox, oy = box_center(other_layout.source_box)
+            source_height = max(layout.source_box[3] - layout.source_box[1], other_layout.source_box[3] - other_layout.source_box[1])
+            if abs(oy - cy) > max(22, int(source_height * 0.55)):
+                continue
+            if any(boxes_intersect(other_layout.bubble_box, member.bubble_box) for _member_index, member in group):
+                group.append((other_index, other_layout))
+        if len(group) < 3:
+            continue
+        balanced = balance_bubble_row_group(group)
+        if balanced is None:
+            continue
+        for balanced_index, balanced_layout in balanced:
+            adjusted[balanced_index] = balanced_layout
+            used.add(balanced_index)
+    return adjusted
+
+
+def balance_bubble_row_group(group: list[tuple[int, RenderLayout]]) -> list[tuple[int, RenderLayout]] | None:
+    ordered = sorted(group, key=lambda item: box_center(item[1].source_box)[0])
+    bubble_boxes = [layout.bubble_box for _index, layout in ordered if layout.bubble_box is not None]
+    if len(bubble_boxes) != len(ordered):
+        return None
+
+    union_x1 = min(box[0] for box in bubble_boxes)
+    union_x2 = max(box[2] for box in bubble_boxes)
+    slot_width = (union_x2 - union_x1) / len(ordered)
+    if slot_width < 90:
+        return None
+
+    balanced: list[tuple[int, RenderLayout]] = []
+    for position, (index, layout) in enumerate(ordered):
+        bubble = layout.bubble_box
+        assert bubble is not None
+        slot_x1 = int(round(union_x1 + slot_width * position))
+        slot_x2 = int(round(union_x1 + slot_width * (position + 1)))
+        x1 = max(bubble[0], slot_x1)
+        x2 = min(bubble[2], slot_x2)
+        candidate = (x1, layout.render_box[1], x2, layout.render_box[3])
+        if box_area(candidate) < box_area(layout.source_box) * 1.2:
+            return None
+        if not candidate_keeps_source_anchor(candidate, layout.source_box):
+            return None
+        balanced.append((index, RenderLayout(source_box=layout.source_box, render_box=candidate, bubble_box=layout.bubble_box)))
+    return balanced
 
 
 def trim_residual_render_overlaps(layouts: list[RenderLayout]) -> list[RenderLayout]:
@@ -439,7 +500,7 @@ def fallback_render_box(
     source_width = max(1, source_box[2] - source_box[0])
     source_height = max(1, source_box[3] - source_box[1])
     source_area = box_area(source_box)
-    if source_area >= 4500 and source_width >= 58 and source_height >= 45:
+    if source_area >= 15000 and source_width >= 58 and source_height >= 45:
         logger.debug("Using source-box fallback render area: source=%s expanded=%s", source_box, expanded_box)
         return source_box
     return expanded_box
@@ -784,7 +845,7 @@ def fit_text(
     box_width = max(1, x2 - x1)
     box_height = max(1, y2 - y1)
     min_dimension = min(box_width, box_height)
-    padding = max(4, min_dimension // 14)
+    padding = max(4, min_dimension // 24)
     if min_dimension < 52:
         padding = max(padding, 6)
     usable_width = max(1, box_width - padding * 2)
@@ -935,11 +996,16 @@ def should_cap_single_line_start(
     usable_width: int,
     usable_height: int,
 ) -> bool:
+    font = load_font(font_path, start_font_size)
+    word_count = len(text.split())
+    if word_count == 1 and text_width(draw, text, font) > usable_width:
+        return True
+    if word_count == 2 and usable_height >= 50 and text_width(draw, text, font) > usable_width:
+        return True
     if usable_height <= 24:
         return True
     if usable_height > 44:
         return False
-    font = load_font(font_path, start_font_size)
     line_height = text_height(draw, "Ag", font) + max(1, start_font_size // 10)
     if line_height * 2 <= usable_height:
         return False
@@ -1006,14 +1072,21 @@ def cap_two_line_width_start_font_size(
     usable_width: int,
     usable_height: int,
 ) -> int:
+    three_line_fit: int | None = None
     for font_size in range(start_font_size, min_font_size - 1, -1):
         font = load_font(font_path, font_size)
         lines = wrap_text(draw, text, font, usable_width)
-        if not lines or len(lines) > 2:
+        if not lines or len(lines) > 3:
             continue
         line_height = text_height(draw, "Ag", font) + max(1, font_size // 10)
-        if line_height * len(lines) <= usable_height and all(text_width(draw, line, font) <= usable_width for line in lines):
+        if line_height * len(lines) > usable_height or any(text_width(draw, line, font) > usable_width for line in lines):
+            continue
+        if len(lines) <= 2:
+            if font_size <= 8 and three_line_fit is not None:
+                return three_line_fit
             return font_size
+        if font_size > 8 and three_line_fit is None:
+            three_line_fit = font_size
     return start_font_size
 
 
@@ -1229,9 +1302,15 @@ def estimate_start_font_size(
     dimension_cap = max(6, min(height_cap, width_cap))
     estimated = max(5, min(base_font_size, dimension_cap, max(6, density_cap)))
     if text_len >= 70:
-        estimated = min(estimated, 10)
+        estimated = min(estimated, 11)
     if source_box is not None and is_long_translation_from_narrow_vertical_source(text, source_box):
         estimated = min(estimated, 16)
+        if text_len >= 50:
+            estimated = min(estimated, 10)
+    if 34 <= text_len <= 46 and render_area <= 6500:
+        estimated = min(estimated, 9)
+    if 40 <= text_len <= 60 and 0.8 <= aspect <= 1.4:
+        estimated = min(estimated, 15)
     logger.debug(
         "Estimated start font size: size=%d base=%d text_len=%d density_cap=%d dimension_cap=%d render_box=%s source_box=%s",
         estimated,
@@ -1531,7 +1610,7 @@ def registered_font_key(font: ImageFont.ImageFont) -> tuple[str, int] | None:
     return None
 
 
-@lru_cache(maxsize=8192)
+@lru_cache(maxsize=32768)
 def cached_text_size(font_key: tuple[str, int], text: str) -> tuple[int, int]:
     font = _FONT_REGISTRY[font_key]
     bbox = font.getbbox(text)

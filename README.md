@@ -68,6 +68,8 @@ Supported image extensions include:
 - OCR/debug JSON reports.
 - Debug images with boxes and render diagnostics.
 - Repeatable quality-evaluation runner.
+- Render-only benchmark reruns from cache.
+- Isolated render/layout autoresearch benchmark harness.
 
 ---
 
@@ -298,6 +300,18 @@ python -m manga_local_translator.quality_eval ".testing\input\diverse-smoke-2026
   --resume
 ```
 
+CAT-only benchmark with image rendering enabled:
+
+```powershell
+python -m manga_local_translator.quality_eval ".testing\input\diverse-smoke-20260524" `
+  --output-root quality-runs `
+  --name cat-only-render-test `
+  --profiles quality `
+  --translator cat `
+  --cat-model ".models\CAT-Translate\CAT-Translate-7b.Q8_0.gguf" `
+  --render-images
+```
+
 CAT runs locally through Ollama for GGUF files. Runtime does not download models; the install script only downloads Hugging Face cache files when you explicitly run it:
 
 ```powershell
@@ -499,6 +513,32 @@ python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
   --overwrite
 ```
 
+Example: translation benchmark without rendering images:
+
+```powershell
+python -m manga_local_translator.quality_eval ".\raw_pages" `
+  --output-root ".\quality-runs" `
+  --name "translation-only-test" `
+  --profiles quality `
+  --translator cat `
+  --cat-model ".models\CAT-Translate\CAT-Translate-7b.Q8_0.gguf"
+```
+
+Example: render images later from an existing benchmark cache without rerunning OCR or translation:
+
+```powershell
+python -m manga_local_translator.quality_eval ".\raw_pages" `
+  --output-root ".\quality-runs" `
+  --name "translation-only-test" `
+  --profiles quality `
+  --translator cat `
+  --cat-model ".models\CAT-Translate\CAT-Translate-7b.Q8_0.gguf" `
+  --render-only `
+  --resume
+```
+
+`--render-only` fails if the matching `.manga-work` prepared/translation cache is missing. Use the same translator/model/critic/fallback flags that created the cached benchmark.
+
 ---
 
 ## Important CLI options
@@ -514,6 +554,8 @@ python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
 | `--overwrite` | Replace existing output files |
 | `--resume` | Reuse cached prepared pages/translations when possible |
 | `--work-dir PATH` | Override the cache/work directory |
+| `--skip-render` | Write debug JSON/reports without final image rendering |
+| `--render-only` | Render images from existing cache only; no OCR/translation work |
 
 ### Detection and OCR
 
@@ -530,14 +572,16 @@ python -m manga_local_translator ".\raw_pages" ".\translated_pages" `
 
 | Option | Values | Default |
 |---|---|---|
-| `--translator` | `opus`, `qwen`, `madlad`, `argos`, `none` | `opus` |
+| `--translator` | `opus`, `cat`, `qwen`, `madlad`, `argos`, `none` | `opus` |
 | `--glossary` | JSON glossary path | unset |
+| `--cat-model` | CAT GGUF path or Hugging Face model id | unset |
 
 ### Qwen
 
 | Option | Values | Default |
 |---|---|---|
 | `--qwen-model` | GGUF path or model name | unset |
+| `--qwen-critic-model` | GGUF path or model name | unset |
 | `--qwen-fallback-model` | GGUF path or model name | unset |
 | `--qwen-mode` | `block`, `page` | `block` |
 
@@ -689,6 +733,44 @@ python -m manga_local_translator.quality_eval ".\raw_pages" `
   --summarize-only
 ```
 
+By default, `quality_eval` skips final image rendering so translation/model experiments run faster. Add `--render-images` when you want translated page images. Add `--render-only --resume` to render from an existing cached run without redoing OCR or translation.
+
+---
+
+## Render autoresearch
+
+`render_autoresearch/` is an isolated benchmark harness for improving only rendering and layout behavior. It does not run OCR, detection, translation, Qwen, CAT, vision, or the GUI. It uses frozen synthetic fixtures:
+
+```text
+render_autoresearch/benchmarks/synthetic/
+```
+
+Run render unit tests:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s .testing\tests -p test_render.py
+```
+
+Regenerate deterministic synthetic cases:
+
+```powershell
+.\.venv\Scripts\python.exe render_autoresearch\scripts\generate_synthetic_cases.py `
+  --output render_autoresearch\benchmarks\synthetic
+```
+
+Run the synthetic render benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe render_autoresearch\scripts\render_eval.py `
+  --benchmark render_autoresearch\benchmarks\synthetic `
+  --output render_autoresearch\runs\baseline `
+  --results render_autoresearch\results\results.tsv `
+  --run-id baseline `
+  --overwrite-output
+```
+
+The benchmark writes per-run outputs under `render_autoresearch/runs/` and appends scores to `render_autoresearch/results/results.tsv`. Lower `render_score` is better. See `render_autoresearch/PROGRAM.md` before making render experiments.
+
 ---
 
 ## Tests
@@ -761,6 +843,14 @@ AITRanslator/
     README.md
     run_tests.ps1
     tests/
+
+  render_autoresearch/
+    README.md
+    PROGRAM.md
+    benchmarks/
+    results/
+    runs/
+    scripts/
 
   quality-runs/
     previous quality/evaluation run outputs
