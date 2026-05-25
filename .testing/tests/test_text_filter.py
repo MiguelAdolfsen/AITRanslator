@@ -41,6 +41,8 @@ class TextFilterTests(unittest.TestCase):
         self.assertTrue(suspected_bad_translation("..."))
         self.assertTrue(suspected_bad_translation("<think>draft</think>"))
         self.assertTrue(suspected_bad_translation("one-two-three-four-five-six"))
+        self.assertTrue(suspected_bad_translation("Could you please provide the Japanese passage you'd like translated?"))
+        self.assertTrue(suspected_bad_translation("Karen is a Japanese translator who specializes in professional translation services."))
         self.assertFalse(suspected_bad_translation("I am glad."))
 
 

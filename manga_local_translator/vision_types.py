@@ -12,6 +12,9 @@ class VisionNumberMapEntry:
     source_text: str
     translated_text: str
     box: tuple[int, int, int, int]
+    state_key: str = ""
+    block_id: str = ""
+    source_hash: str = ""
 
 
 @dataclass(frozen=True)

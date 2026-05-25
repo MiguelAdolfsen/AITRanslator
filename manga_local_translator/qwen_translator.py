@@ -64,6 +64,7 @@ class QwenTranslator(Translator):
         self._cache: dict[str, str] = {}
         self._page_cache: dict[str, dict[int, str]] = {}
         self._debug: dict[str, dict[str, object]] = {}
+        self._debug_by_id: dict[str, dict[str, object]] = {}
         self._baseline_translator: OpusTranslator | None = None
         self._glossary_path = glossary_path
         self._llm = None
@@ -111,6 +112,7 @@ class QwenTranslator(Translator):
         before_contexts: tuple[str, ...] = (),
         after_contexts: tuple[str, ...] = (),
         visual_facts: tuple[str, ...] = (),
+        debug_id: str | None = None,
     ) -> str:
         cache_key = json.dumps(
             {
@@ -135,6 +137,10 @@ class QwenTranslator(Translator):
             )
             self._cache[cache_key] = translated
             self._debug[normalize_japanese_for_translation(text)] = debug
+            if debug_id:
+                self._debug_by_id[debug_id] = dict(debug)
+        elif debug_id and debug_id not in self._debug_by_id:
+            self._debug_by_id[debug_id] = dict(self._debug.get(normalize_japanese_for_translation(text), {}))
         return self._cache[cache_key]
 
     def critique_translation(
@@ -306,7 +312,9 @@ class QwenTranslator(Translator):
         self._debug[normalized] = debug
         return ""
 
-    def debug_info_for(self, text: str) -> dict[str, object]:
+    def debug_info_for(self, text: str, *, debug_id: str | None = None) -> dict[str, object]:
+        if debug_id and debug_id in self._debug_by_id:
+            return self._debug_by_id.get(debug_id, {})
         return self._debug.get(normalize_japanese_for_translation(text), {})
 
     def translate_page(
@@ -332,6 +340,7 @@ class QwenTranslator(Translator):
         for item in page_items:
             page_id = int(item["id"])
             text = str(item.get("text", ""))
+            line_id = str(item.get("line_id", "") or "")
             normalized = normalize_japanese_for_translation(text)
             prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
             phrase = translate_known_phrase(normalized, self._glossary) or translate_known_phrase(prepared, self._glossary)
@@ -354,6 +363,8 @@ class QwenTranslator(Translator):
                     "qwen_reason": "phrasebook",
                     "qwen_model": self._ollama_model_name,
                 }
+                if line_id:
+                    self._debug_by_id[line_id] = dict(self._debug[normalized])
                 continue
             prepared_items.append({"id": page_id, "source": prepared, "baseline": baseline})
 
@@ -380,6 +391,7 @@ class QwenTranslator(Translator):
         for page_id in sorted(expected_ids):
             meta = item_meta[page_id]
             text = str(meta["text"])
+            line_id = str(meta.get("line_id") or "")
             normalized = str(meta["normalized"])
             prepared = str(meta["prepared"])
             baseline = str(meta["baseline"])
@@ -474,6 +486,8 @@ class QwenTranslator(Translator):
                     "qwen_final": result,
                     **page_debug,
                 }
+                if line_id:
+                    self._debug_by_id[line_id] = dict(self._debug[normalized])
                 continue
 
             fallback, debug = self._translate_qwen(
@@ -486,6 +500,8 @@ class QwenTranslator(Translator):
             translations[page_id] = fallback
             debug.update(page_debug)
             self._debug[normalized] = debug
+            if line_id:
+                self._debug_by_id[line_id] = dict(debug)
 
         self._page_cache[cache_key] = translations
         return translations

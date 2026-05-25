@@ -5,6 +5,7 @@ import re
 import unicodedata
 
 from .detect_types import TextBlock
+from .line_identity import block_id_for_block, line_id_for_block, source_hash
 from .logging_utils import shorten
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,12 @@ def suspected_bad_translation(text: str) -> bool:
         return True
     if any(marker in stripped for marker in ("\u00e3", "\u00ef", "\ufffd", "<think>", "{", "}")):
         return True
+    if re.search(
+        r"\b(please provide|could you please provide|i(?:'| a)m ready to translate|i do not see any japanese|i don't see any japanese|i don't understand what you|i can't provide that translation|return english translation only|return only the translation|translate the following japanese text|japanese translator who specializes|translation services|quality assurance|community management)\b",
+        stripped,
+        flags=re.IGNORECASE,
+    ):
+        return True
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", stripped):
         return True
     return False
@@ -166,6 +173,9 @@ def block_to_debug_dict(
         "detector": getattr(block, "detector", "unknown"),
         "box": block.box,
         "confidence": block.confidence,
+        "block_id": block_id_for_block(block),
+        "line_id": line_id_for_block(block),
+        "source_hash": source_hash(block.text),
         "source_text": block.text,
     }
     if status is not None:

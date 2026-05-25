@@ -7,6 +7,14 @@ from pathlib import Path
 
 from .config import PipelineConfig
 from .detect_types import TextBlock
+from .line_identity import (
+    assign_ocr_block_ids,
+    assign_render_line_ids,
+    enrich_grouping_report,
+    enrich_page_order_report,
+    migrate_state_to_line_ids,
+    translations_by_source_for_compat,
+)
 from .page_types import PreparedPage
 
 logger = logging.getLogger(__name__)
@@ -72,28 +80,37 @@ def load_prepared_page_cache(cache_path: Path, *, output_path: Path | None = Non
     image_bgr = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
     if image_bgr is None:
         raise RuntimeError(f"Could not read cached image: {image_path}")
+    raw_blocks = [text_block_from_cache(item) for item in payload.get("raw_blocks", [])]
+    render_blocks = [text_block_from_cache(item) for item in payload.get("render_blocks", [])]
+    page_order_report = list(payload.get("page_order_report", []))
+    raw_blocks = assign_ocr_block_ids(raw_blocks, role="ocr")
+    render_blocks = assign_render_line_ids(render_blocks, page_order_report, output_path or cached_output_path)
+    page_order_report = enrich_page_order_report(page_order_report, render_blocks)
+    grouping_report = enrich_grouping_report(list(payload.get("grouping_report", [])), render_blocks)
     return PreparedPage(
         image_path=image_path,
         output_path=output_path or cached_output_path,
         image_bgr=image_bgr,
         width=int(payload.get("width", image_bgr.shape[1])),
         height=int(payload.get("height", image_bgr.shape[0])),
-        raw_blocks=[text_block_from_cache(item) for item in payload.get("raw_blocks", [])],
-        render_blocks=[text_block_from_cache(item) for item in payload.get("render_blocks", [])],
+        raw_blocks=raw_blocks,
+        render_blocks=render_blocks,
         skipped_blocks=list(payload.get("skipped_blocks", [])),
-        grouping_report=list(payload.get("grouping_report", [])),
-        page_order_report=list(payload.get("page_order_report", [])),
+        grouping_report=grouping_report,
+        page_order_report=page_order_report,
     )
 
 
 def save_translation_cache(page: PreparedPage, cache_path: Path) -> None:
     payload = {
-        "version": 2,
+        "version": 3,
         "cache_kind": "translation",
         "image_path": str(page.image_path),
         "output_path": str(page.output_path),
-        "translations": page.translations,
-        "translation_contexts": page.translation_contexts,
+        "translations_by_id": page.translations_by_id,
+        "translation_contexts_by_id": page.translation_contexts_by_id,
+        "translations": translations_by_source_for_compat(page.render_blocks, page.translations_by_id),
+        "translation_contexts": page.translation_contexts_by_id,
         "translation_fallback_blocks": page.translation_fallback_blocks,
     }
     cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,14 +120,19 @@ def save_translation_cache(page: PreparedPage, cache_path: Path) -> None:
 
 def load_translation_cache(page: PreparedPage, cache_path: Path) -> None:
     payload = json.loads(cache_path.read_text(encoding="utf-8"))
-    page.translations = {
+    raw_translations = {
         str(key): str(value)
-        for key, value in dict(payload.get("translations", {})).items()
+        for key, value in dict(payload.get("translations_by_id") or payload.get("translations", {})).items()
     }
-    page.translation_contexts = {
+    raw_contexts = {
         str(key): dict(value) if isinstance(value, dict) else {}
-        for key, value in dict(payload.get("translation_contexts", {})).items()
+        for key, value in dict(payload.get("translation_contexts_by_id") or payload.get("translation_contexts", {})).items()
     }
+    page.translations, page.translation_contexts = migrate_state_to_line_ids(
+        page.render_blocks,
+        raw_translations,
+        raw_contexts,
+    )
     page.translation_fallback_blocks = list(payload.get("translation_fallback_blocks", []))
 
 

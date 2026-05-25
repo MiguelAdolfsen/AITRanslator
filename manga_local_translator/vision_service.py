@@ -7,6 +7,7 @@ from typing import Protocol
 from .config import PipelineConfig
 from .debug_report import render_layout_warnings
 from .detect_types import TextBlock
+from .line_identity import lookup_context, lookup_translation, translation_key_for_block
 from .qwen_vision import QwenVisionClient
 from .text_filter import count_japanese_chars, normalize_for_filter, suspected_bad_translation
 from .vision_artifact import create_vision_artifact
@@ -115,10 +116,13 @@ def apply_vision_repair(
             result,
             malformed_reason=structural_errors.get(request.line_id),
         )
-        context = translation_contexts.setdefault(entry.source_text, {})
+        context = lookup_context(translation_contexts, TextBlock(entry.source_text, entry.box, 0.0, metadata={"line_id": entry.state_key if entry.state_key != entry.source_text else ""}))
         context.update(
             {
                 "vision_attempted": True,
+                "line_id": entry.line_id,
+                "block_id": entry.block_id,
+                "source_hash": entry.source_hash,
                 "vision_model": getattr(client, "model_name", "qwen_vision"),
                 "vision_mode": config.vision_mode,
                 "vision_trigger": config.vision_trigger,
@@ -148,9 +152,10 @@ def apply_vision_repair(
                 "vision_raw_json_repair_response": raw_json_repair_response,
             }
         )
+        translation_contexts[entry.state_key or entry.source_text] = context
         if reject_reason is not None or result is None:
             continue
-        translations[entry.source_text] = result.translation
+        translations[entry.state_key or entry.source_text] = result.translation
         accepted_count += 1
     logger.info("Vision repair finished: attempted=%d accepted=%d", len(requests), accepted_count)
     return artifact
@@ -225,11 +230,14 @@ def apply_vision_facts(
                 result,
                 malformed_reason=structural_errors.get(request.line_id),
             )
-            context = translation_contexts.setdefault(entry.source_text, {})
+            context = lookup_context(translation_contexts, TextBlock(entry.source_text, entry.box, 0.0, metadata={"line_id": entry.state_key if entry.state_key != entry.source_text else ""}))
             visual_facts = list(result.facts) if result and reject_reason is None else []
             context.update(
                 {
                     "vision_facts_attempted": True,
+                    "line_id": entry.line_id,
+                    "block_id": entry.block_id,
+                    "source_hash": entry.source_hash,
                     "vision_facts_model": getattr(client, "model_name", "qwen_vision"),
                     "vision_facts_line_id": request.line_id,
                     "vision_facts_number": request.number,
@@ -258,6 +266,7 @@ def apply_vision_facts(
                         "vision_facts_raw_json_repair_response": raw_json_repair_response,
                     }
                 )
+            translation_contexts[entry.state_key or entry.source_text] = context
             if reject_reason is None:
                 accepted_count += 1
     logger.info("Vision facts finished: attempted=%d accepted=%d", len(requests), accepted_count)
@@ -310,18 +319,20 @@ def build_vision_requests(
     image_height: int,
     trigger: str,
 ) -> list[VisionRepairRequest]:
+    entry_by_key = {entry.state_key or entry.source_text: entry for entry in artifact.number_map}
     entry_by_text = {entry.source_text: entry for entry in artifact.number_map}
     requests: list[VisionRepairRequest] = []
     for block, layout, fit in zip(blocks, render_layouts, render_fits):
-        entry = entry_by_text.get(block.text)
+        state_key = translation_key_for_block(block)
+        entry = entry_by_key.get(state_key) or entry_by_text.get(block.text)
         if entry is None:
             continue
-        if translation_contexts.get(block.text, {}).get("vision_attempted") is True:
+        if lookup_context(translation_contexts, block).get("vision_attempted") is True:
             continue
         issue = vision_issue_for_block(
             block,
-            translations.get(block.text, ""),
-            translation_contexts.get(block.text, {}),
+            lookup_translation(translations, block, ""),
+            lookup_context(translation_contexts, block),
             layout,
             fit,
             image_width=image_width,
@@ -335,7 +346,7 @@ def build_vision_requests(
                 line_id=entry.line_id,
                 number=entry.number,
                 source_text=block.text,
-                current_translation=translations.get(block.text, ""),
+                current_translation=lookup_translation(translations, block, ""),
                 issue=issue,
                 box=entry.box,
             )

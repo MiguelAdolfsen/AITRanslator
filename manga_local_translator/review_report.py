@@ -16,10 +16,17 @@ from .text_filter import count_japanese_chars, suspected_bad_translation
 class ReviewRow:
     run: str
     page: str
+    line_id: str
     page_order: int
     source_text: str
+    source_hash: str
     translated_text: str
     issues: tuple[str, ...]
+    primary_translator: str = ""
+    cat_raw_translation: str = ""
+    cat_cleaned_translation: str = ""
+    cat_final: str = ""
+    cat_reject_reason: str = ""
     qwen_baseline: str = ""
     qwen_candidate: str = ""
     qwen_final: str = ""
@@ -128,10 +135,17 @@ def row_from_block(run: str, page: str, block: dict[str, Any], report_path: Path
     return ReviewRow(
         run=run,
         page=page,
+        line_id=text_value(block.get("line_id")),
         page_order=int(block.get("page_order") or 0),
         source_text=source,
+        source_hash=text_value(block.get("source_hash")),
         translated_text=translated,
         issues=issues,
+        primary_translator=text_value(block.get("primary_translator")),
+        cat_raw_translation=text_value(block.get("cat_raw_translation")),
+        cat_cleaned_translation=text_value(block.get("cat_cleaned_translation") or block.get("cat_candidate")),
+        cat_final=text_value(block.get("cat_final")),
+        cat_reject_reason=text_value(block.get("cat_reject_reason")),
         qwen_baseline=text_value(block.get("qwen_baseline")),
         qwen_candidate=text_value(block.get("qwen_candidate")),
         qwen_final=text_value(block.get("qwen_final")),
@@ -167,6 +181,16 @@ def detect_review_issues(
         issues.append("empty_or_ellipsis")
     if suspected_bad_translation(translated):
         issues.append("suspected_bad_translation")
+    if block.get("cat_rejected") is True:
+        issues.append("cat_rejected")
+    if block.get("cat_chatter_rejected") is True:
+        issues.append("cat_chatter")
+    if block.get("cat_reject_reason") == "cat_untranslated_japanese":
+        issues.append("cat_untranslated")
+    if text_value(block.get("cat_final")) and len(text_value(block.get("cat_final"))) > 180:
+        issues.append("cat_verbose")
+    if block.get("cat_q8_fallback_accepted") is True:
+        issues.append("cat_q8_changed")
     if count_japanese_chars(translated) > 0:
         issues.append("japanese_in_translation")
     if block.get("qwen_rejected") is True:
@@ -221,10 +245,17 @@ def csv_row(row: ReviewRow) -> dict[str, str | int]:
     return {
         "run": row.run,
         "page": row.page,
+        "line_id": row.line_id,
         "page_order": row.page_order,
         "issues": "; ".join(row.issues),
+        "source_hash": row.source_hash,
         "source_text": row.source_text,
         "translated_text": row.translated_text,
+        "primary_translator": row.primary_translator,
+        "cat_raw_translation": row.cat_raw_translation,
+        "cat_cleaned_translation": row.cat_cleaned_translation,
+        "cat_final": row.cat_final,
+        "cat_reject_reason": row.cat_reject_reason,
         "qwen_baseline": row.qwen_baseline,
         "qwen_candidate": row.qwen_candidate,
         "qwen_final": row.qwen_final,
@@ -250,7 +281,7 @@ def csv_row(row: ReviewRow) -> dict[str, str | int]:
 
 
 def default_csv_fields() -> list[str]:
-    return list(csv_row(ReviewRow("", "", 0, "", "", ())).keys())
+    return list(csv_row(ReviewRow("", "", "", 0, "", "", "", ())).keys())
 
 
 def write_html_report(rows: list[ReviewRow], path: Path) -> None:
@@ -302,8 +333,8 @@ code {{ background: #ecece8; padding: 1px 4px; border-radius: 3px; }}
 <table>
 <thead>
 <tr>
-  <th>Run</th><th>Page</th><th>Order</th><th>Issues</th><th>Source OCR</th><th>Final</th>
-  <th>Baseline / Candidate / Repair</th><th>Verifier</th><th>Context</th><th>Visual Facts</th>
+  <th>Run</th><th>Page</th><th>Line</th><th>Order</th><th>Issues</th><th>Source OCR</th><th>Final</th>
+  <th>CAT</th><th>Baseline / Candidate / Repair</th><th>Verifier</th><th>Context</th><th>Visual Facts</th>
 </tr>
 </thead>
 <tbody>
@@ -327,6 +358,13 @@ def render_row(row: ReviewRow) -> str:
         label_value("Evidence risks", "; ".join(row.evidence_risk_flags)),
         label_value("Evidence repair", "; ".join(row.evidence_repair_reasons)),
     ]
+    cat_bits = [
+        label_value("Primary", row.primary_translator),
+        label_value("Raw", row.cat_raw_translation),
+        label_value("Cleaned", row.cat_cleaned_translation),
+        label_value("Final", row.cat_final),
+        label_value("Reject", row.cat_reject_reason),
+    ]
     verifier_bits = [
         label_value("Choice", row.qwen_verify_choice),
         label_value("Reason", row.qwen_verify_reason),
@@ -343,10 +381,12 @@ def render_row(row: ReviewRow) -> str:
     return f"""<tr class="{klass}">
 <td>{escape(row.run)}</td>
 <td>{escape(row.page)}</td>
+<td><code>{escape(row.line_id)}</code></td>
 <td>{row.page_order}</td>
 <td class="issues">{render_issue_list(row.issues)}</td>
 <td class="text">{escape(row.source_text)}</td>
 <td class="text">{escape(row.translated_text)}</td>
+<td class="text">{''.join(cat_bits)}</td>
 <td class="text">{''.join(baseline_bits)}</td>
 <td class="text">{''.join(verifier_bits)}</td>
 <td class="text">{''.join(context_bits)}</td>

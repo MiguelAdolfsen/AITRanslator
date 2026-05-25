@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .text_filter import suspected_bad_translation
+
 
 PROFILE_ENVS: dict[str, dict[str, str]] = {
     "quality": {
@@ -57,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Comma-separated profiles to run. Available: {', '.join(PROFILE_ENVS)}",
     )
     parser.add_argument(
+        "--translator",
+        choices=["qwen", "cat"],
+        default="qwen",
+        help="Primary translator to benchmark. Qwen critic/fallback can still be used with CAT primary.",
+    )
+    parser.add_argument(
         "--qwen-model",
         type=Path,
         default=None,
@@ -73,6 +81,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional Qwen text GGUF used as a critic/verifier for suspicious accepted blocks.",
+    )
+    parser.add_argument(
+        "--cat-model",
+        default=None,
+        help="Optional CAT GGUF path or Hugging Face model id. Defaults to local .models/CAT-Translate/*.gguf, then cyberagent/CAT-Translate-7b.",
     )
     parser.add_argument(
         "--qwen-mode",
@@ -140,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
                 qwen_model=args.qwen_model,
                 qwen_fallback_model=args.qwen_fallback_model,
                 qwen_critic_model=args.qwen_critic_model,
+                translator=args.translator,
+                cat_model=args.cat_model,
                 qwen_mode=args.qwen_mode,
                 vision=vision_enabled,
                 vision_facts=args.vision_facts,
@@ -181,6 +196,8 @@ def run_profile(
     qwen_model: Path | None,
     qwen_fallback_model: Path | None,
     qwen_critic_model: Path | None,
+    translator: str,
+    cat_model: str | None,
     qwen_mode: str,
     vision: bool,
     vision_facts: bool,
@@ -201,7 +218,7 @@ def run_profile(
         "--ocr-engine",
         "manga-ocr",
         "--translator",
-        "qwen",
+        translator,
         "--qwen-mode",
         qwen_mode,
         "--debug",
@@ -213,6 +230,8 @@ def run_profile(
         command.extend(["--qwen-fallback-model", str(qwen_fallback_model)])
     if qwen_critic_model is not None:
         command.extend(["--qwen-critic-model", str(qwen_critic_model)])
+    if cat_model is not None:
+        command.extend(["--cat-model", str(cat_model)])
     if vision:
         command.extend(["--vision", "--vision-trigger", vision_trigger])
     if vision_facts:
@@ -239,6 +258,12 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "skipped_blocks": len(report.get("skipped_blocks", [])),
                 "fallback_blocks": len(report.get("fallback_blocks", [])),
                 "ellipsis_outputs": count_blocks(kept_blocks, lambda block: block.get("translated_text") == "..."),
+                "cat_used": count_blocks(kept_blocks, lambda block: block.get("cat_used") is True),
+                "cat_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_rejected") is True),
+                "cat_reject_reasons": json.dumps(count_values(block.get("cat_reject_reason") for block in kept_blocks if block.get("cat_rejected") is True), ensure_ascii=False, sort_keys=True),
+                "cat_chatter_rejected": count_blocks(kept_blocks, lambda block: block.get("cat_chatter_rejected") is True),
+                "cat_q8_fallback_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_attempted") is True),
+                "cat_q8_fallback_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_accepted") is True),
                 "qwen_used": count_blocks(kept_blocks, lambda block: block.get("qwen_used") is True),
                 "qwen_rejected": count_blocks(kept_blocks, lambda block: block.get("qwen_rejected") is True),
                 "qwen_repairs_attempted": count_blocks(kept_blocks, lambda block: block.get("qwen_repair_used") is True),
@@ -325,9 +350,7 @@ def is_suspected_bad_block(block: dict[str, Any]) -> bool:
     text = str(block.get("translated_text") or "").strip()
     if not text or text == "...":
         return True
-    if any(marker in text for marker in ("<think>", "{", "}", "\ufffd", "\u00e3", "\u00ef")):
-        return True
-    return bool(re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", text))
+    return suspected_bad_translation(text)
 
 
 def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Path) -> dict[str, Any]:
@@ -336,6 +359,11 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "skipped_blocks",
         "fallback_blocks",
         "ellipsis_outputs",
+        "cat_used",
+        "cat_rejected",
+        "cat_chatter_rejected",
+        "cat_q8_fallback_attempted",
+        "cat_q8_fallback_accepted",
         "qwen_used",
         "qwen_rejected",
         "qwen_repairs_attempted",
@@ -370,6 +398,7 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
     for key in numeric_keys:
         total[key] = sum(int(row.get(key, 0)) for row in rows)
     total["layout_warning_types"] = json.dumps(aggregate_json_counts(rows, "layout_warning_types"), ensure_ascii=False, sort_keys=True)
+    total["cat_reject_reasons"] = json.dumps(aggregate_json_counts(rows, "cat_reject_reasons"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_issue_types"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_issue_types"), ensure_ascii=False, sort_keys=True)
     total["qwen_critic_evidence_gate_reasons"] = json.dumps(aggregate_json_counts(rows, "qwen_critic_evidence_gate_reasons"), ensure_ascii=False, sort_keys=True)
     total["evidence_risk_types"] = json.dumps(aggregate_json_counts(rows, "evidence_risk_types"), ensure_ascii=False, sort_keys=True)
@@ -413,6 +442,12 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "skipped_blocks",
         "fallback_blocks",
         "ellipsis_outputs",
+        "cat_used",
+        "cat_rejected",
+        "cat_reject_reasons",
+        "cat_chatter_rejected",
+        "cat_q8_fallback_attempted",
+        "cat_q8_fallback_accepted",
         "qwen_used",
         "qwen_rejected",
         "qwen_repairs_attempted",

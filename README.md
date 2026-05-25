@@ -260,6 +260,52 @@ This is the default translator.
 
 ---
 
+### CAT translator
+
+CAT is an optional local quality-mode translator. It is intended for experiments as a primary pass before Qwen critic/Q8 repair.
+
+Default local GGUF search location:
+
+```text
+.models/CAT-Translate
+```
+
+Preferred filename:
+
+```text
+CAT-Translate-7b.Q8_0.gguf
+```
+
+Use it with:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator cat `
+  --cat-model ".models\CAT-Translate\CAT-Translate-7b.Q8_0.gguf"
+```
+
+Recommended benchmark setup:
+
+```powershell
+python -m manga_local_translator.quality_eval ".testing\input\diverse-smoke-20260524" `
+  --output-root quality-runs `
+  --name cat-primary-test `
+  --profiles quality `
+  --translator cat `
+  --cat-model ".models\CAT-Translate\CAT-Translate-7b.Q8_0.gguf" `
+  --qwen-critic-model ".models\qwen\Qwen3-8B-Q4_K_M.gguf" `
+  --qwen-fallback-model ".models\qwen\Qwen3.5-9B-Q8_0.gguf" `
+  --resume
+```
+
+CAT runs locally through Ollama for GGUF files. Runtime does not download models; the install script only downloads Hugging Face cache files when you explicitly run it:
+
+```powershell
+python -m manga_local_translator.install_cat
+```
+
+---
+
 ### MADLAD translator
 
 Install MADLAD:

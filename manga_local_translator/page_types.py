@@ -27,6 +27,22 @@ class PreparedPage:
     vision_facts_artifact: VisionArtifact | None = None
 
     @property
+    def translations_by_id(self) -> dict[str, str]:
+        return self.translations
+
+    @translations_by_id.setter
+    def translations_by_id(self, value: dict[str, str]) -> None:
+        self.translations = value
+
+    @property
+    def translation_contexts_by_id(self) -> dict[str, dict[str, object]]:
+        return self.translation_contexts
+
+    @translation_contexts_by_id.setter
+    def translation_contexts_by_id(self, value: dict[str, dict[str, object]]) -> None:
+        self.translation_contexts = value
+
+    @property
     def chapter_context_after(self) -> str | None:
         if not self.page_order_report:
             return None

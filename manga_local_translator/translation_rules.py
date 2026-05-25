@@ -177,6 +177,8 @@ def translate_known_phrase(text: str, glossary: TranslationGlossary | None = Non
         "\u3042": "Ah...",
         "\u3042\u3042": "Ah...",
         "\u3044\u3084": "No...",
+        "\u306f\u3044": "Yes.",
+        "\u306f\u30fc\u3044": "Okay.",
         "\u3046\u3080": "Hmm.",
         "\u3046\u3093": "Yeah.",
         "\u3048": "Huh?",

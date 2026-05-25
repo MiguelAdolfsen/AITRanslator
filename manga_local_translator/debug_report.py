@@ -7,6 +7,7 @@ from collections import Counter
 
 from .config import PipelineConfig
 from .grouping import page_order_for_block
+from .line_identity import lookup_context, lookup_translation
 from .text_filter import block_to_debug_dict, suspected_bad_translation
 from .vision_artifact import vision_artifact_to_debug_dict
 
@@ -214,9 +215,9 @@ def write_debug_report(
             image_width=image_width,
             image_height=image_height,
             erase_padding=erase_padding,
-            translated_text=translations.get(block.text, ""),
+            translated_text=lookup_translation(translations, block, ""),
             page_order=page_order_for_block(block, page_order_report),
-            translation_context=translation_contexts.get(block.text),
+            translation_context=lookup_context(translation_contexts, block),
         )
         for block, layout, fit in zip(blocks, render_layouts, render_fits)
     ]
@@ -272,12 +273,18 @@ def build_page_debug_summary(
     fallback_blocks: list[dict[str, object]],
     translation_contexts: dict[str, dict[str, object]],
 ) -> dict[str, object]:
-    contexts = [translation_contexts.get(block.text, {}) for block in blocks]
+    contexts = [lookup_context(translation_contexts, block) for block in blocks]
     return {
         "kept_blocks": len(blocks),
         "skipped_blocks": len(skipped_blocks),
         "fallback_blocks": len(fallback_blocks),
-        "ellipsis_outputs": sum(1 for block in blocks if translations.get(block.text, "").strip() == "..."),
+        "ellipsis_outputs": sum(1 for block in blocks if lookup_translation(translations, block, "").strip() == "..."),
+        "cat_used": sum(1 for context in contexts if context.get("cat_used") is True),
+        "cat_rejected": sum(1 for context in contexts if context.get("cat_rejected") is True),
+        "cat_reject_reasons": dict(count_values(context.get("cat_reject_reason") for context in contexts if context.get("cat_rejected") is True)),
+        "cat_chatter_rejected": sum(1 for context in contexts if context.get("cat_chatter_rejected") is True),
+        "cat_q8_fallback_attempted": sum(1 for context in contexts if context.get("cat_q8_fallback_attempted") is True),
+        "cat_q8_fallback_accepted": sum(1 for context in contexts if context.get("cat_q8_fallback_accepted") is True),
         "qwen_used": sum(1 for context in contexts if context.get("qwen_used") is True),
         "qwen_rejected": sum(1 for context in contexts if context.get("qwen_rejected") is True),
         "qwen_repairs_attempted": sum(1 for context in contexts if context.get("qwen_repair_used") is True),
@@ -296,7 +303,7 @@ def build_page_debug_summary(
         "suspected_bad_translations": sum(
             1
             for block in blocks
-            if suspected_bad_translation(translations.get(block.text, ""))
+            if suspected_bad_translation(lookup_translation(translations, block, ""))
         ),
     }
 
@@ -316,6 +323,7 @@ def add_render_collision_warnings(kept_blocks: list[dict[str, object]]) -> None:
             collisions.append(
                 {
                     "page_order": other.get("page_order"),
+                    "line_id": other.get("line_id"),
                     "source_text": other.get("source_text"),
                     "overlap_area": box_intersection_area(render_box, other_render),
                 }

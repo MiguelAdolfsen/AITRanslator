@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import hashlib
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -23,6 +24,18 @@ from .grouping import (
     group_text_blocks_for_translation,
 )
 from .image_io import iter_images, resolve_output_path, write_image_with_fallback
+from .line_identity import (
+    assign_ocr_block_ids,
+    assign_render_line_ids,
+    enrich_grouping_report,
+    enrich_page_order_report,
+    lookup_context,
+    lookup_translation,
+    set_context,
+    set_translation,
+    translation_for_page_order_item,
+    translation_key_for_block,
+)
 from .logging_utils import shorten
 from .page_cache import (
     cache_page_path,
@@ -80,10 +93,10 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             logger.error("No supported images found in %s", input_path)
             raise SystemExit(f"No supported images found in {input_path}")
 
-        if config.translator == "qwen" and (
+        if config.translator in {"qwen", "cat"} and (
             config.qwen_fallback_model_path is not None
             or config.qwen_critic_model_path is not None
-            or config.vision_facts_enabled
+            or (config.translator == "qwen" and config.vision_facts_enabled)
         ):
             process_folder_qwen_hybrid_batch(input_path, output_path, image_paths, config)
             return
@@ -92,6 +105,7 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             config.translator,
             glossary_path=config.glossary_path,
             qwen_model_path=config.qwen_model_path,
+            cat_model_name=config.cat_model_name,
         )
 
         processed = 0
@@ -132,8 +146,9 @@ def process_folder_qwen_hybrid_batch(
     from .translate import build_translator
 
     logger.info(
-        "Starting batched Qwen hybrid flow: primary=%s critic=%s fallback=%s",
-        config.qwen_model_path,
+        "Starting batched hybrid flow: translator=%s primary=%s critic=%s fallback=%s",
+        config.translator,
+        config.qwen_model_path if config.translator == "qwen" else config.cat_model_name,
         config.qwen_critic_model_path,
         config.qwen_fallback_model_path,
     )
@@ -199,22 +214,23 @@ def process_folder_qwen_hybrid_batch(
         apply_vision_facts_to_pages([page for _page_index, page, _cache in primary_jobs], config)
 
     if primary_jobs:
-        logger.info("Building primary Qwen translator for %d pending page(s)", len(primary_jobs))
+        logger.info("Building primary %s translator for %d pending page(s)", config.translator, len(primary_jobs))
         primary_translator = build_translator(
-            "qwen",
+            config.translator,
             glossary_path=config.glossary_path,
             qwen_model_path=config.qwen_model_path,
+            cat_model_name=config.cat_model_name,
         )
-        for _page_index, page, primary_cache in tqdm(primary_jobs, desc="Q4 primary pass", unit="page"):
+        for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{config.translator.upper()} primary pass", unit="page"):
             translate_prepared_page(page, primary_translator, config)
             save_translation_cache(page, primary_cache)
         release_qwen_translator(primary_translator)
         del primary_translator
     else:
-        logger.info("Primary Qwen pass skipped; all pages loaded from cache")
+        logger.info("Primary %s pass skipped; all pages loaded from cache", config.translator)
 
     evidence_memory = None
-    if config.translator == "qwen" and (config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None):
+    if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
         evidence_memory = apply_translation_evidence_to_pages(prepared_pages)
 
     critic_jobs = []
@@ -227,7 +243,7 @@ def process_folder_qwen_hybrid_batch(
     total_critic_attempted = 0
     total_critic_flagged = 0
     if critic_jobs:
-        logger.info("Primary Qwen pass complete; building critic Qwen translator for %d pending page(s)", len(critic_jobs))
+        logger.info("Primary %s pass complete; building critic Qwen translator for %d pending page(s)", config.translator, len(critic_jobs))
         critic_translator = build_translator(
             "qwen",
             glossary_path=config.glossary_path,
@@ -271,7 +287,7 @@ def process_folder_qwen_hybrid_batch(
         total_accepted += sum(1 for context in page.translation_contexts.values() if context.get("qwen_fallback_accepted") is True)
 
     if fallback_jobs:
-        logger.info("Primary Qwen pass complete; building fallback Qwen translator for %d pending page(s)", len(fallback_jobs))
+        logger.info("Primary %s pass complete; building fallback Qwen translator for %d pending page(s)", config.translator, len(fallback_jobs))
         fallback_translator = build_translator(
             "qwen",
             glossary_path=config.glossary_path,
@@ -313,7 +329,8 @@ def process_folder_qwen_hybrid_batch(
             )
 
     logger.info(
-        "Batched Qwen hybrid flow finished: processed=%d skipped=%d fallback_attempted=%d fallback_accepted=%d",
+        "Batched hybrid flow finished: translator=%s processed=%d skipped=%d fallback_attempted=%d fallback_accepted=%d",
+        config.translator,
         processed,
         skipped,
         total_attempted,
@@ -344,14 +361,30 @@ def release_qwen_translator(translator) -> None:
 def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
     if config.translator == "qwen":
         suffix = f"{stage}-{config.qwen_mode}"
-        if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
-            suffix += "-evidence"
-        if config.vision_facts_enabled:
-            suffix += "-vision-facts"
-        if config.qwen_critic_model_path is not None:
-            suffix += "-critic"
-        return suffix
-    return stage
+    elif config.translator == "cat":
+        from .hf_translators import CAT_PROMPT_VERSION, CAT_VALIDATION_VERSION, find_cat_gguf_path
+
+        cat_model = str(config.cat_model_name or "")
+        cat_path = find_cat_gguf_path(Path(cat_model)) if cat_model else find_cat_gguf_path()
+        model_identity = str(cat_path or cat_model or "default")
+        identity = cache_identity_token(
+            f"{model_identity}|{CAT_PROMPT_VERSION}|{CAT_VALIDATION_VERSION}"
+        )
+        suffix = f"{stage}-cat-{identity}-{CAT_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}"
+    else:
+        return stage
+    if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
+        suffix += "-evidence"
+    if config.vision_facts_enabled:
+        suffix += "-vision-facts"
+    if config.qwen_critic_model_path is not None:
+        suffix += "-critic"
+    return suffix
+
+
+def cache_identity_token(value: str) -> str:
+    digest = hashlib.sha1(str(value).encode("utf-8")).hexdigest()[:10]
+    return digest
 
 
 def apply_vision_facts_to_pages(pages: list[PreparedPage], config: PipelineConfig) -> None:
@@ -373,7 +406,7 @@ def apply_vision_facts_to_pages(pages: list[PreparedPage], config: PipelineConfi
 
 def apply_translation_evidence_to_pages(pages: list[PreparedPage]) -> ConsistencyMemory:
     memory = build_consistency_memory(
-        (block.text, page.translations.get(block.text, ""))
+        (block.text, lookup_translation(page.translations, block, ""))
         for page in pages
         for block in page.render_blocks
     )
@@ -405,10 +438,10 @@ def apply_translation_evidence(
     memory: ConsistencyMemory | None,
 ) -> None:
     for block in blocks:
-        translated = translations.get(block.text, "")
-        context = translation_contexts.get(block.text, {})
+        translated = lookup_translation(translations, block, "")
+        context = lookup_context(translation_contexts, block)
         context.update(build_evidence_context(block.text, translated, memory))
-        translation_contexts[block.text] = context
+        set_context(translation_contexts, block, context)
 
 
 def prepare_page_for_translation(
@@ -439,6 +472,7 @@ def prepare_page_for_translation(
         psm=config.tesseract_psm,
         min_confidence=config.min_confidence,
     )
+    raw_blocks = assign_ocr_block_ids(raw_blocks, role="ocr")
     logger.info("OCR returned %d raw text block(s)", len(raw_blocks))
     blocks, skipped_blocks = filter_text_blocks(raw_blocks, width=width, height=height)
     logger.info("OCR filter kept %d block(s), skipped %d block(s)", len(blocks), len(skipped_blocks))
@@ -449,6 +483,9 @@ def prepare_page_for_translation(
         height=height,
         chapter_context_before=chapter_context_before,
     )
+    render_blocks = assign_render_line_ids(render_blocks, page_order_report, output_path)
+    page_order_report = enrich_page_order_report(page_order_report, render_blocks)
+    grouping_report = enrich_grouping_report(grouping_report, render_blocks)
     logger.info(
         "Translation grouping complete: input_blocks=%d render_blocks=%d grouped_sets=%d",
         len(blocks),
@@ -487,9 +524,10 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
             previous_page_context=previous_page_context(page.page_order_report),
         )
     for block in page.render_blocks:
+        state_key = translation_key_for_block(block)
         context = {
             **context_for_block(block, page.page_order_report),
-            **pre_translation_contexts.get(block.text, {}),
+            **pre_translation_contexts.get(state_key, pre_translation_contexts.get(block.text, {})),
         }
         if page_translations_by_order is not None:
             page_order = int(context.get("page_order") or 0)
@@ -500,9 +538,11 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
                 "translation_mode": "qwen_page",
             }
             if hasattr(translator, "debug_info_for"):
-                context.update(translator.debug_info_for(block.text))
+                context.update(translator_debug_info_for(translator, block))
         elif config.translator == "qwen":
-            translated = translator.translate_with_context(
+            translated = translate_with_line_context(
+                translator,
+                block,
                 block.text,
                 before=str(context.get("context_before") or "") or None,
                 after=str(context.get("context_after") or "") or None,
@@ -516,14 +556,16 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
                 "translation_mode": "qwen_context",
             }
             if hasattr(translator, "debug_info_for"):
-                context.update(translator.debug_info_for(block.text))
+                context.update(translator_debug_info_for(translator, block))
         else:
             translated = translator.translate(block.text)
-        page.translations[block.text] = translated
-        page.translation_contexts[block.text] = {
+            if hasattr(translator, "debug_info_for"):
+                context.update(translator_debug_info_for(translator, block))
+        set_translation(page.translations, block, translated)
+        set_context(page.translation_contexts, block, {
             **context,
             **translation_debug_info(block.text, translated, glossary_path=config.glossary_path),
-        }
+        })
         reason = unusable_translation_reason(block.text, translated, translator_name=config.translator)
         if reason:
             logger.info(
@@ -534,15 +576,29 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
                 shorten(translated),
             )
             translated = fallback_translation(block.text, reason=reason)
-            page.translations[block.text] = translated
+            set_translation(page.translations, block, translated)
             page.translation_fallback_blocks.append(
                 block_to_debug_dict(block, status="fallback", reason=reason, translated_text=translated)
             )
-    logger.debug("Translation map contains %d unique source string(s)", len(page.translations))
+    logger.debug("Translation map contains %d line id(s)", len(page.translations))
 
 
 def should_use_qwen_page_mode(translator, config: PipelineConfig) -> bool:
     return config.translator == "qwen" and config.qwen_mode == "page" and hasattr(translator, "translate_page")
+
+
+def translate_with_line_context(translator, block: TextBlock, text: str, **kwargs) -> str:
+    try:
+        return translator.translate_with_context(text, debug_id=translation_key_for_block(block), **kwargs)
+    except TypeError:
+        return translator.translate_with_context(text, **kwargs)
+
+
+def translator_debug_info_for(translator, block: TextBlock) -> dict[str, object]:
+    try:
+        return dict(translator.debug_info_for(block.text, debug_id=translation_key_for_block(block)))
+    except TypeError:
+        return dict(translator.debug_info_for(block.text))
 
 
 def qwen_page_items(blocks: list[TextBlock], page_order_report: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -553,6 +609,7 @@ def qwen_page_items(blocks: list[TextBlock], page_order_report: list[dict[str, o
         items.append(
             {
                 "id": page_order,
+                "line_id": translation_key_for_block(block),
                 "text": block.text,
                 "before": str(context.get("context_before") or ""),
                 "after": str(context.get("context_after") or ""),
@@ -573,7 +630,7 @@ def previous_page_context(page_order_report: list[dict[str, object]]) -> str | N
 def refresh_translation_fallback_blocks(page: PreparedPage, config: PipelineConfig) -> None:
     page.translation_fallback_blocks.clear()
     for block in page.render_blocks:
-        translated = page.translations.get(block.text, "")
+        translated = lookup_translation(page.translations, block, "")
         reason = unusable_translation_reason(block.text, translated, translator_name=config.translator)
         if not reason:
             continue
@@ -585,7 +642,7 @@ def refresh_translation_fallback_blocks(page: PreparedPage, config: PipelineConf
             shorten(translated),
         )
         fallback = fallback_translation(block.text, reason=reason)
-        page.translations[block.text] = fallback
+        set_translation(page.translations, block, fallback)
         page.translation_fallback_blocks.append(
             block_to_debug_dict(block, status="fallback", reason=reason, translated_text=fallback)
         )
@@ -614,6 +671,7 @@ def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
         page.image_bgr,
         page.render_blocks,
         page.translations,
+        translation_contexts=page.translation_contexts,
         render_layouts=render_layouts,
         render_fits=render_fits,
         font_path=config.font_path,
@@ -654,6 +712,7 @@ def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
             page.image_bgr,
             page.render_blocks,
             page.translations,
+            translation_contexts=page.translation_contexts,
             render_layouts=render_layouts,
             render_fits=render_fits,
             font_path=config.font_path,
@@ -770,6 +829,7 @@ def process_image(
         psm=config.tesseract_psm,
         min_confidence=config.min_confidence,
     )
+    raw_blocks = assign_ocr_block_ids(raw_blocks, role="ocr")
     logger.info("OCR returned %d raw text block(s)", len(raw_blocks))
     blocks, skipped_blocks = filter_text_blocks(raw_blocks, width=width, height=height)
     logger.info("OCR filter kept %d block(s), skipped %d block(s)", len(blocks), len(skipped_blocks))
@@ -780,6 +840,9 @@ def process_image(
         height=height,
         chapter_context_before=chapter_context_before,
     )
+    render_blocks = assign_render_line_ids(render_blocks, page_order_report, output_path)
+    page_order_report = enrich_page_order_report(page_order_report, render_blocks)
+    grouping_report = enrich_grouping_report(grouping_report, render_blocks)
     logger.info(
         "Translation grouping complete: input_blocks=%d render_blocks=%d grouped_sets=%d",
         len(blocks),
@@ -817,7 +880,7 @@ def process_image(
     for block in render_blocks:
         context = {
             **context_for_block(block, page_order_report),
-            **translation_contexts.get(block.text, {}),
+            **lookup_context(translation_contexts, block),
         }
         if page_translations_by_order is not None:
             page_order = int(context.get("page_order") or 0)
@@ -828,9 +891,11 @@ def process_image(
                 "translation_mode": "qwen_page",
             }
             if hasattr(translator, "debug_info_for"):
-                context.update(translator.debug_info_for(block.text))
+                context.update(translator_debug_info_for(translator, block))
         elif config.translator == "qwen":
-            translated = translator.translate_with_context(
+            translated = translate_with_line_context(
+                translator,
+                block,
                 block.text,
                 before=str(context.get("context_before") or "") or None,
                 after=str(context.get("context_after") or "") or None,
@@ -844,14 +909,16 @@ def process_image(
                 "translation_mode": "qwen_context",
             }
             if hasattr(translator, "debug_info_for"):
-                context.update(translator.debug_info_for(block.text))
+                context.update(translator_debug_info_for(translator, block))
         else:
             translated = translator.translate(block.text)
-        translations[block.text] = translated
-        translation_contexts[block.text] = {
+            if hasattr(translator, "debug_info_for"):
+                context.update(translator_debug_info_for(translator, block))
+        set_translation(translations, block, translated)
+        set_context(translation_contexts, block, {
             **context,
             **translation_debug_info(block.text, translated, glossary_path=config.glossary_path),
-        }
+        })
         reason = unusable_translation_reason(block.text, translated, translator_name=config.translator)
         if reason:
             logger.info(
@@ -862,12 +929,12 @@ def process_image(
                 shorten(translated),
             )
             translated = fallback_translation(block.text, reason=reason)
-            translations[block.text] = translated
+            set_translation(translations, block, translated)
             translation_fallback_blocks.append(
                 block_to_debug_dict(block, status="fallback", reason=reason, translated_text=translated)
             )
-    if config.translator == "qwen" and qwen_fallback_translator is not None:
-        evidence_memory = build_consistency_memory((block.text, translations.get(block.text, "")) for block in render_blocks)
+    if config.translator in {"qwen", "cat"} and qwen_fallback_translator is not None:
+        evidence_memory = build_consistency_memory((block.text, lookup_translation(translations, block, "")) for block in render_blocks)
         apply_translation_evidence(render_blocks, translations, translation_contexts, evidence_memory)
         apply_qwen_fallback_translations(
             render_blocks,
@@ -878,7 +945,7 @@ def process_image(
             config,
             evidence_memory=evidence_memory,
         )
-    logger.debug("Translation map contains %d unique source string(s)", len(translations))
+    logger.debug("Translation map contains %d line id(s)", len(translations))
     render_layouts = plan_render_layouts(
         image_bgr,
         render_blocks,
@@ -1049,8 +1116,8 @@ def apply_qwen_fallback_translations(
     attempted = 0
     accepted = 0
     for block in blocks:
-        primary_translation = translations.get(block.text, "")
-        primary_context = translation_contexts.get(block.text, {})
+        primary_translation = lookup_translation(translations, block, "")
+        primary_context = lookup_context(translation_contexts, block)
         if not should_try_qwen_fallback(block.text, primary_translation, primary_context):
             continue
 
@@ -1091,7 +1158,9 @@ def apply_qwen_fallback_translations(
                 critic_translation_evidence=tuple(str(value) for value in primary_context.get("qwen_critic_translation_evidence") or []),
             )
         else:
-            fallback_translation = qwen_fallback_translator.translate_with_context(
+            fallback_translation = translate_with_line_context(
+                qwen_fallback_translator,
+                block,
                 block.text,
                 before=str(context.get("context_before") or "") or None,
                 after=str(context.get("context_after") or "") or None,
@@ -1100,7 +1169,7 @@ def apply_qwen_fallback_translations(
                 visual_facts=visual_facts_for_context(primary_context),
             )
         fallback_debug = (
-            qwen_fallback_translator.debug_info_for(block.text)
+            translator_debug_info_for(qwen_fallback_translator, block)
             if hasattr(qwen_fallback_translator, "debug_info_for")
             else {}
         )
@@ -1120,11 +1189,12 @@ def apply_qwen_fallback_translations(
                 "qwen_fallback_after_translations": list(after_translations),
                 "qwen_fallback_translation_evidence": fallback_evidence,
                 "qwen_fallback_consistency_memory_entries": fallback_memory_entries,
+                "cat_q8_fallback_attempted": primary_context.get("primary_translator") == "cat" or primary_context.get("cat_used") is True,
             }
         )
         if reject_reason is not None:
             primary_context["qwen_fallback_reject_reason"] = reject_reason
-            translation_contexts[block.text] = primary_context
+            set_context(translation_contexts, block, primary_context)
             logger.info(
                 "Rejected Qwen fallback translation: reason=%s source=%s fallback=%s",
                 reject_reason,
@@ -1133,15 +1203,16 @@ def apply_qwen_fallback_translations(
             )
             continue
 
-        translations[block.text] = fallback_translation
+        set_translation(translations, block, fallback_translation)
         primary_context.update(
             {
                 "qwen_hybrid_used": True,
                 "qwen_final_model": fallback_debug.get("qwen_model", "fallback"),
+                "cat_q8_fallback_accepted": primary_context.get("primary_translator") == "cat" or primary_context.get("cat_used") is True,
                 **translation_debug_info(block.text, fallback_translation, glossary_path=config.glossary_path),
             }
         )
-        translation_contexts[block.text] = primary_context
+        set_context(translation_contexts, block, primary_context)
         accepted += 1
         logger.info(
             "Accepted Qwen fallback translation: source=%s fallback=%s",
@@ -1163,6 +1234,9 @@ def english_context_for_block(
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     target_index = None
     for index, item in enumerate(page_order_report):
+        if str(item.get("line_id", "") or "") and str(item.get("line_id", "")) == str(block.metadata.get("line_id", "")):
+            target_index = index
+            break
         if tuple(item.get("box", ())) == tuple(block.box) and str(item.get("source_text", "")) == block.text:
             target_index = index
             break
@@ -1171,13 +1245,13 @@ def english_context_for_block(
 
     before: list[str] = []
     for item in page_order_report[max(0, target_index - window):target_index]:
-        translated = translations.get(str(item.get("source_text", "")), "")
+        translated = translation_for_page_order_item(translations, item)
         if translated and translated != "...":
             before.append(translated)
 
     after: list[str] = []
     for item in page_order_report[target_index + 1:target_index + 1 + window]:
-        translated = translations.get(str(item.get("source_text", "")), "")
+        translated = translation_for_page_order_item(translations, item)
         if translated and translated != "...":
             after.append(translated)
 
@@ -1197,11 +1271,11 @@ def apply_qwen_critic_reviews(
     attempted = 0
     flagged = 0
     for block in blocks:
-        current_translation = translations.get(block.text, "")
-        primary_context = translation_contexts.get(block.text, {})
+        current_translation = lookup_translation(translations, block, "")
+        primary_context = lookup_context(translation_contexts, block)
         if "source_features" not in primary_context or "translation_evidence" not in primary_context:
             primary_context.update(build_evidence_context(block.text, current_translation, evidence_memory))
-            translation_contexts[block.text] = primary_context
+            set_context(translation_contexts, block, primary_context)
         trigger_reasons = qwen_critic_trigger_reasons(block.text, current_translation, primary_context)
         if not trigger_reasons:
             continue
@@ -1249,7 +1323,7 @@ def apply_qwen_critic_reviews(
                 "qwen_critic_evidence_gate_reason": repair_gate["reason"],
             }
         )
-        translation_contexts[block.text] = primary_context
+        set_context(translation_contexts, block, primary_context)
         logger.info(
             "Qwen critic result: severity=%s issues=%s should_repair=%s source=%s reason=%s",
             decision.severity,
@@ -1271,9 +1345,9 @@ def qwen_critic_trigger_reasons(
 ) -> tuple[str, ...]:
     if primary_context.get("qwen_rejected") is True:
         return ()
-    if primary_context.get("qwen_used") is not True:
+    if primary_context.get("qwen_used") is not True and primary_context.get("cat_used") is not True:
         return ()
-    if primary_context.get("qwen_reason") == "phrasebook":
+    if primary_context.get("qwen_reason") == "phrasebook" or primary_context.get("cat_reason") == "phrasebook":
         return ()
     if unusable_translation_reason(source_text, translated_text, translator_name="qwen") is not None:
         return ()
@@ -1436,6 +1510,8 @@ def should_try_qwen_fallback(
     translated_text: str,
     primary_context: dict[str, object],
 ) -> bool:
+    if primary_context.get("cat_rejected") is True:
+        return True
     if primary_context.get("qwen_critic_should_repair") is True:
         return True
     if primary_context.get("evidence_repair_reasons"):
@@ -1516,7 +1592,7 @@ def compact_translations_for_render(
     _ = image_bgr, render_layouts, font_path, base_font_size, render_expand
     compacted = 0
     for block, fit in zip(blocks, render_fits):
-        text = translations.get(block.text, "")
+        text = lookup_translation(translations, block, "")
         if not text:
             continue
         if getattr(fit, "font_size", 99) > 7 and not getattr(fit, "clipped", False):
@@ -1524,9 +1600,11 @@ def compact_translations_for_render(
         shortened = compact_english_for_bubble(text)
         if shortened == text:
             continue
-        translations[block.text] = shortened
+        set_translation(translations, block, shortened)
         if translation_contexts is not None:
-            translation_contexts.setdefault(block.text, {})["compacted_for_render"] = True
+            context = lookup_context(translation_contexts, block)
+            context["compacted_for_render"] = True
+            set_context(translation_contexts, block, context)
         compacted += 1
         logger.info(
             "Compacted translation for small render box: box=%s font_size=%s before=%s after=%s",

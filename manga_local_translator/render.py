@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from .detect_ocr import TextBlock
+from .line_identity import lookup_translation
 from .logging_utils import shorten
 
 logger = logging.getLogger(__name__)
@@ -124,7 +125,7 @@ def plan_text_fits(
     fits = [
         measure_fitted_text(
             draw,
-            translations.get(block.text, block.text).strip(),
+            lookup_translation(translations, block, block.text).strip(),
             layout.render_box,
             font_path=font_path,
             base_font_size=base_font_size,
@@ -155,7 +156,7 @@ def render_translations(
         render_layouts = plan_render_layouts(image_bgr, blocks, render_expand=render_expand)
 
     for block, layout in zip(blocks, render_layouts):
-        translated = translations.get(block.text, block.text).strip()
+        translated = lookup_translation(translations, block, block.text).strip()
         if not translated:
             logger.debug("Skipping empty translation for source=%s", shorten(block.text))
             continue

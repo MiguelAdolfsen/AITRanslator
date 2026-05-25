@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .detect_types import TextBlock
+from .line_identity import block_id_for_block, source_hash
 
 
 def group_text_blocks_for_translation(
@@ -156,6 +157,8 @@ def merge_grouped_text_blocks(group_id: int, blocks: list[TextBlock]) -> TextBlo
             {
                 "box": block.box,
                 "source_text": block.text,
+                "block_id": block_id_for_block(block),
+                "source_hash": source_hash(block.text),
                 "confidence": block.confidence,
                 "metadata": block.metadata,
             }
@@ -182,10 +185,14 @@ def group_debug_payload(
         "group_id": group_id,
         "box": rendered.box,
         "source_text": rendered.text,
+        "block_id": block_id_for_block(rendered),
+        "source_hash": source_hash(rendered.text),
         "members": [
             {
                 "box": member.box,
                 "source_text": member.text,
+                "block_id": block_id_for_block(member),
+                "source_hash": source_hash(member.text),
                 "confidence": member.confidence,
                 "detector": member.detector,
             }
@@ -228,6 +235,8 @@ def build_page_order_report(
                 "page_order": index,
                 "box": block.box,
                 "source_text": block.text,
+                "block_id": block_id_for_block(block),
+                "source_hash": source_hash(block.text),
                 "detector": block.detector,
             }
         )
@@ -254,18 +263,27 @@ def build_page_order_report(
 
 
 def page_order_for_block(block, page_order_report: list[dict[str, object]]) -> int | None:
+    line_id = str(getattr(block, "metadata", {}).get("line_id") or "")
     for item in page_order_report:
+        if line_id and str(item.get("line_id", "")) == line_id:
+            return int(item["page_order"])
         if tuple(item["box"]) == tuple(block.box) and item["source_text"] == block.text:
             return int(item["page_order"])
     return None
 
 
 def context_for_block(block, page_order_report: list[dict[str, object]]) -> dict[str, object]:
+    line_id = str(getattr(block, "metadata", {}).get("line_id") or "")
     for item in page_order_report:
+        if line_id and str(item.get("line_id", "")) != line_id:
+            continue
         if tuple(item["box"]) == tuple(block.box) and item["source_text"] == block.text:
             before = item.get("context_before")
             after = item.get("context_after")
             return {
+                "line_id": item.get("line_id", line_id),
+                "block_id": item.get("block_id", getattr(block, "metadata", {}).get("block_id", "")),
+                "source_hash": item.get("source_hash", source_hash(block.text)),
                 "page_order": item.get("page_order"),
                 "context_before": before,
                 "context_after": after,
@@ -275,6 +293,8 @@ def context_for_block(block, page_order_report: list[dict[str, object]]) -> dict
                 "context_used": False,
                 "translation_mode": "single_block",
             }
+        if line_id:
+            break
     return {"context_available": False, "context_used": False, "translation_mode": "single_block"}
 
 

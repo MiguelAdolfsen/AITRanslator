@@ -8,6 +8,7 @@ import numpy as np
 
 from .detect_types import TextBlock
 from .grouping import page_order_for_block
+from .line_identity import block_id_for_block, line_id_for_block, lookup_translation, source_hash, translation_key_for_block
 from .vision_types import VisionArtifact, VisionNumberMapEntry
 
 logger = logging.getLogger(__name__)
@@ -54,11 +55,14 @@ def build_number_map(
         entries.append(
             VisionNumberMapEntry(
                 number=order_index,
-                line_id=f"{output_path.stem}_{order_index:03d}",
+                line_id=line_id_for_block(block) or f"{output_path.stem}_{order_index:03d}",
                 order_index=order_index,
                 source_text=block.text,
-                translated_text=translations.get(block.text, ""),
+                translated_text=lookup_translation(translations, block, ""),
                 box=tuple(int(value) for value in block.box),
+                state_key=translation_key_for_block(block),
+                block_id=block_id_for_block(block),
+                source_hash=source_hash(block.text),
             )
         )
     return sorted(entries, key=lambda item: item.order_index)
@@ -229,6 +233,9 @@ def vision_artifact_to_debug_dict(artifact: VisionArtifact | None) -> dict[str, 
                 "source_text": entry.source_text,
                 "translated_text": entry.translated_text,
                 "box": entry.box,
+                "state_key": entry.state_key,
+                "block_id": entry.block_id,
+                "source_hash": entry.source_hash,
             }
             for entry in artifact.number_map
         ],

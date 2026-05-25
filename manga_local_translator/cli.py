@@ -31,9 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--translator",
-        choices=["opus", "qwen", "madlad", "argos", "none"],
+        choices=["opus", "cat", "qwen", "madlad", "argos", "none"],
         default="opus",
-        help="Translation backend. opus is the default; qwen uses a local GGUF model through Ollama/llama.cpp.",
+        help="Translation backend. opus is the default; cat uses a local Hugging Face CAT-Translate model.",
     )
     parser.add_argument(
         "--erase-mode",
@@ -110,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["block", "page"],
         default="block",
         help="Qwen translation strategy. block is current stable behavior; page translates ordered bubbles together.",
+    )
+    parser.add_argument(
+        "--cat-model",
+        default=None,
+        help="Optional CAT GGUF path or Hugging Face model id. Defaults to local .models/CAT-Translate/*.gguf, then cyberagent/CAT-Translate-7b.",
     )
     parser.add_argument(
         "--vision",
@@ -202,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         qwen_model_path=args.qwen_model,
         qwen_fallback_model_path=args.qwen_fallback_model,
         qwen_critic_model_path=args.qwen_critic_model,
+        cat_model_name=args.cat_model,
         qwen_mode=args.qwen_mode,
         vision_enabled=args.vision,
         vision_facts_enabled=args.vision_facts,
