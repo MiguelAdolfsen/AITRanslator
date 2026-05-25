@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 _FONT_REGISTRY: dict[tuple[str, int], ImageFont.ImageFont] = {}
 _TEXT_FIT_CACHE: dict[tuple[str, tuple[int, int, int, int], str | None, int, tuple[int, int, int, int] | None], TextFit] = {}
+_WRAP_TEXT_CACHE: dict[tuple[tuple[str, int], str, int], tuple[str, ...]] = {}
 
 
 @dataclass(frozen=True)
@@ -256,7 +257,7 @@ def expand_box(
     x_factor = factor
     y_factor = 1.25
     if height > width * 1.6:
-        x_factor = max(factor, 4.0)
+        x_factor = max(factor, 4.6)
         y_factor = 1.18
     elif width > height * 3.0:
         y_factor = max(y_factor, 4.0)
@@ -447,7 +448,7 @@ def fallback_render_box(
 def inset_text_box(box: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
     width = max(1, box[2] - box[0])
     height = max(1, box[3] - box[1])
-    inset = max(4, min(12, min(width, height) // 12))
+    inset = max(4, min(10, min(width, height) // 12))
     if width <= inset * 3 or height <= inset * 3:
         return box
     return box[0] + inset, box[1] + inset, box[2] - inset, box[3] - inset
@@ -466,7 +467,8 @@ def tighten_large_text_box(
     if source_area < 2500 and render_area < source_area * 6:
         return render_box
 
-    max_width = int(min(render_width, max(source_width * 1.35, 95)))
+    min_width = 125 if source_width <= 35 and source_height >= source_width * 4 else 95
+    max_width = int(min(render_width, max(source_width * 1.35, min_width)))
     max_height = int(min(render_height, max(source_height * 1.05, 58)))
     if max_width >= render_width and max_height >= render_height:
         return render_box
@@ -790,6 +792,28 @@ def fit_text(
 
     start_font_size = min(base_font_size, estimate_start_font_size(text, box, source_box, base_font_size))
     min_font_size = 5
+    if len(text.split()) <= 2 and should_cap_single_line_start(draw, text, font_path, start_font_size, usable_width, usable_height):
+        start_font_size = cap_single_line_start_font_size(
+            draw,
+            text,
+            font_path,
+            start_font_size,
+            min_font_size,
+            usable_width,
+            usable_height,
+        )
+    if 3 <= len(text.split()) <= 6 and should_cap_two_line_start(draw, text, font_path, start_font_size, usable_width, usable_height):
+        start_font_size = cap_two_line_start_font_size(draw, font_path, start_font_size, min_font_size, usable_height)
+    if 3 <= len(text.split()) <= 6:
+        start_font_size = cap_two_line_width_start_font_size(
+            draw,
+            text,
+            font_path,
+            start_font_size,
+            min_font_size,
+            usable_width,
+            usable_height,
+        )
     cache_key = text_fit_cache_key(text, box, font_path, base_font_size, source_box)
     cached_fit = _TEXT_FIT_CACHE.get(cache_key)
     if draw_text and cached_fit is not None:
@@ -814,9 +838,7 @@ def fit_text(
         total_height = line_height * len(lines)
         widest = max(text_width(draw, line, font) for line in lines)
         if total_height <= usable_height and widest <= usable_width:
-            warnings = wrap_warnings_for_lines(text, lines)
-            split_count = split_word_count(text, lines)
-            orphan_count = orphan_line_count(lines)
+            warnings, split_count, orphan_count = wrap_metrics_for_lines(text, lines)
             score = render_fit_score(lines, font_size, start_font_size, warnings=warnings, split_word_count=split_count, orphan_line_count=orphan_count)
             if selected is None or is_better_fit_candidate(font_size, score, selected[0], selected[6]):
                 selected = (font_size, font, lines, line_height, total_height, widest, score, warnings, split_count, orphan_count)
@@ -870,9 +892,7 @@ def fit_text(
     lines = wrap_text(draw, text, font, usable_width)[:max_lines]
     total_height = line_height * len(lines)
     widest = max((text_width(draw, line, font) for line in lines), default=0)
-    warnings = wrap_warnings_for_lines(text, lines)
-    split_count = split_word_count(text, lines)
-    orphan_count = orphan_line_count(lines)
+    warnings, split_count, orphan_count = wrap_metrics_for_lines(text, lines)
     score = render_fit_score(lines, min_font_size, start_font_size, warnings=warnings, split_word_count=split_count, orphan_line_count=orphan_count)
     y = y1 + padding + max(0, (usable_height - total_height) // 2)
     if draw_text:
@@ -905,6 +925,96 @@ def fit_text(
     )
     _TEXT_FIT_CACHE[cache_key] = fit
     return fit
+
+
+def should_cap_single_line_start(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font_path: Path | None,
+    start_font_size: int,
+    usable_width: int,
+    usable_height: int,
+) -> bool:
+    if usable_height <= 24:
+        return True
+    if usable_height > 44:
+        return False
+    font = load_font(font_path, start_font_size)
+    line_height = text_height(draw, "Ag", font) + max(1, start_font_size // 10)
+    if line_height * 2 <= usable_height:
+        return False
+    return text_width(draw, text, font) <= usable_width * 1.35
+
+
+def cap_single_line_start_font_size(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font_path: Path | None,
+    start_font_size: int,
+    min_font_size: int,
+    usable_width: int,
+    usable_height: int,
+) -> int:
+    for font_size in range(start_font_size, min_font_size - 1, -1):
+        font = load_font(font_path, font_size)
+        line_height = text_height(draw, "Ag", font) + max(1, font_size // 10)
+        if line_height <= usable_height and text_width(draw, text, font) <= usable_width:
+            return font_size
+    return start_font_size
+
+
+def should_cap_two_line_start(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font_path: Path | None,
+    start_font_size: int,
+    usable_width: int,
+    usable_height: int,
+) -> bool:
+    if usable_height > 60:
+        return False
+    font = load_font(font_path, start_font_size)
+    if text_width(draw, text, font) <= usable_width:
+        return False
+    if any(text_width(draw, word, font) > usable_width for word in text.split()):
+        return False
+    line_height = text_height(draw, "Ag", font) + max(1, start_font_size // 10)
+    return line_height * 2 > usable_height
+
+
+def cap_two_line_start_font_size(
+    draw: ImageDraw.ImageDraw,
+    font_path: Path | None,
+    start_font_size: int,
+    min_font_size: int,
+    usable_height: int,
+) -> int:
+    for font_size in range(start_font_size, min_font_size - 1, -1):
+        font = load_font(font_path, font_size)
+        line_height = text_height(draw, "Ag", font) + max(1, font_size // 10)
+        if line_height * 2 <= usable_height:
+            return font_size
+    return start_font_size
+
+
+def cap_two_line_width_start_font_size(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font_path: Path | None,
+    start_font_size: int,
+    min_font_size: int,
+    usable_width: int,
+    usable_height: int,
+) -> int:
+    for font_size in range(start_font_size, min_font_size - 1, -1):
+        font = load_font(font_path, font_size)
+        lines = wrap_text(draw, text, font, usable_width)
+        if not lines or len(lines) > 2:
+            continue
+        line_height = text_height(draw, "Ag", font) + max(1, font_size // 10)
+        if line_height * len(lines) <= usable_height and all(text_width(draw, line, font) <= usable_width for line in lines):
+            return font_size
+    return start_font_size
 
 
 def is_better_fit_candidate(
@@ -1002,12 +1112,19 @@ def is_short_single_word_line(line: str) -> bool:
 
 
 def wrap_warnings_for_lines(source_text: str, lines: list[str]) -> tuple[str, ...]:
+    warnings, _split_count, _orphan_count = wrap_metrics_for_lines(source_text, lines)
+    return warnings
+
+
+def wrap_metrics_for_lines(source_text: str, lines: list[str]) -> tuple[tuple[str, ...], int, int]:
+    split_count = split_word_count(source_text, lines)
+    orphan_count = orphan_line_count(lines)
     warnings: list[str] = []
     if has_bad_render_wrap(lines):
         warnings.append("bad_wrap")
-    if orphan_line_count(lines):
+    if orphan_count:
         warnings.append("orphan_line")
-    if split_word_count(source_text, lines):
+    if split_count:
         warnings.append("split_word")
     for line in lines:
         stripped = line.strip()
@@ -1018,7 +1135,7 @@ def wrap_warnings_for_lines(source_text: str, lines: list[str]) -> tuple[str, ..
             warnings.append("isolated_punctuation")
         if line_ends_weakly(stripped):
             warnings.append("weak_line_end")
-    return tuple(dict.fromkeys(warnings))
+    return tuple(dict.fromkeys(warnings)), split_count, orphan_count
 
 
 def line_ends_weakly(line: str) -> bool:
@@ -1112,7 +1229,7 @@ def estimate_start_font_size(
     dimension_cap = max(6, min(height_cap, width_cap))
     estimated = max(5, min(base_font_size, dimension_cap, max(6, density_cap)))
     if text_len >= 70:
-        estimated = min(estimated, 12)
+        estimated = min(estimated, 10)
     if source_box is not None and is_long_translation_from_narrow_vertical_source(text, source_box):
         estimated = min(estimated, 16)
     logger.debug(
@@ -1150,16 +1267,30 @@ def wrap_text(
     font: ImageFont.ImageFont,
     max_width: int,
 ) -> list[str]:
+    font_key = registered_font_key(font)
+    cache_key = (font_key, text, max_width) if font_key is not None else None
+    if cache_key is not None:
+        cached = _WRAP_TEXT_CACHE.get(cache_key)
+        if cached is not None:
+            return list(cached)
     words = text.split()
     if not words:
         return []
     if any(text_width(draw, word, font) > max_width for word in words):
-        return wrap_text_greedy(draw, text, font, max_width)
+        lines = wrap_text_greedy(draw, text, font, max_width)
+        if cache_key is not None:
+            _WRAP_TEXT_CACHE[cache_key] = tuple(lines)
+        return lines
     if len(words) <= 14:
         balanced = wrap_text_balanced(draw, words, font, max_width)
         if balanced:
+            if cache_key is not None:
+                _WRAP_TEXT_CACHE[cache_key] = tuple(balanced)
             return balanced
-    return wrap_text_greedy(draw, text, font, max_width)
+    lines = wrap_text_greedy(draw, text, font, max_width)
+    if cache_key is not None:
+        _WRAP_TEXT_CACHE[cache_key] = tuple(lines)
+    return lines
 
 
 def wrap_text_greedy(
