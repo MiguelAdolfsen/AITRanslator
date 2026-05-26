@@ -210,6 +210,12 @@ def recognize_with_manga_ocr(
         if is_left_edge_vertical_metadata_ctd_block(block, text=refined_text, width=width):
             logger.debug("Skipping left-edge vertical metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
+        if is_repeated_kana_sfx_ctd_block(block, text=refined_text):
+            logger.debug("Skipping repeated kana SFX manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_compact_horizontal_sfx_ctd_block(block, text=refined_text):
+            logger.debug("Skipping compact horizontal SFX manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
         if is_ultra_tall_edge_ctd_block(block, width=width, height=height):
             logger.debug("Skipping ultra-tall edge manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
@@ -911,6 +917,35 @@ def is_left_edge_vertical_metadata_ctd_block(block: TextBlock, *, text: str, wid
     block_width = max(1, x2 - x1)
     block_height = max(1, y2 - block.box[1])
     return x1 <= width * 0.01 and block_width <= 30 and 150 <= block_height <= 220
+
+
+def is_repeated_kana_sfx_ctd_block(block: TextBlock, *, text: str) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    normalized = normalize_ocr_text(text)
+    if len(normalized) != 3 or len(set(normalized)) != 1:
+        return False
+    if not all(0x3040 <= ord(char) <= 0x30FF for char in normalized):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) <= 24 and (y2 - y1) <= 60
+
+
+def is_compact_horizontal_sfx_ctd_block(block: TextBlock, *, text: str) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    if "ポ" not in text:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return 60 <= block_width <= 90 and 35 <= block_height <= 60
 
 
 def find_visual_text_candidates(image: Image.Image) -> list[tuple[int, int, int, int]]:
