@@ -445,6 +445,9 @@ def manga_ocr_crop_box(
     image_height: int,
     padding: int,
 ) -> tuple[int, int, int, int]:
+    line_union = ctd_line_union_crop_box(block, image_width=image_width, image_height=image_height, padding=padding)
+    if line_union is not None:
+        return line_union
     if needs_extra_bottom_ocr_padding(block, image_width=image_width, image_height=image_height):
         x1, y1, x2, y2 = block.box
         return (
@@ -454,6 +457,52 @@ def manga_ocr_crop_box(
             min(image_height, y2 + 120),
         )
     return pad_box(block.box, image_width, image_height, padding)
+
+
+def ctd_line_union_crop_box(
+    block: TextBlock,
+    *,
+    image_width: int,
+    image_height: int,
+    padding: int,
+) -> tuple[int, int, int, int] | None:
+    if getattr(block, "detector", "") != "ctd":
+        return None
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return None
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) < 2:
+        return None
+
+    points: list[tuple[int, int]] = []
+    for line in lines:
+        if not isinstance(line, list):
+            return None
+        for point in line:
+            if not isinstance(point, list) or len(point) != 2:
+                return None
+            points.append((int(point[0]), int(point[1])))
+    if not points:
+        return None
+
+    line_x1 = min(point[0] for point in points)
+    line_y1 = min(point[1] for point in points)
+    line_x2 = max(point[0] for point in points)
+    line_y2 = max(point[1] for point in points)
+    box_x1, box_y1, box_x2, _box_y2 = block.box
+    block_width = max(1, box_x2 - box_x1)
+    line_height = max(1, line_y2 - line_y1)
+    leading_gap = line_y1 - box_y1
+    if block_width < 70 or line_height < 120 or leading_gap < 80:
+        return None
+
+    return (
+        max(0, line_x1 - padding),
+        max(0, line_y1 - padding),
+        min(image_width, line_x2 + padding),
+        min(image_height, line_y2 + padding),
+    )
 
 
 def needs_extra_bottom_ocr_padding(block: TextBlock, *, image_width: int, image_height: int) -> bool:
