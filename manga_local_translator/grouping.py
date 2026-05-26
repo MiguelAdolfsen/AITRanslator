@@ -68,13 +68,25 @@ def should_group_blocks(a: TextBlock, b: TextBlock, *, image_bgr=None) -> bool:
             and horizontal_overlap_ratio >= 0.75
             and boxes_share_white_region(image_bgr, a.box, b.box)
         )
+        diagonal_same_bubble_column = (
+            image_bgr is not None
+            and 1 <= horizontal_gap <= 6
+            and 0.02 <= vertical_overlap_ratio <= 0.20
+            and boxes_share_white_region(image_bgr, a.box, b.box)
+        )
         same_bubble_column = (
             image_bgr is not None
             and horizontal_gap <= 62
             and vertical_overlap_ratio >= 0.50
             and boxes_share_white_region(image_bgr, a.box, b.box)
         )
-        return close_column or tight_high_overlap_column or stacked_same_bubble_column or same_bubble_column
+        return (
+            close_column
+            or tight_high_overlap_column
+            or stacked_same_bubble_column
+            or diagonal_same_bubble_column
+            or same_bubble_column
+        )
 
     max_gap = max(12, int(min(a_height, b_height) * 0.70))
     close_line = vertical_gap <= max_gap and horizontal_overlap_ratio >= 0.45
