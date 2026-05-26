@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     rows = list(csv.DictReader(args.results.open("r", encoding="utf-8"), delimiter="\t"))
     rows = [row for row in rows if row.get("run_id")]
     rows.sort(key=lambda row: (float(row.get("cat_quality_score") or row.get("cat_response_score") or 999999), -float(row.get("cat_approval_rate") or 0)))
-    print("run_id\tcat_quality_score\tcat_response_score\tcat_approval_rate\tlow_categories\thard_failure\tkept\tnotes")
+    print("run_id\tcat_quality_score\tcat_response_score\tcat_approval_rate\tretry_rate\tlow_categories\thard_failure\tkept\tnotes")
     for row in rows[: args.limit]:
         print(
             "\t".join(
@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
                     row.get("cat_quality_score", ""),
                     row.get("cat_response_score", ""),
                     row.get("cat_approval_rate", ""),
+                    row.get("retry_rate", ""),
                     row.get("low_categories", ""),
                     row.get("hard_failure", ""),
                     row.get("kept", ""),

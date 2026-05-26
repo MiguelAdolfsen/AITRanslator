@@ -14,6 +14,7 @@ WEIGHTS = {
     "accepted_forbidden_pattern": 7000,
     "accepted_overlong_fragment": 4500,
     "accepted_repetitive": 3500,
+    "accepted_explanatory_output": 2500,
     "false_reject": 3000,
     "empty_output": 2000,
     "verbose_output": 1000,
@@ -62,6 +63,8 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: dict[str
         violations.append("accepted_overlong_fragment")
     if accepted and looks_repetitive(final):
         violations.append("accepted_repetitive")
+    if accepted and contains_explanatory_output(raw):
+        violations.append("accepted_explanatory_output")
     if accepted and looks_verbose(case, final, reference):
         violations.append("verbose_output")
     if expected_accept and not accepted:
@@ -87,6 +90,13 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: dict[str
         "expected_accept": expected_accept,
         "approved": approved,
         "outcome_class": outcome_class,
+        "retried": bool(result.get("retried")),
+        "primary_rejected": bool(result.get("primary_reject_reason")),
+        "primary_reject_reason": str(result.get("primary_reject_reason", "") or ""),
+        "retry_rescued_accept": bool(result.get("retried")) and expected_accept and accepted and approved,
+        "retry_wasted_safe_reject": bool(result.get("retried")) and not expected_accept and not accepted and approved,
+        "retry_failed": bool(result.get("retried")) and not approved,
+        "clean_primary_accept": not bool(result.get("retried")) and expected_accept and accepted and approved,
         "raw_output": raw,
         "final_output": final,
         "reject_reason": reject_reason,
@@ -104,6 +114,14 @@ def summarize_metrics(per_case: list[dict[str, Any]]) -> dict[str, Any]:
     for name in WEIGHTS:
         metrics[f"{name}_count"] = sum(int(row.get(f"{name}_count", 0)) for row in per_case)
     metrics["cat_approved_count"] = sum(1 for row in per_case if row.get("approved"))
+    metrics["retried_count"] = sum(1 for row in per_case if row.get("retried"))
+    metrics["primary_rejected_count"] = sum(1 for row in per_case if row.get("primary_rejected"))
+    metrics["retry_rescued_accept_count"] = sum(1 for row in per_case if row.get("retry_rescued_accept"))
+    metrics["retry_wasted_safe_reject_count"] = sum(1 for row in per_case if row.get("retry_wasted_safe_reject"))
+    metrics["retry_failed_count"] = sum(1 for row in per_case if row.get("retry_failed"))
+    metrics["clean_primary_accept_count"] = sum(1 for row in per_case if row.get("clean_primary_accept"))
+    metrics["retry_rate"] = round(metrics["retried_count"] / max(1, total), 6)
+    metrics["primary_rejected_rate"] = round(metrics["primary_rejected_count"] / max(1, total), 6)
     metrics["expected_accept_count"] = sum(1 for row in per_case if row.get("expected_accept"))
     metrics["expected_reject_count"] = total - metrics["expected_accept_count"]
     metrics["accepted_count"] = sum(1 for row in per_case if row.get("accepted"))
@@ -166,6 +184,8 @@ def summarize_category_metrics(per_case: list[dict[str, Any]]) -> dict[str, dict
             "evaluations": evaluations,
             "approved": approved,
             "approval_rate": round(approved / max(1, evaluations), 6),
+            "retried_count": sum(1 for row in rows if row.get("retried")),
+            "retry_rate": round(sum(1 for row in rows if row.get("retried")) / max(1, evaluations), 6),
             "false_reject_count": sum(1 for row in rows if row.get("outcome_class") == "false_reject"),
             "unsafe_accept_count": sum(1 for row in rows if row.get("outcome_class") == "unsafe_accept"),
             "weak_accept_count": sum(1 for row in rows if row.get("outcome_class") == "weak_accept"),
@@ -210,6 +230,18 @@ def contains_prompt_chatter(text: str) -> bool:
             r"\b(please provide|could you please|i don't see|i do not see|i don't understand|"
             r"i do not understand|as an ai|i cannot|i can't|feel free to ask|once i have it|"
             r"ready to translate|provide more context)\b",
+            str(text),
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def contains_explanatory_output(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(the japanese (?:phrase|word|text)|translates to|can be translated as|"
+            r"is a sound effect|it means|used in manga|common response|exact nuance|"
+            r"depending on context|context of the)\b",
             str(text),
             flags=re.IGNORECASE,
         )

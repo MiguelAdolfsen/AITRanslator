@@ -18,7 +18,21 @@ Lower is better.
 
 The kept run score is the average of 4 complete benchmark passes by default. Per-pass metrics are stored in `summary.json` as `repeat_metrics`, and the result row stores averaged counts/rates so random one-off CAT behavior does not become the recorded best.
 
-`cat_response_score` is still reported, but it includes latency. Best-run replacement uses `cat_quality_score` only. If approval does not improve, quality score must improve by at least 1% before a run replaces best.
+`cat_response_score` is still reported, but it includes latency. Best-run replacement prioritizes `cat_quality_score`. If approval does not improve, quality score must improve by at least 0.2% before a run replaces best. If approval and quality are tied, lower retry dependence can replace best. If approval, quality, and retry rate all tie, lower response score can replace best as an operational improvement.
+
+Retry diagnostics:
+
+```text
+retried_count              = cases where CAT needed the retry prompt
+retry_rate                 = retried_count / evaluations_total
+primary_rejected_count     = cases where the first CAT output was rejected
+retry_rescued_accept_count = expected-good cases accepted only after retry
+retry_wasted_safe_reject_count = expected-reject cases retried but still safely rejected
+retry_failed_count         = retried cases still not approved
+clean_primary_accept_count = expected-good cases accepted from the first CAT output
+```
+
+These are not hard failures by themselves. They are tie-breakers and review signals: a 100% run with fewer retries is better than a 100% run that depends on retry rescues.
 
 Outcome classes:
 
@@ -45,6 +59,7 @@ cat_quality_score =
 +  7000 * accepted_forbidden_pattern_rate
 +  4500 * accepted_overlong_fragment_rate
 +  3500 * accepted_repetitive_rate
++  2500 * accepted_explanatory_output_rate
 +  3000 * false_reject_rate
 +  2000 * empty_output_rate
 +  1000 * verbose_output_rate

@@ -31,7 +31,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v5-hf-chat-template"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v12-source-risk-salvage"
+CAT_VALIDATION_VERSION = "cat-validation-v13-source-noise-salvage"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 128
 
@@ -404,9 +404,19 @@ def cat_bypass_reason(source_text: str) -> str | None:
 
 
 def has_noisy_credit_markers(text: str) -> bool:
-    if any(marker in text for marker in ("▽", "▼", "■", "□", "◆", "◇", "©", "＠", "@", "http")):
+    if any(marker in text for marker in ("▽", "▼", "■", "□", "◆", "◇", "※", "©", "＠", "@", "http")):
         return True
     if "『" in text and "』" not in text:
+        return True
+    if re.search(r"(?:\d{1,2}|[０-９]{1,2})\s*(?:/|月)\s*(?:\d{1,2}|[０-９]{1,2})", text) and re.search(
+        r"(?:更新|作者|コメント|COMIC|comic|page|頁)",
+        text,
+    ):
+        return True
+    if re.search(r"第\s*[0-9０-９一二三四五六七八九十百]+\s*(?:話|章|巻)", text) and re.search(
+        r"(?:つづく|続く|完|[12][0-9]{3})",
+        text,
+    ):
         return True
     return False
 
@@ -505,7 +515,8 @@ def can_salvage_direct_translation_explanation(raw_text: str, *, source_text: st
     )
     if not any(marker in lower for marker in direct_markers):
         return False
-    if cat_source_salvage_risk(source_text):
+    source_risk = cat_source_salvage_risk(source_text)
+    if source_risk and source_risk != "short_ambiguous_fragment":
         return False
     unsafe_markers = (
         "not standard",
@@ -604,10 +615,14 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
         return "cat_empty"
     if looks_like_cat_chatter(combined):
         return "cat_chatter"
+    if looks_like_explanatory_cat_output(raw):
+        return "cat_explanatory_output"
     if has_cat_prompt_fragment(combined):
         return "cat_prompt_fragment"
     if has_cat_schema_fragment(combined):
         return "cat_schema_fragment"
+    if has_noisy_credit_markers(source_text):
+        return "cat_source_metadata_or_noise"
     if count_japanese_chars_local(text) > 0:
         return "cat_untranslated_japanese"
     if looks_repetitive_or_verbose(source_text, text):
@@ -671,6 +686,31 @@ def looks_like_cat_chatter(text: str) -> bool:
         "community management",
     )
     return any(pattern in lower for pattern in chatter_patterns)
+
+
+def looks_like_explanatory_cat_output(text: str) -> bool:
+    lower = " ".join(str(text).lower().split())
+    if not lower:
+        return False
+    explanatory_markers = (
+        "the japanese phrase",
+        "the japanese word",
+        "the japanese text",
+        "translates to",
+        "can be translated as",
+        "could be translated as",
+        "translation is",
+        "correct english translation is",
+        "is a sound effect",
+        "it means",
+        "used in manga",
+        "common response",
+        "exact nuance",
+        "depending on context",
+        "context of the",
+        "does not require further explanation",
+    )
+    return any(marker in lower for marker in explanatory_markers)
 
 
 def looks_repetitive_or_verbose(source_text: str, translated_text: str) -> bool:

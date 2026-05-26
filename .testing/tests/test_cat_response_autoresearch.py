@@ -15,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 from cat_response_autoresearch.scripts import eval_cat_responses  # noqa: E402
 from cat_response_autoresearch.scripts.eval_cat_responses import maybe_update_best  # noqa: E402
 from cat_response_autoresearch.scripts.serve_dashboard import dashboard_state  # noqa: E402
-from cat_response_autoresearch.scripts.io_adapters import build_prompt, load_profile, profile_hash  # noqa: E402
+from cat_response_autoresearch.scripts.io_adapters import build_prompt, find_harness_cat_gguf, load_profile, profile_hash  # noqa: E402
 from cat_response_autoresearch.scripts.score import score_case, summarize_metrics  # noqa: E402
 from cat_response_autoresearch.scripts.validate_fixtures import validate_benchmark  # noqa: E402
 
@@ -107,13 +107,24 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             reference,
         )
         rejected = score_case(case, {"raw_output": "", "final_output": "", "reject_reason": "cat_empty"}, reference)
+        explanatory = score_case(
+            case,
+            {
+                "raw_output": 'The Japanese phrase "何あれ" translates to "What is that?" depending on context.',
+                "final_output": "What is that?",
+                "reject_reason": "",
+            },
+            reference,
+        )
 
         self.assertIn("accepted_prompt_chatter", chatter["violations"])
         self.assertIn("accepted_japanese_leakage", japanese["violations"])
         self.assertIn("accepted_prompt_fragment", prompt["violations"])
         self.assertIn("false_reject", rejected["violations"])
+        self.assertIn("accepted_explanatory_output", explanatory["violations"])
         self.assertEqual(chatter["outcome_class"], "unsafe_accept")
         self.assertEqual(rejected["outcome_class"], "false_reject")
+        self.assertEqual(explanatory["outcome_class"], "weak_accept")
         self.assertTrue(summarize_metrics([chatter])["hard_failure"])
 
     def test_category_metrics_make_low_category_a_hard_failure(self) -> None:
@@ -147,6 +158,20 @@ class CatResponseAutoresearchTests(unittest.TestCase):
         changed = {**official, "num_predict": int(official["num_predict"]) + 1}
 
         self.assertNotEqual(profile_hash(official), profile_hash(changed))
+
+    def test_cat_gguf_lookup_uses_repo_root_model_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            model_dir = root / ".models" / "CAT-Translate"
+            model_dir.mkdir(parents=True)
+            old_model = model_dir / "CAT-Translate-7b.Q4_K_M.gguf"
+            q8_model = model_dir / "CAT-Translate-7b.Q8_0.gguf"
+            old_model.write_text("q4", encoding="utf-8")
+            q8_model.write_text("q8", encoding="utf-8")
+
+            found = find_harness_cat_gguf(root)
+
+        self.assertEqual(found, q8_model.resolve())
 
     def test_best_update_ignores_latency_only_noise(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -199,6 +224,95 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             best = json.loads(best_path.read_text(encoding="utf-8"))
         self.assertEqual(best["best_run_id"], "better")
         self.assertEqual(best["keep_reason"], "quality_margin_improved")
+
+    def test_best_update_can_keep_retry_reduction_when_quality_ties(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            best_path = Path(temp_dir) / "best.json"
+            best_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "best_run_id": "old",
+                        "best_quality_score": 0.0,
+                        "best_score": 0.0,
+                        "cat_approval_rate": 1.0,
+                        "retry_rate": 0.5,
+                        "benchmark_fingerprint": "same",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            retry_reduction = {
+                "hard_failure": False,
+                "cat_quality_score": 0.0,
+                "cat_response_score": 800.0,
+                "cat_latency_score": 800.0,
+                "cat_approval_rate": 1.0,
+                "retry_rate": 0.25,
+                "retried_count": 1,
+                "primary_rejected_rate": 0.25,
+            }
+
+            self.assertTrue(
+                maybe_update_best(
+                    best_path,
+                    "less-retry",
+                    "commit",
+                    retry_reduction,
+                    benchmark_hash="same",
+                    disabled=False,
+                    min_improvement=0.002,
+                )
+            )
+
+            best = json.loads(best_path.read_text(encoding="utf-8"))
+        self.assertEqual(best["best_run_id"], "less-retry")
+        self.assertEqual(best["keep_reason"], "retry_dependence_improved")
+        self.assertEqual(best["retry_rate"], 0.25)
+
+    def test_best_update_can_keep_response_tiebreak_when_quality_approval_and_retry_tie(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            best_path = Path(temp_dir) / "best.json"
+            best_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "best_run_id": "old",
+                        "best_quality_score": 0.0,
+                        "best_response_score": 1000.0,
+                        "cat_approval_rate": 1.0,
+                        "retry_rate": 0.0,
+                        "benchmark_fingerprint": "same",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            response_improvement = {
+                "hard_failure": False,
+                "cat_quality_score": 0.0,
+                "cat_response_score": 900.0,
+                "cat_latency_score": 900.0,
+                "cat_approval_rate": 1.0,
+                "retry_rate": 0.0,
+                "retried_count": 0,
+                "primary_rejected_rate": 0.0,
+            }
+
+            self.assertTrue(
+                maybe_update_best(
+                    best_path,
+                    "faster-tie",
+                    "commit",
+                    response_improvement,
+                    benchmark_hash="same",
+                    disabled=False,
+                    min_improvement=0.002,
+                )
+            )
+
+            best = json.loads(best_path.read_text(encoding="utf-8"))
+        self.assertEqual(best["best_run_id"], "faster-tie")
+        self.assertEqual(best["keep_reason"], "response_score_tiebreak_improved")
 
     def test_prompt_construction_uses_official_template(self) -> None:
         profile = load_profile("official")
@@ -291,6 +405,7 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             self.assertTrue((output / "comparison.md").exists())
             summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["metrics"]["cat_approval_rate"], 1.0)
+            self.assertIn("retry_rate", summary["metrics"])
             self.assertEqual(summary["metrics"]["repeat_count"], 2)
             self.assertEqual(summary["metrics"]["cases_total"], 2)
             self.assertEqual(summary["metrics"]["evaluations_total"], 4)

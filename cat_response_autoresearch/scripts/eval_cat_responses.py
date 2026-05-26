@@ -47,6 +47,14 @@ RESULT_HEADER = [
     "evaluations_total",
     "cat_approved_count",
     "cat_approval_rate",
+    "retried_count",
+    "retry_rate",
+    "primary_rejected_count",
+    "primary_rejected_rate",
+    "retry_rescued_accept_count",
+    "retry_wasted_safe_reject_count",
+    "retry_failed_count",
+    "clean_primary_accept_count",
     "expected_accept_count",
     "expected_reject_count",
     "accepted_count",
@@ -68,6 +76,7 @@ RESULT_HEADER = [
     "accepted_forbidden_pattern_count",
     "accepted_overlong_fragment_count",
     "accepted_repetitive_count",
+    "accepted_explanatory_output_count",
     "empty_output_count",
     "verbose_output_count",
     "model_error_count",
@@ -131,7 +140,7 @@ def ensure_results_header(results_path: Path) -> None:
     if not results_path.exists() or results_path.stat().st_size == 0:
         results_path.write_text(expected + "\n", encoding="utf-8")
         return
-    first = results_path.read_text(encoding="utf-8").splitlines()[0]
+    first = results_path.read_text(encoding="utf-8-sig").splitlines()[0]
     if first != expected:
         raise RuntimeError(f"results header mismatch: {results_path}")
 
@@ -176,18 +185,42 @@ def maybe_update_best(
     current_approval = best.get("cat_approval_rate")
     current_hash = best.get("benchmark_fingerprint")
     run_quality = float(metrics.get("cat_quality_score", metrics["cat_response_score"]))
+    run_response = float(metrics.get("cat_response_score", run_quality) or run_quality)
     run_approval = float(metrics.get("cat_approval_rate", 0.0) or 0.0)
+    run_retry_rate = float(metrics.get("retry_rate", 0.0) or 0.0)
     keep_reason = "first_valid_run"
     if current_hash == benchmark_hash and current is not None:
         current_quality = float(current)
+        best_has_retry_rate = best.get("retry_rate") is not None
+        run_has_retry_rate = metrics.get("retry_rate") is not None
+        current_retry_rate = float(best.get("retry_rate", 1.0) if best_has_retry_rate else 1.0)
+        current_response = best.get("best_response_score")
         approval_improved = current_approval is not None and run_approval > float(current_approval)
         if current_quality <= 0:
             quality_improved = run_quality < current_quality
         else:
             quality_improved = run_quality <= current_quality * (1.0 - min_improvement)
-        if not approval_improved and not quality_improved:
+        quality_tied = abs(run_quality - current_quality) <= 1e-9
+        approval_tied = current_approval is not None and abs(run_approval - float(current_approval)) <= 1e-9
+        retry_tied = best_has_retry_rate and run_has_retry_rate and abs(run_retry_rate - current_retry_rate) <= 1e-9
+        retry_improved = best_has_retry_rate and run_has_retry_rate and quality_tied and approval_tied and run_retry_rate < current_retry_rate
+        response_improved = (
+            quality_tied
+            and approval_tied
+            and retry_tied
+            and current_response is not None
+            and run_response <= float(current_response) * (1.0 - min_improvement)
+        )
+        if not approval_improved and not quality_improved and not retry_improved and not response_improved:
             return False
-        keep_reason = "approval_improved" if approval_improved else "quality_margin_improved"
+        if approval_improved:
+            keep_reason = "approval_improved"
+        elif quality_improved:
+            keep_reason = "quality_margin_improved"
+        elif retry_improved:
+            keep_reason = "retry_dependence_improved"
+        else:
+            keep_reason = "response_score_tiebreak_improved"
     best.update(
         {
             "schema_version": 1,
@@ -200,6 +233,9 @@ def maybe_update_best(
             "benchmark_fingerprint": benchmark_hash,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "cat_approval_rate": metrics.get("cat_approval_rate"),
+            "retry_rate": metrics.get("retry_rate"),
+            "retried_count": metrics.get("retried_count"),
+            "primary_rejected_rate": metrics.get("primary_rejected_rate"),
             "keep_reason": keep_reason,
             "min_improvement": min_improvement,
         }
@@ -215,23 +251,27 @@ def write_human_review(path: Path, per_case: list[dict[str, Any]], raw_outputs: 
         "",
         f"- CAT approval rate: **{metrics.get('cat_approval_rate')}**",
         f"- CAT response score: **{metrics.get('cat_response_score')}**",
+        f"- Retry rate: **{metrics.get('retry_rate', 0)}** ({metrics.get('retried_count', 0)} / {metrics.get('evaluations_total', metrics.get('cases_total', 0))})",
+        f"- Retry rescued accepts: **{metrics.get('retry_rescued_accept_count', 0)}**",
+        f"- Retry wasted safe rejects: **{metrics.get('retry_wasted_safe_reject_count', 0)}**",
         f"- Hard failure: **{metrics.get('hard_failure')}**",
         f"- Low categories: **{metrics.get('low_categories', '') or 'none'}**",
         "",
         "## Category Metrics",
         "",
-        "| Source type | Evaluations | Approval rate | False rejects | Unsafe accepts | Weak accepts |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Source type | Evaluations | Approval rate | Retry rate | False rejects | Unsafe accepts | Weak accepts |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     category_metrics = metrics.get("category_metrics") if isinstance(metrics.get("category_metrics"), dict) else {}
     if not category_metrics:
-        lines.append("| _none_ | 0 |  |  |  |  |")
+        lines.append("| _none_ | 0 |  |  |  |  |  |")
     for source_type, data in sorted(category_metrics.items()):
         lines.append(
-            "| {source_type} | {evaluations} | {approval_rate} | {false_rejects} | {unsafe_accepts} | {weak_accepts} |".format(
+            "| {source_type} | {evaluations} | {approval_rate} | {retry_rate} | {false_rejects} | {unsafe_accepts} | {weak_accepts} |".format(
                 source_type=escape_md(str(source_type)),
                 evaluations=data.get("evaluations", 0),
                 approval_rate=data.get("approval_rate", ""),
+                retry_rate=data.get("retry_rate", ""),
                 false_rejects=data.get("false_reject_count", 0),
                 unsafe_accepts=data.get("unsafe_accept_count", 0),
                 weak_accepts=data.get("weak_accept_count", 0),
@@ -262,6 +302,31 @@ def write_human_review(path: Path, per_case: list[dict[str, Any]], raw_outputs: 
                 raw_output=escape_md(str(raw.get("raw_output", ""))[:160]),
                 final=escape_md(str(row.get("final_output", ""))[:120]),
                 reason=escape_md(str(row.get("reject_reason", ""))),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "## All Cases",
+            "",
+            "| Case | Repeat | Outcome | Source type | Source | Primary reject | Primary final | Final | Retried | Raw summary |",
+            "|---|---:|---|---|---|---|---|---|---|---|",
+        ]
+    )
+    for row in per_case:
+        raw = raw_by_case.get(raw_key(row), {})
+        lines.append(
+            "| {case} | {repeat} | {outcome} | {source_type} | {source} | {primary_reject} | {primary_final} | {final} | {retried} | {raw_output} |".format(
+                case=escape_md(str(row.get("case_id", ""))),
+                repeat=escape_md(str(row.get("repeat_index", ""))),
+                outcome=escape_md(str(row.get("outcome_class", ""))),
+                source_type=escape_md(str(row.get("source_type", ""))),
+                source=escape_md(str(raw.get("source_text", ""))),
+                primary_reject=escape_md(str(raw.get("primary_reject_reason", ""))),
+                primary_final=escape_md(str(raw.get("primary_final_output", ""))[:80]),
+                final=escape_md(str(row.get("final_output", ""))[:80]),
+                retried=escape_md(str(raw.get("retried", ""))),
+                raw_output=escape_md(str(raw.get("raw_output", ""))[:120]),
             )
         )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -301,10 +366,12 @@ def write_comparison_report(path: Path, metrics: dict[str, Any], best: dict[str,
         f"- Current quality score: **{metrics.get('cat_quality_score')}**",
         f"- Current latency score: **{metrics.get('cat_latency_score')}**",
         f"- Current approval rate: **{metrics.get('cat_approval_rate')}**",
+        f"- Current retry rate: **{metrics.get('retry_rate', 0)}**",
         f"- Current low categories: **{metrics.get('low_categories', '') or 'none'}**",
         f"- Previous best run: **{best.get('best_run_id') or 'none'}**",
         f"- Previous best quality score: **{best_score if best_score is not None else 'none'}**",
         f"- Previous best approval rate: **{best_rate if best_rate is not None else 'none'}**",
+        f"- Previous best retry rate: **{best.get('retry_rate') if best.get('retry_rate') is not None else 'none'}**",
         f"- Same benchmark fingerprint: **{best.get('benchmark_fingerprint') == benchmark_hash}**",
         "",
     ]
@@ -322,9 +389,21 @@ def write_comparison_report(path: Path, metrics: dict[str, Any], best: dict[str,
 
 
 def write_progress(path: Path, payload: dict[str, Any]) -> None:
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temp_path.replace(path)
+    payload_text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    for attempt in range(8):
+        temp_path = path.with_name(f"{path.name}.{time.time_ns()}.{attempt}.tmp")
+        try:
+            temp_path.write_text(payload_text, encoding="utf-8")
+            temp_path.replace(path)
+            return
+        except OSError:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass
+            time.sleep(0.05 * (attempt + 1))
+    # Progress is diagnostic only. A dashboard read lock on Windows should not fail a benchmark run.
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -342,7 +421,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--min-improvement",
         type=float,
-        default=0.01,
+        default=0.002,
         help="Minimum quality-score improvement ratio required to replace best when approval does not improve.",
     )
     parser.add_argument("--no-update-best", action="store_true")

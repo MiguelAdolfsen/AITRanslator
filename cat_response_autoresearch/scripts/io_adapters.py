@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Any
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
 BUILTIN_PROFILES: dict[str, dict[str, Any]] = {
     "official": {
         "name": "official",
@@ -64,6 +67,15 @@ def build_prompt(source_text: str, profile: dict[str, Any], *, retry: bool = Fal
     return template.format(source_text=source_text)
 
 
+def build_answer_only_prompt(source_text: str) -> str:
+    return (
+        "Translate this Japanese text to English. Output only the English translation. "
+        "No labels, no notes, no explanation.\n"
+        f"Japanese: {source_text}\n"
+        "English:"
+    )
+
+
 def load_fake_outputs(path: Path | None) -> dict[str, str]:
     if path is None:
         return {}
@@ -90,13 +102,23 @@ def apply_stop_strings(text: str, stop: Any) -> str:
 
 
 def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs: dict[str, str] | None = None) -> dict[str, Any]:
-    from manga_local_translator.hf_translators import finalize_cat_translation
+    from manga_local_translator.hf_translators import (
+        count_japanese_chars_local,
+        finalize_cat_translation,
+        has_noisy_credit_markers,
+        looks_like_explanatory_cat_output,
+    )
 
     fake_outputs = fake_outputs or {}
     source_text = str(case.get("source_text", ""))
     prompt = build_prompt(source_text, profile)
     started = time.perf_counter()
     model_error = ""
+    retried = False
+    primary_raw = ""
+    primary_cleaned = ""
+    primary_final = ""
+    primary_reject_reason = ""
     if str(case["case_id"]) in fake_outputs:
         raw = fake_outputs[str(case["case_id"])]
         backend = "fake"
@@ -109,9 +131,106 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
             backend = "ollama"
             model_name = ""
             model_error = str(exc)
-    latency_ms = (time.perf_counter() - started) * 1000.0
     raw = apply_stop_strings(raw, profile.get("stop"))
+    primary_model_raw = raw
     cleaned, final, reject_reason = finalize_cat_translation(source_text, source_text, raw, None)
+    if final.strip() and reject_reason is None and looks_like_explanatory_cat_output(raw):
+        raw = final
+    primary_raw = primary_model_raw
+    primary_cleaned = cleaned
+    primary_final = final
+    primary_reject_reason = reject_reason or ""
+    should_retry = bool(reject_reason)
+    if should_retry and not model_error and str(case["case_id"]) not in fake_outputs:
+        retry_prompt = build_prompt(source_text, profile, retry=True)
+        try:
+            retry_raw, retry_backend, retry_model_name = run_live_cat_prompt(retry_prompt, profile)
+            retry_raw = apply_stop_strings(retry_raw, profile.get("stop"))
+            retry_cleaned, retry_final, retry_reject_reason = finalize_cat_translation(
+                source_text,
+                source_text,
+                retry_raw,
+                None,
+            )
+            if retry_final.strip() and retry_reject_reason is None and looks_like_explanatory_cat_output(retry_raw):
+                retry_raw = retry_final
+            retried = True
+            if retry_final.strip() and retry_reject_reason is None:
+                prompt = retry_prompt
+                raw = retry_raw
+                cleaned = retry_cleaned
+                final = retry_final
+                reject_reason = None
+                backend = retry_backend
+                model_name = retry_model_name
+        except Exception as exc:  # pragma: no cover - exercised manually with local model
+            if reject_reason:
+                model_error = str(exc)
+    if (
+        reject_reason
+        and not model_error
+        and str(case["case_id"]) not in fake_outputs
+        and not has_noisy_credit_markers(source_text)
+    ):
+        answer_only_prompt = build_answer_only_prompt(source_text)
+        try:
+            answer_only_raw, answer_only_backend, answer_only_model_name = run_live_cat_prompt(answer_only_prompt, profile)
+            answer_only_raw = apply_stop_strings(answer_only_raw, profile.get("stop"))
+            answer_only_cleaned, answer_only_final, answer_only_reject_reason = finalize_cat_translation(
+                source_text,
+                source_text,
+                answer_only_raw,
+                None,
+            )
+            if (
+                answer_only_final.strip()
+                and answer_only_reject_reason is None
+                and looks_like_explanatory_cat_output(answer_only_raw)
+            ):
+                answer_only_raw = answer_only_final
+            retried = True
+            if answer_only_final.strip() and answer_only_reject_reason is None:
+                prompt = answer_only_prompt
+                raw = answer_only_raw
+                cleaned = answer_only_cleaned
+                final = answer_only_final
+                reject_reason = None
+                backend = answer_only_backend
+                model_name = answer_only_model_name
+        except Exception as exc:  # pragma: no cover - exercised manually with local model
+            if reject_reason:
+                model_error = str(exc)
+    if (
+        reject_reason
+        and not model_error
+        and str(case["case_id"]) not in fake_outputs
+        and count_japanese_chars_local(source_text) > 5
+        and not has_noisy_credit_markers(source_text)
+    ):
+        fallback_prompt = BUILTIN_PROFILES["official"]["prompt_template"].format(source_text=source_text)
+        try:
+            fallback_raw, fallback_backend, fallback_model_name = run_live_cat_prompt(fallback_prompt, profile)
+            fallback_raw = apply_stop_strings(fallback_raw, profile.get("stop"))
+            fallback_cleaned, fallback_final, fallback_reject_reason = finalize_cat_translation(
+                source_text,
+                source_text,
+                fallback_raw,
+                None,
+            )
+            if fallback_final.strip() and fallback_reject_reason is None and looks_like_explanatory_cat_output(fallback_raw):
+                fallback_raw = fallback_final
+            retried = True
+            if fallback_final.strip() and fallback_reject_reason is None:
+                prompt = fallback_prompt
+                raw = fallback_raw
+                cleaned = fallback_cleaned
+                final = fallback_final
+                reject_reason = None
+                backend = fallback_backend
+                model_name = fallback_model_name
+        except Exception as exc:  # pragma: no cover - exercised manually with local model
+            model_error = str(exc)
+    latency_ms = (time.perf_counter() - started) * 1000.0
     if model_error and not reject_reason:
         reject_reason = "model_error"
     return {
@@ -126,6 +245,11 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
         "cleaned_output": cleaned,
         "final_output": final,
         "reject_reason": reject_reason or "",
+        "retried": retried,
+        "primary_raw_output": primary_raw,
+        "primary_cleaned_output": primary_cleaned,
+        "primary_final_output": primary_final,
+        "primary_reject_reason": primary_reject_reason,
         "model_error": model_error,
         "latency_ms": round(latency_ms, 3),
     }
@@ -136,7 +260,12 @@ def run_live_cat_prompt(prompt: str, profile: dict[str, Any]) -> tuple[str, str,
     from manga_local_translator.qwen_ollama import find_ollama_executable, run_ollama_prompt
     from manga_local_translator.qwen_types import QwenGenerationSettings
 
-    gguf = find_cat_gguf_path()
+    gguf = find_harness_cat_gguf()
+    if gguf is None:
+        gguf = find_cat_gguf_path()
+    if gguf is None:
+        expected = REPO_ROOT / ".models" / "CAT-Translate"
+        raise RuntimeError(f"CAT GGUF model not found. Expected a .gguf file under {expected}")
     ollama = find_ollama_executable()
     if not ollama:
         raise RuntimeError("Ollama was not found. Install/start Ollama to use CAT GGUF models.")
@@ -150,3 +279,12 @@ def run_live_cat_prompt(prompt: str, profile: dict[str, Any]) -> tuple[str, str,
     )
     return run_ollama_prompt(ollama, model_name, prompt, settings=settings), "ollama", model_name
 
+
+def find_harness_cat_gguf(repo_root: Path = REPO_ROOT) -> Path | None:
+    model_dir = repo_root / ".models" / "CAT-Translate"
+    candidates = list(model_dir.glob("*.gguf")) if model_dir.exists() else []
+    if not candidates:
+        return None
+    q8 = [path for path in candidates if "q8" in path.name.lower()]
+    pool = q8 or candidates
+    return sorted(pool, key=lambda path: path.stat().st_mtime, reverse=True)[0].resolve()

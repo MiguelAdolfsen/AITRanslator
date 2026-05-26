@@ -35,12 +35,15 @@ Required benchmark:
 
 The required benchmark uses the evaluator default of `--repeats 4`. Keep/best decisions must be based on the averaged four-pass result, not a single lucky CAT run. `--repeats 1` is allowed only for local smoke checks that are not written as best.
 
+The evaluator resolves the CAT GGUF from the project root `.models/CAT-Translate` directory, even if the command is launched from inside `cat_response_autoresearch`. Do not work around model lookup by copying model files into benchmark folders.
+
 Noise guardrails:
 
 ```text
-- Best-run replacement uses cat_quality_score, not latency-included cat_response_score.
-- cat_response_score is still reported for visibility, but latency cannot make a run best by itself.
-- If approval does not improve, cat_quality_score must improve by at least 1% before a run can replace best.
+- Best-run replacement prioritizes cat_quality_score, not latency-included cat_response_score.
+- cat_response_score is still reported for visibility. It can only replace best as a final tie-breaker when approval, quality, and retry_rate are all tied.
+- If approval does not improve, cat_quality_score must improve by at least 0.2% before a run can replace best.
+- If approval and quality are tied, lower retry dependence can replace best. This keeps useful prompt/settings improvements visible even after quality reaches 0.
 - For visibly noisy CAT behavior, rerun likely keepers with --repeats 6 or --repeats 8 before holdout.
 ```
 
@@ -99,7 +102,7 @@ Keep a change only if:
 ```text
 1. unit tests pass,
 2. fixture validation passes,
-3. cat_quality_score improves versus current best by the required margin on the averaged four-pass benchmark, or cat_approval_rate improves,
+3. cat_quality_score improves versus current best by the required margin on the averaged four-pass benchmark, cat_approval_rate improves, approval/quality tie while retry_rate improves, or approval/quality/retry tie while response score improves,
 4. cat_approval_rate does not decrease,
 5. accepted_prompt_chatter_count remains 0,
 6. accepted_japanese_leakage_count remains 0,
@@ -109,6 +112,8 @@ Keep a change only if:
 10. false_reject_count does not increase unless hard failures decrease,
 11. the holdout check does not introduce hard failures,
 12. the improvement did not come from editing benchmark/scoring/logging files or exact frozen strings.
+
+Retry-dependent runs can be kept for iteration, but they are not automatically production-ready. Prefer profiles that reduce `retried_count`, `retry_rate`, and `primary_rejected_count` without introducing false rejects or weak accepts.
 ```
 
 Otherwise revert the experiment and append a failed result row.

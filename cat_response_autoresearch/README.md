@@ -27,9 +27,11 @@ Then open `http://127.0.0.1:8501`. The dashboard polls `results/results.tsv`, `r
   --run-id current
 ```
 
+These commands can be launched from the repo root or from inside `cat_response_autoresearch`; the harness resolves the local CAT GGUF from the project root `.models/CAT-Translate` directory.
+
 The evaluator runs the full benchmark 4 times by default and records the average score. Use `--repeats 1` only for quick harness debugging, not for keeping a profile as best.
 
-Best-run updates use `cat_quality_score`, not latency-included `cat_response_score`. If approval rate does not improve, a run must improve quality score by at least 1% to replace best. For noisy experiments, rerun likely keepers with `--repeats 6` or `--repeats 8` before the holdout check.
+Best-run updates prioritize `cat_quality_score`, not latency-included `cat_response_score`. If approval rate does not improve, a run must improve quality score by at least 0.2% to replace best. If quality and approval are tied, a run can still replace best when it reduces retry dependence. If quality, approval, and retry rate all tie, a lower response score can be kept as an operational improvement. For noisy experiments, rerun likely keepers with `--repeats 6` or `--repeats 8` before the holdout check.
 
 After a profile is kept on the main benchmark, run the locked holdout as a sanity check:
 
@@ -62,3 +64,5 @@ For a harness smoke test without loading CAT:
 This loop may experiment with CAT prompt profiles, bounded output settings, retry prompt shape, and CAT cleanup/validation. It must not use Qwen/Q8 as backup and must not make decisions from exact frozen-page strings.
 
 Each run writes `comparison.md` next to `human_review.md` to summarize deltas against the current best run. Keep decisions should still inspect failures and per-category metrics, not only the global score.
+
+`human_review.md` also reports retry dependence. A 100% approval run is stronger when most accepted lines are clean primary CAT outputs instead of retry rescues.
