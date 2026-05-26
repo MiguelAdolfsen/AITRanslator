@@ -6,6 +6,7 @@ from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.text_filter import (
     fallback_translation,
     filter_text_blocks,
+    is_ctd_horizontal_metadata,
     suspected_bad_translation,
     unusable_translation_reason,
 )
@@ -13,6 +14,14 @@ from manga_local_translator.text_filter import (
 
 def block(text: str, *, detector: str = "ctd", box: tuple[int, int, int, int] = (10, 10, 40, 40)) -> TextBlock:
     return TextBlock(text=text, box=box, confidence=80.0, detector=detector)
+
+
+def horizontal_block(text: str) -> TextBlock:
+    return TextBlock(text=text, box=(10, 10, 120, 28), confidence=80.0, detector="ctd", metadata={"vertical": False})
+
+
+def vertical_block(text: str) -> TextBlock:
+    return TextBlock(text=text, box=(10, 10, 40, 120), confidence=80.0, detector="ctd", metadata={"vertical": True})
 
 
 class TextFilterTests(unittest.TestCase):
@@ -28,6 +37,16 @@ class TextFilterTests(unittest.TestCase):
 
         self.assertEqual(kept, [])
         self.assertEqual([item["reason"] for item in skipped], ["punctuation_or_symbols_only", "single_character_fragment"])
+
+    def test_horizontal_metadata_filter_is_content_based(self) -> None:
+        anime_promo = "TV\u30a2\u30cb\u30e1\u7d76\u8cdb\u653e\u9001\u4e2d"
+        credit_line = "\u6f2b\u753b\u539f\u4f5c\u5358\u884c\u672c"
+        dialogue = "\u3048\u30fc\u6016\u305d\u30fc!"
+
+        self.assertTrue(is_ctd_horizontal_metadata(horizontal_block(anime_promo), anime_promo))
+        self.assertTrue(is_ctd_horizontal_metadata(horizontal_block(credit_line), credit_line))
+        self.assertFalse(is_ctd_horizontal_metadata(horizontal_block(dialogue), dialogue))
+        self.assertFalse(is_ctd_horizontal_metadata(vertical_block(anime_promo), anime_promo))
 
     def test_unusable_translation_and_fallback_rules(self) -> None:
         self.assertEqual(unusable_translation_reason("母", "", translator_name="qwen"), "empty_translation")
