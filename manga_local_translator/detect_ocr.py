@@ -11,7 +11,12 @@ from PIL import Image
 from .detect_types import TextBlock
 from .logging_utils import shorten
 from .tesseract_utils import find_tesseract, tesseract_missing_message
-from .text_filter import is_ctd_horizontal_metadata, normalize_for_filter
+from .text_filter import (
+    is_ctd_horizontal_metadata,
+    is_ctd_horizontal_metadata_geometry,
+    is_ctd_vertical_edge_metadata_geometry,
+    normalize_for_filter,
+)
 
 logger = logging.getLogger(__name__)
 _MANGA_OCR = None
@@ -197,6 +202,23 @@ def recognize_with_manga_ocr(
             continue
         if is_ctd_horizontal_metadata(block, normalize_for_filter(refined_text)):
             logger.debug("Skipping horizontal metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_ctd_horizontal_metadata_geometry(
+            block,
+            normalize_for_filter(refined_text),
+            image_width=width,
+            image_height=height,
+            image_area=width * height,
+        ):
+            logger.debug("Skipping horizontal metadata geometry manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_ctd_vertical_edge_metadata_geometry(
+            block,
+            normalize_for_filter(refined_text),
+            image_width=width,
+            image_height=height,
+        ):
+            logger.debug("Skipping vertical edge metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
         if is_repeated_kana_sfx_ctd_block(block, text=refined_text):
             logger.debug("Skipping repeated kana SFX manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))

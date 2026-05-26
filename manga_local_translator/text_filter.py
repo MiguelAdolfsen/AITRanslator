@@ -36,7 +36,7 @@ def filter_text_blocks(
     image_area = max(1, width * height)
 
     for block in blocks:
-        reason = skip_reason(block, image_area=image_area)
+        reason = skip_reason(block, image_area=image_area, image_width=width, image_height=height)
         if reason:
             logger.info(
                 "Skipping OCR block: reason=%s box=%s confidence=%.2f text=%s",
@@ -54,7 +54,13 @@ def filter_text_blocks(
     return kept, skipped
 
 
-def skip_reason(block: TextBlock, *, image_area: int) -> str | None:
+def skip_reason(
+    block: TextBlock,
+    *,
+    image_area: int,
+    image_width: int | None = None,
+    image_height: int | None = None,
+) -> str | None:
     text = normalize_for_filter(block.text)
     if not text:
         return "empty"
@@ -73,6 +79,22 @@ def skip_reason(block: TextBlock, *, image_area: int) -> str | None:
         return "single_character_fragment"
     if is_ctd_horizontal_metadata(block, text):
         return "horizontal_metadata_or_promo"
+    if image_width is not None and image_height is not None:
+        if is_ctd_horizontal_metadata_geometry(
+            block,
+            text,
+            image_width=image_width,
+            image_height=image_height,
+            image_area=image_area,
+        ):
+            return "horizontal_metadata_geometry"
+        if is_ctd_vertical_edge_metadata_geometry(
+            block,
+            text,
+            image_width=image_width,
+            image_height=image_height,
+        ):
+            return "vertical_edge_metadata_geometry"
     if kanji_count == 0 and kana_count <= 2 and japanese_count == kana_count:
         if getattr(block, "detector", "") == "ctd" and (has_dialogue_punctuation(text) or is_known_short_kana_reaction(text)):
             return None
@@ -114,6 +136,76 @@ def is_ctd_horizontal_metadata(block: TextBlock, text: str) -> bool:
     if _CHAPTER_OR_DATE_PATTERN.search(text) or _PROMO_METADATA_PATTERN.search(text):
         return True
     return sum(term in text for term in _CREDIT_METADATA_TERMS) >= 2
+
+
+def is_ctd_horizontal_metadata_geometry(
+    block: TextBlock,
+    text: str,
+    *,
+    image_width: int,
+    image_height: int,
+    image_area: int,
+) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if bool(metadata.get("vertical")):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    area_ratio = (block_width * block_height) / max(1, image_area)
+    text_len = len(text)
+    has_punctuation = has_dialogue_punctuation(text)
+
+    if metadata.get("language") == "unknown":
+        if block_height <= max(14, int(image_height * 0.015)) and text_len <= 8 and not has_punctuation:
+            return True
+        if (
+            area_ratio >= 0.018
+            and text_len <= 6
+            and (
+                y1 >= image_height * 0.70
+                or x1 <= image_width * 0.08
+                or x2 >= image_width * 0.92
+            )
+            and not has_punctuation
+        ):
+            return True
+
+    return (
+        y1 >= image_height * 0.92
+        and block_height <= image_height * 0.06
+        and text_len <= 4
+        and not has_punctuation
+    )
+
+
+def is_ctd_vertical_edge_metadata_geometry(
+    block: TextBlock,
+    text: str,
+    *,
+    image_width: int,
+    image_height: int,
+) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    touches_outer_edge = x1 <= image_width * 0.015 or x2 >= image_width * 0.985
+    has_decorative_marker = any(marker in text for marker in ("\u266a", "\u2606", "\u2605"))
+    return (
+        touches_outer_edge
+        and block_width <= max(30, image_width * 0.04)
+        and block_height >= image_height * 0.12
+        and has_decorative_marker
+    )
 
 
 def count_japanese_chars(text: str) -> int:
