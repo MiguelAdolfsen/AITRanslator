@@ -8,6 +8,20 @@ Scope: detection, OCR crop preparation, OCR acceptance, text filtering, grouping
 
 Frozen benchmark rule: during optimization, do not modify benchmark cases, labels, scoring, templates, result-log schema, or existing result rows.
 
+Anti-overfit rule: do not improve benchmark scores by matching exact frozen-page text, exact OCR mistakes, page numbers, source folders, comic titles, character names, known benchmark coordinates, or one-off benchmark layouts. Extraction rules must be explainable by generic OCR/detector evidence such as script class, punctuation class, confidence, orientation, line geometry, connected text-region structure, crop quality, or repeated behavior across unrelated pages.
+
+Do not add source-specific OCR rewrite maps in source extraction code. Examples of forbidden patterns:
+
+```text
+exact Japanese phrase -> corrected Japanese phrase
+exact OCR-garbled string -> expected benchmark label
+page-id/filename/folder checks
+coordinate-only filters that suppress text because it appears at a known page edge
+single-character/name/SFX suppressions that depend on one benchmark failure
+```
+
+Allowed cleanup must be generic and auditable. For example, whitespace normalization, punctuation normalization, confidence thresholds, shape/script-based SFX filters, metadata filters based on actual metadata/credit language, and crop changes based on CTD line polygons are acceptable when covered by tests and real-page benchmarks.
+
 Required setup:
 
 ```powershell
@@ -139,7 +153,8 @@ Keep a change only if:
 7. overmerge_count and undermerge_count do not increase together,
 8. reading_order_error_count does not increase by more than 2%,
 9. orientation_error_count does not increase,
-10. the improvement did not come from editing benchmark/scoring/logging files.
+10. the improvement did not come from editing benchmark/scoring/logging files,
+11. the improvement did not come from exact source-text rewrites, benchmark-specific phrase corrections, page/folder checks, or coordinate-only suppressions.
 ```
 
 Otherwise revert the experiment change and append a failed result row. Every benchmark run appends exactly one row to `results/results.tsv`.

@@ -20,6 +20,13 @@ Current benchmark guidance:
 - `source_extraction_score` is quality-only. `p95_extraction_ms_per_page` and `timing_score_component` are tie-breakers, not primary score components.
 - Decision runs are strict: no adapter-smoke, no draft benchmarks, no skipped validation, no dirty forbidden files, and tests must be run by the harness or supplied by the matrix test context.
 
+Anti-overfit guidance:
+- Do not add exact Japanese phrase rewrites or exact OCR-error corrections to source extraction code.
+- Do not use page IDs, file/folder names, manga titles, character names, or known benchmark coordinates as extraction conditions.
+- Do not suppress a region only because it sits at a known page edge or has the same rough geometry as one benchmark false positive.
+- Any kept filter must be explainable by generic detector/OCR evidence: script class, punctuation class, line polygons, orientation, confidence, metadata/credit language, repeated glyph structure, or crop quality.
+- A score improvement that depends on one frozen-page phrase or one exact failure row must be reverted even if the numeric score improves.
+
 Only create a v2 draft scaffold when adding new real pages. After those pages are manually reviewed and copied into a frozen case, remove the draft folder from `benchmarks/cases/`:
 
 ```powershell

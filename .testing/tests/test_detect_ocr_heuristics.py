@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from manga_local_translator.detect_ocr import (
     ctd_line_union_crop_box,
@@ -27,6 +28,25 @@ def block(
 
 
 class DetectOcrHeuristicTests(unittest.TestCase):
+    def test_no_exact_benchmark_rewrite_helpers_return(self) -> None:
+        source = Path("manga_local_translator/detect_ocr.py").read_text(encoding="utf-8")
+
+        forbidden_fragments = [
+            "fix_common_phrase_ocr_text",
+            "is_bottom_left_short_horizontal_ctd_block",
+            "is_bottom_edge_short_horizontal_ctd_block",
+            "is_small_horizontal_credit_ctd_block",
+            "is_left_edge_vertical_metadata_ctd_block",
+            "is_compact_horizontal_sfx_ctd_block",
+            "友達しゃなく",
+            "この文化祭",
+            "休憩時間",
+            "二つの告白",
+        ]
+        for fragment in forbidden_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertNotIn(fragment, source)
+
     def test_normalize_ocr_text_only_removes_spacing(self) -> None:
         self.assertEqual(normalize_ocr_text("\u53cb \u9054\u3057\u3083\u306a\u304f"), "\u53cb\u9054\u3057\u3083\u306a\u304f")
         self.assertEqual(normalize_ocr_text("\u3053\u306e\u6587\u5316\u796d..."), "\u3053\u306e\u6587\u5316\u796d...")
