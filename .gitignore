@@ -10,8 +10,9 @@ manga_translator_debug-*.log
 .testing/output/
 quality-runs/
 .testing/input/
-work/
+.testing/work/
 mangafolder/
 render_autoresearch/
 translation_routing_autoresearch/
 labeler/
+autoresearch_docs/
