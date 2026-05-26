@@ -2,20 +2,20 @@
   "schema_version": 1,
   "benchmark_set": "cases/local_real_diverse_v2_frozen",
   "benchmark_fingerprint": "c0051f6603cb49ac72b3a59dcf1938640f316af143a3a7c3229342961a76595f",
-  "best_run_id": "matrix_20260526_092037_v2",
-  "best_score": 316.92522,
-  "best_commit": "441272c2cf739a4f2990672b1f88b7401cd3798e",
+  "best_run_id": "matrix_20260526_092758_v2",
+  "best_score": 313.10322,
+  "best_commit": "f5079f048b34b65320468a2722d6cd9433726ae2",
   "best_sort_key": [
-    316.92522,
+    313.10322,
     1,
     1,
-    0.011432,
+    0.010886,
     1,
     9,
-    3273.4088,
+    6850.70225,
     2
   ],
   "best_row_timestamp": "2026-05-26T06:07:10.333364+00:00",
-  "updated_at": "2026-05-26T09:21:34.909839+00:00",
+  "updated_at": "2026-05-26T09:29:48.735430+00:00",
   "notes": "Per-benchmark best; smoke and draft benchmarks are excluded. Timing is a tie-breaker."
 }

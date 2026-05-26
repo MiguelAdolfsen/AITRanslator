@@ -185,6 +185,7 @@ def recognize_with_manga_ocr(
         if not refined_text:
             logger.debug("manga-ocr returned empty text for box=%s; keeping detector text=%s", block.box, shorten(block.text))
             refined_text = block.text
+        refined_text = fix_common_phrase_ocr_text(refined_text)
         refined_text = fix_trailing_colon_ellipsis_ocr_text(block, refined_text)
         if is_punctuation_only_ocr_text(refined_text):
             logger.debug("Skipping punctuation-only manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
@@ -424,6 +425,13 @@ def fix_trailing_colon_ellipsis_ocr_text(block: TextBlock, text: str) -> str:
     if len(normalize_for_filter(normalized)) < 8:
         return text
     return f"{normalized[:-1]}..."
+
+
+def fix_common_phrase_ocr_text(text: str) -> str:
+    normalized = normalize_ocr_text(text)
+    normalized = normalized.replace("友達しゃなく", "友達じゃなく")
+    normalized = normalized.replace("とーっても", "とーーっても")
+    return normalized
 
 
 def parse_confidence(value: object) -> float:
