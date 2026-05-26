@@ -77,6 +77,7 @@ RESULT_HEADER = [
     "accepted_overlong_fragment_count",
     "accepted_repetitive_count",
     "accepted_explanatory_output_count",
+    "accepted_fragment_shape_warning_count",
     "empty_output_count",
     "verbose_output_count",
     "model_error_count",

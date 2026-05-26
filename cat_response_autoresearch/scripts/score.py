@@ -15,6 +15,7 @@ WEIGHTS = {
     "accepted_overlong_fragment": 4500,
     "accepted_repetitive": 3500,
     "accepted_explanatory_output": 2500,
+    "accepted_fragment_shape_warning": 1800,
     "false_reject": 3000,
     "empty_output": 2000,
     "verbose_output": 1000,
@@ -65,6 +66,8 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: dict[str
         violations.append("accepted_repetitive")
     if accepted and contains_explanatory_output(raw):
         violations.append("accepted_explanatory_output")
+    if accepted and has_fragment_shape_warning(case, final):
+        violations.append("accepted_fragment_shape_warning")
     if accepted and looks_verbose(case, final, reference):
         violations.append("verbose_output")
     if expected_accept and not accepted:
@@ -246,6 +249,57 @@ def contains_explanatory_output(text: str) -> bool:
             flags=re.IGNORECASE,
         )
     )
+
+
+def has_fragment_shape_warning(case: dict[str, Any], output: str) -> bool:
+    source = str(case.get("source_text", "") or "")
+    source_type = str(case.get("source_type", "") or "")
+    text = str(output or "").strip()
+    normalized = normalize_latin_output(text)
+    fragment_types = {"ellipsis_fragment", "short_fragment", "punctuation_fragment", "interrupted_speech"}
+    if source_type in fragment_types and looks_like_dangling_fragment(text):
+        return True
+    if source_type in fragment_types and looks_like_unbacked_apology(source, text):
+        return True
+    if source_type == "sfx" and normalized in ROMAJI_SFX_OUTPUTS:
+        return True
+    return False
+
+
+ROMAJI_SFX_OUTPUTS = {
+    "doki doki",
+    "dokidoki",
+    "doki-doki",
+    "ku",
+    "kusu",
+    "pika",
+    "goro",
+    "gacha",
+    "zawa",
+    "paku",
+}
+
+
+def normalize_latin_output(text: str) -> str:
+    stripped = str(text).strip().lower()
+    stripped = stripped.replace("'", "")
+    stripped = re.sub(r"[.!?。！？\"“”]+$", "", stripped)
+    stripped = re.sub(r"\s+", " ", stripped)
+    return stripped
+
+
+def looks_like_dangling_fragment(text: str) -> bool:
+    stripped = str(text).strip()
+    if not stripped.endswith(","):
+        return False
+    words = re.findall(r"[A-Za-z']+", stripped)
+    return 1 <= len(words) <= 4 and len(stripped) <= 40
+
+
+def looks_like_unbacked_apology(source: str, output: str) -> bool:
+    if re.search(r"^(?:i'?m sorry|sorry|apologies)\b", str(output).strip(), flags=re.IGNORECASE) is None:
+        return False
+    return not re.search(r"(ごめん|すみません|すまん|申し訳|悪い|謝)", str(source))
 
 
 def contains_prompt_fragment(text: str) -> bool:

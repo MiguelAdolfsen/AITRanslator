@@ -60,6 +60,7 @@ cat_quality_score =
 +  4500 * accepted_overlong_fragment_rate
 +  3500 * accepted_repetitive_rate
 +  2500 * accepted_explanatory_output_rate
++  1800 * accepted_fragment_shape_warning_rate
 +  3000 * false_reject_rate
 +  2000 * empty_output_rate
 +  1000 * verbose_output_rate
@@ -72,3 +73,5 @@ cat_quality_score =
 Hard failures include accepted prompt chatter, accepted Japanese leakage, accepted prompt/schema fragments, source mutation, malformed fixtures, model crash, invalid JSON artifacts, or benchmark/scoring edits during optimization.
 
 Category reporting is mandatory. A global score improvement is not enough if one source category gets worse without a clear compensating hard-failure reduction.
+
+Fragment-shape warnings are weak accepts, not hard failures. They catch generic bad shapes such as dangling comma fragments, unbacked apology phrasing on non-apology sources, and romanized SFX where translated SFX is expected.

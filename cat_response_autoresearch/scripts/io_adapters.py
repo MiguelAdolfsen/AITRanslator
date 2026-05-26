@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -76,6 +77,20 @@ def build_answer_only_prompt(source_text: str) -> str:
     )
 
 
+def should_use_answer_only_primary(source_text: str, japanese_count: int, source_is_noisy: bool) -> bool:
+    text = str(source_text).strip()
+    if source_is_noisy or japanese_count <= 0:
+        return False
+    if any(char in text for char in "。！？!?、，．.…‥―—ー「」『』（）()[]【】"):
+        return False
+    if re.search(r"(?:さん|くん|ちゃん|様|先生)$", text):
+        return False
+    if re.fullmatch(r"[\u3040-\u30ff\u31f0-\u31ff]+", text):
+        return False
+    has_kanji = bool(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff]", text))
+    return (japanese_count > 5 and has_kanji) or (has_kanji and text.endswith("な"))
+
+
 def load_fake_outputs(path: Path | None) -> dict[str, str]:
     if path is None:
         return {}
@@ -111,7 +126,12 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
 
     fake_outputs = fake_outputs or {}
     source_text = str(case.get("source_text", ""))
-    prompt = build_prompt(source_text, profile)
+    source_is_noisy = has_noisy_credit_markers(source_text)
+    source_japanese_count = count_japanese_chars_local(source_text)
+    if should_use_answer_only_primary(source_text, source_japanese_count, source_is_noisy):
+        prompt = build_answer_only_prompt(source_text)
+    else:
+        prompt = build_prompt(source_text, profile)
     started = time.perf_counter()
     model_error = ""
     retried = False
@@ -119,6 +139,28 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
     primary_cleaned = ""
     primary_final = ""
     primary_reject_reason = ""
+    if source_is_noisy:
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        return {
+            "case_id": case.get("case_id"),
+            "source_text": source_text,
+            "profile_name": profile.get("name", "custom"),
+            "profile_hash": profile_hash(profile),
+            "backend": "source_guard",
+            "model": "",
+            "prompt": prompt,
+            "raw_output": "",
+            "cleaned_output": "",
+            "final_output": "",
+            "reject_reason": "cat_source_metadata_or_noise",
+            "retried": False,
+            "primary_raw_output": "",
+            "primary_cleaned_output": "",
+            "primary_final_output": "",
+            "primary_reject_reason": "cat_source_metadata_or_noise",
+            "model_error": "",
+            "latency_ms": round(latency_ms, 3),
+        }
     if str(case["case_id"]) in fake_outputs:
         raw = fake_outputs[str(case["case_id"])]
         backend = "fake"
@@ -140,7 +182,7 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
     primary_cleaned = cleaned
     primary_final = final
     primary_reject_reason = reject_reason or ""
-    should_retry = bool(reject_reason)
+    should_retry = bool(reject_reason) and not source_is_noisy
     if should_retry and not model_error and str(case["case_id"]) not in fake_outputs:
         retry_prompt = build_prompt(source_text, profile, retry=True)
         try:
@@ -170,7 +212,7 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
         reject_reason
         and not model_error
         and str(case["case_id"]) not in fake_outputs
-        and not has_noisy_credit_markers(source_text)
+        and not source_is_noisy
     ):
         answer_only_prompt = build_answer_only_prompt(source_text)
         try:
@@ -204,8 +246,8 @@ def run_cat_case(case: dict[str, Any], profile: dict[str, Any], *, fake_outputs:
         reject_reason
         and not model_error
         and str(case["case_id"]) not in fake_outputs
-        and count_japanese_chars_local(source_text) > 5
-        and not has_noisy_credit_markers(source_text)
+        and source_japanese_count > 5
+        and not source_is_noisy
     ):
         fallback_prompt = BUILTIN_PROFILES["official"]["prompt_template"].format(source_text=source_text)
         try:

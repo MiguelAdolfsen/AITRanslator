@@ -116,12 +116,32 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             },
             reference,
         )
+        dangling = score_case(case, {"raw_output": "such,", "final_output": "such,", "reject_reason": ""}, reference)
+        unbacked_apology = score_case(
+            {"case_id": "case-2", "source_text": "残念な", "source_type": "short_fragment"},
+            {"raw_output": "I'm sorry about that.", "final_output": "I'm sorry about that.", "reject_reason": ""},
+            reference,
+        )
+        sfx_romaji = score_case(
+            {"case_id": "case-3", "source_text": "ドキドキ", "source_type": "sfx"},
+            {"raw_output": "Dokidoki", "final_output": "Dokidoki", "reject_reason": ""},
+            reference,
+        )
+        real_apology = score_case(
+            {"case_id": "case-4", "source_text": "ごめん", "source_type": "short_fragment"},
+            {"raw_output": "Sorry.", "final_output": "Sorry.", "reject_reason": ""},
+            reference,
+        )
 
         self.assertIn("accepted_prompt_chatter", chatter["violations"])
         self.assertIn("accepted_japanese_leakage", japanese["violations"])
         self.assertIn("accepted_prompt_fragment", prompt["violations"])
         self.assertIn("false_reject", rejected["violations"])
         self.assertIn("accepted_explanatory_output", explanatory["violations"])
+        self.assertIn("accepted_fragment_shape_warning", dangling["violations"])
+        self.assertIn("accepted_fragment_shape_warning", unbacked_apology["violations"])
+        self.assertIn("accepted_fragment_shape_warning", sfx_romaji["violations"])
+        self.assertNotIn("accepted_fragment_shape_warning", real_apology["violations"])
         self.assertEqual(chatter["outcome_class"], "unsafe_accept")
         self.assertEqual(rejected["outcome_class"], "false_reject")
         self.assertEqual(explanatory["outcome_class"], "weak_accept")
