@@ -18,6 +18,7 @@ from cat_response_autoresearch.scripts.serve_dashboard import dashboard_state  #
 from cat_response_autoresearch.scripts.io_adapters import build_prompt, find_harness_cat_gguf, load_profile, profile_hash  # noqa: E402
 from cat_response_autoresearch.scripts.score import score_case, summarize_metrics  # noqa: E402
 from cat_response_autoresearch.scripts.validate_fixtures import validate_benchmark  # noqa: E402
+from manga_local_translator.hf_translators import build_cat_prompt, cat_num_predict  # noqa: E402
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -146,6 +147,40 @@ class CatResponseAutoresearchTests(unittest.TestCase):
         self.assertEqual(rejected["outcome_class"], "false_reject")
         self.assertEqual(explanatory["outcome_class"], "weak_accept")
         self.assertTrue(summarize_metrics([chatter])["hard_failure"])
+
+    def test_scoring_catches_semantic_required_and_forbidden_terms(self) -> None:
+        case = {
+            "case_id": "semantic-1",
+            "source_text": "あっちはうんこだ。",
+            "source_type": "semantic_trap",
+        }
+        reference = {
+            "case_id": "semantic-1",
+            "expected_decision": "accept",
+            "forbidden_patterns": [],
+            "forbidden_meaning_terms": ["dog"],
+            "required_meaning_terms": ["poop|shit|crap"],
+            "allowed_japanese_output": False,
+            "max_chars": 80,
+            "max_words": 12,
+        }
+
+        wrong = score_case(
+            case,
+            {"raw_output": "The other side is a dog.", "final_output": "The other side is a dog.", "reject_reason": ""},
+            reference,
+        )
+        right = score_case(
+            case,
+            {"raw_output": "That side is crap.", "final_output": "That side is crap.", "reject_reason": ""},
+            reference,
+        )
+
+        self.assertIn("accepted_forbidden_meaning_term", wrong["violations"])
+        self.assertIn("accepted_required_meaning_missing", wrong["violations"])
+        self.assertEqual(wrong["outcome_class"], "unsafe_accept")
+        self.assertEqual(right["violations"], [])
+        self.assertTrue(right["approved"])
 
     def test_category_metrics_make_low_category_a_hard_failure(self) -> None:
         rows = [
@@ -342,6 +377,13 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             "Translate the following Japanese text into English.\n\n母",
         )
 
+    def test_production_profile_uses_production_cat_prompt_and_token_cap(self) -> None:
+        profile = load_profile("production")
+
+        self.assertEqual(build_prompt("母", profile), build_cat_prompt("母"))
+        self.assertEqual(build_prompt("母", profile, retry=True), build_cat_prompt("母", retry=True))
+        self.assertEqual(profile["num_predict"], cat_num_predict())
+
     def test_eval_fake_outputs_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -436,6 +478,37 @@ class CatResponseAutoresearchTests(unittest.TestCase):
                 if line.strip()
             ]
             self.assertEqual(len(raw_rows), 4)
+
+    def test_real_mined_fixtures_validate_and_fake_smoke_runs(self) -> None:
+        for benchmark_name in ("real_mined", "real_mined_holdout"):
+            benchmark = REPO_ROOT / "cat_response_autoresearch" / "benchmarks" / benchmark_name
+            with self.subTest(benchmark=benchmark_name):
+                self.assertEqual(validate_benchmark(benchmark), [])
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    output = Path(temp_dir) / "run"
+                    results = Path(temp_dir) / "results.tsv"
+                    with redirect_stdout(StringIO()):
+                        code = eval_cat_responses.main(
+                            [
+                                "--benchmark",
+                                str(benchmark),
+                                "--output",
+                                str(output),
+                                "--results",
+                                str(results),
+                                "--run-id",
+                                f"{benchmark_name}-fake",
+                                "--fake-outputs",
+                                str(benchmark / "fake_outputs.jsonl"),
+                                "--repeats",
+                                "1",
+                                "--no-update-best",
+                            ]
+                        )
+                    self.assertEqual(code, 0)
+                    summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+                    self.assertEqual(summary["metrics"]["cat_approval_rate"], 1.0)
+                    self.assertIn("production_cat", summary)
 
     def test_dashboard_state_reads_results_best_and_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

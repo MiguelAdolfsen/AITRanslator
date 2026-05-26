@@ -12,6 +12,8 @@ WEIGHTS = {
     "accepted_schema_fragment": 10000,
     "source_text_mutation": 9000,
     "accepted_forbidden_pattern": 7000,
+    "accepted_forbidden_meaning_term": 7000,
+    "accepted_required_meaning_missing": 6500,
     "accepted_overlong_fragment": 4500,
     "accepted_repetitive": 3500,
     "accepted_explanatory_output": 2500,
@@ -31,6 +33,8 @@ HARD_VIOLATIONS = {
     "accepted_schema_fragment",
     "source_text_mutation",
     "accepted_forbidden_pattern",
+    "accepted_forbidden_meaning_term",
+    "accepted_required_meaning_missing",
     "model_error",
 }
 
@@ -60,6 +64,12 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: dict[str
         violations.append("accepted_schema_fragment")
     if accepted and forbidden_pattern_present(final, reference.get("forbidden_patterns", [])):
         violations.append("accepted_forbidden_pattern")
+    forbidden_meaning = forbidden_meaning_present(final, reference.get("forbidden_meaning_terms", []))
+    required_missing = missing_required_meaning(final, reference.get("required_meaning_terms", []))
+    if accepted and forbidden_meaning:
+        violations.append("accepted_forbidden_meaning_term")
+    if accepted and required_missing:
+        violations.append("accepted_required_meaning_missing")
     if accepted and output_too_long_for_case(case, final, reference):
         violations.append("accepted_overlong_fragment")
     if accepted and looks_repetitive(final):
@@ -103,6 +113,9 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: dict[str
         "raw_output": raw,
         "final_output": final,
         "reject_reason": reject_reason,
+        "required_meaning_terms": reference.get("required_meaning_terms", []),
+        "forbidden_meaning_terms": reference.get("forbidden_meaning_terms", []),
+        "semantic_meaning_failed": bool(accepted and (forbidden_meaning or required_missing)),
         "violations": unique,
         "latency_ms": round(latency_ms, 3),
         "case_quality_score": round(case_quality_score, 6),
@@ -327,6 +340,43 @@ def forbidden_pattern_present(output: str, patterns: Any) -> bool:
     if not isinstance(patterns, list):
         return False
     return any(str(pattern) and re.search(re.escape(str(pattern)), output, flags=re.IGNORECASE) for pattern in patterns)
+
+
+def forbidden_meaning_present(output: str, terms: Any) -> bool:
+    if not isinstance(terms, list):
+        return False
+    return any(term_group_present(output, term) for term in terms)
+
+
+def missing_required_meaning(output: str, terms: Any) -> bool:
+    if not isinstance(terms, list):
+        return False
+    return any(not term_group_present(output, term) for term in terms)
+
+
+def term_group_present(output: str, term_group: Any) -> bool:
+    alternatives: list[str]
+    if isinstance(term_group, list):
+        alternatives = [str(item) for item in term_group]
+    else:
+        alternatives = [part.strip() for part in str(term_group).split("|")]
+    return any(term_present(output, alternative) for alternative in alternatives if alternative)
+
+
+def term_present(output: str, term: str) -> bool:
+    normalized_output = normalize_semantic_text(output)
+    normalized_term = normalize_semantic_text(term)
+    if not normalized_term:
+        return False
+    if re.fullmatch(r"[a-z0-9 ]+", normalized_term):
+        return bool(re.search(rf"(?<![a-z0-9]){re.escape(normalized_term)}(?![a-z0-9])", normalized_output))
+    return normalized_term in normalized_output
+
+
+def normalize_semantic_text(text: str) -> str:
+    lowered = str(text).lower().replace("-", " ").replace("_", " ")
+    lowered = re.sub(r"[^a-z0-9\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff]+", " ", lowered)
+    return re.sub(r"\s+", " ", lowered).strip()
 
 
 def output_too_long_for_case(case: dict[str, Any], output: str, reference: dict[str, Any]) -> bool:

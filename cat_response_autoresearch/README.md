@@ -46,6 +46,19 @@ After a profile is kept on the main benchmark, run the locked holdout as a sanit
 
 Do not run holdout for every failed experiment. It is a confirmation step for a kept/improved profile, and it should not become the optimization target.
 
+The real-mined benchmark targets failures found in full manga runs: honorific/name drift, short fragments, semantic traps, and OCR metadata/noise. Run it after the synthetic benchmark when testing CAT prompt or validation changes:
+
+```powershell
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined `
+  --output cat_response_autoresearch\runs\real_mined_current `
+  --results cat_response_autoresearch\results\results.tsv `
+  --run-id real_mined_current `
+  --profile production
+```
+
+After a kept real-mined improvement, run `benchmarks\real_mined_holdout` with `--no-update-best`. Do not tune directly against the holdout.
+
 For a harness smoke test without loading CAT:
 
 ```powershell
@@ -66,3 +79,5 @@ This loop may experiment with CAT prompt profiles, bounded output settings, retr
 Each run writes `comparison.md` next to `human_review.md` to summarize deltas against the current best run. Keep decisions should still inspect failures and per-category metrics, not only the global score.
 
 `human_review.md` also reports retry dependence. A 100% approval run is stronger when most accepted lines are clean primary CAT outputs instead of retry rescues.
+
+Real-mined references may include `required_meaning_terms` and `forbidden_meaning_terms`. These are generic semantic guards, not exact expected translations.

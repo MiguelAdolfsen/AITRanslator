@@ -118,7 +118,10 @@ class CatTranslatorTests(unittest.TestCase):
         self.assertEqual(clean_cat_output('English: "Hello."'), "Hello.")
 
     def test_cat_prompts_use_short_default_and_source_only_retry(self) -> None:
-        self.assertEqual(build_cat_prompt("\u6bcd"), "Translate the following Japanese text into English.\n\n\u6bcd")
+        self.assertEqual(
+            build_cat_prompt("\u6bcd"),
+            'Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, or continue the scene. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
+        )
         self.assertEqual(build_cat_prompt("\u6bcd", retry=True), "Japanese:\n\u6bcd\n\nEnglish:")
         self.assertEqual(
             build_cat_prompt("\u6bcd", retry=True, retry_variant="incomplete_fragment"),
@@ -131,7 +134,7 @@ class CatTranslatorTests(unittest.TestCase):
         with patch.dict("os.environ", {"MANGA_CAT_NUM_PREDICT": "2"}):
             self.assertEqual(cat_num_predict(), 16)
         with patch.dict("os.environ", {"MANGA_CAT_NUM_PREDICT": "bad"}):
-            self.assertEqual(cat_num_predict(), 128)
+            self.assertEqual(cat_num_predict(), 48)
 
     def test_cat_second_retry_is_enabled_by_default_with_env_disable(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
@@ -186,6 +189,13 @@ class CatTranslatorTests(unittest.TestCase):
             "cat_prompt_fragment",
         )
         self.assertEqual(cat_reject_reason("\u6bcd", "Here's a short English fragment: Indeed...!"), "cat_chatter")
+        self.assertEqual(
+            cat_reject_reason(
+                "\u6bcd",
+                'Sure, here\'s a translation of your Japanese sentence: "Mother."',
+            ),
+            "cat_chatter",
+        )
         self.assertEqual(cat_reject_reason("\u6bcd", "Return only a short English fragment. Do not explain."), "cat_prompt_fragment")
         self.assertEqual(
             cat_reject_reason("\u6bcd", "William " * 12),
@@ -197,6 +207,19 @@ class CatTranslatorTests(unittest.TestCase):
             "母",
             "母",
             "I don't see any Japanese text here.",
+            None,
+        )
+
+        self.assertEqual(cleaned, "")
+        self.assertEqual(final, "")
+        self.assertEqual(reason, "cat_chatter")
+
+    def test_finalize_cat_translation_rejects_assistant_translation_chatter(self) -> None:
+        source = "\u5fc5\u305a\u3001\u4eba\u6c17\u526f\u4f5c\uff23\u30ab\u30e9\u30fc\uff01\uff01\u3042\u306a\u305f\u3092\u3057\u305d\u306e\u601d\u3044\u51fa\u3055\u305b\u3066\u3001\u5f7c\u306f\u304d\u3063\u3068\u5f37\u304f\u306a\u308b\u3088\u3046\u306a\u6c17\u6301\u3061\u3060\u3002"
+        cleaned, final, reason = finalize_cat_translation(
+            source,
+            source,
+            'Sure, here\'s a translation of your Japanese sentence:\n\n"I definitely want to make you remember that color! It will surely give him the strength he needs."',
             None,
         )
 

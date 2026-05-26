@@ -31,6 +31,7 @@ VALID_SOURCE_TYPES = {
     "credits_or_metadata",
     "metadata_or_noise",
     "narration",
+    "semantic_trap",
 }
 
 
@@ -94,6 +95,8 @@ def validate_benchmark(benchmark: Path) -> list[str]:
             errors.append(f"{cases_path}: {cid}: missing {missing}")
         if not isinstance(row.get("risk_labels"), list):
             errors.append(f"{cases_path}: {cid}: risk_labels must be a list")
+        if "real_mined" in benchmark.name and not str(row.get("notes", "")).strip():
+            errors.append(f"{cases_path}: {cid}: real-mined cases must include a generic anti-overfit note")
         source_type = str(row.get("source_type", "") or "")
         if source_type not in VALID_SOURCE_TYPES:
             errors.append(f"{cases_path}: {cid}: unknown source_type {source_type!r}")
@@ -108,9 +111,21 @@ def validate_benchmark(benchmark: Path) -> list[str]:
         decision = str(row.get("expected_decision", "") or "")
         if decision not in VALID_DECISIONS:
             errors.append(f"{refs_path}: {cid}: expected_decision must be accept or reject")
-        for key in ("forbidden_patterns", "acceptable_outputs", "must_preserve_terms"):
+        for key in (
+            "forbidden_patterns",
+            "acceptable_outputs",
+            "must_preserve_terms",
+            "required_meaning_terms",
+            "forbidden_meaning_terms",
+        ):
             if key in row and not isinstance(row.get(key), list):
                 errors.append(f"{refs_path}: {cid}: {key} must be a list")
+        for key in ("required_meaning_terms", "forbidden_meaning_terms"):
+            for index, item in enumerate(row.get(key, []) if isinstance(row.get(key), list) else []):
+                if not isinstance(item, (str, list)):
+                    errors.append(f"{refs_path}: {cid}: {key}[{index}] must be a string or list of alternatives")
+                if isinstance(item, list) and not all(isinstance(part, str) for part in item):
+                    errors.append(f"{refs_path}: {cid}: {key}[{index}] alternatives must be strings")
         for key in ("max_chars", "max_words"):
             try:
                 value = int(row.get(key))

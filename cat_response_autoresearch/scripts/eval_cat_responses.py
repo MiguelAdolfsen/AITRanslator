@@ -74,6 +74,8 @@ RESULT_HEADER = [
     "accepted_schema_fragment_count",
     "source_text_mutation_count",
     "accepted_forbidden_pattern_count",
+    "accepted_forbidden_meaning_term_count",
+    "accepted_required_meaning_missing_count",
     "accepted_overlong_fragment_count",
     "accepted_repetitive_count",
     "accepted_explanatory_output_count",
@@ -255,8 +257,17 @@ def write_human_review(path: Path, per_case: list[dict[str, Any]], raw_outputs: 
         f"- Retry rate: **{metrics.get('retry_rate', 0)}** ({metrics.get('retried_count', 0)} / {metrics.get('evaluations_total', metrics.get('cases_total', 0))})",
         f"- Retry rescued accepts: **{metrics.get('retry_rescued_accept_count', 0)}**",
         f"- Retry wasted safe rejects: **{metrics.get('retry_wasted_safe_reject_count', 0)}**",
+        f"- Semantic failures: **{metrics.get('accepted_required_meaning_missing_count', 0)}** missing required, **{metrics.get('accepted_forbidden_meaning_term_count', 0)}** forbidden terms",
         f"- Hard failure: **{metrics.get('hard_failure')}**",
         f"- Low categories: **{metrics.get('low_categories', '') or 'none'}**",
+        "",
+        "## Production Promotion Readiness",
+        "",
+        f"- Approval target met: **{float(metrics.get('cat_approval_rate', 0) or 0) >= 0.90}**",
+        f"- Zero semantic trap failures: **{int(metrics.get('accepted_required_meaning_missing_count', 0) or 0) == 0 and int(metrics.get('accepted_forbidden_meaning_term_count', 0) or 0) == 0}**",
+        f"- Zero false rejects: **{int(metrics.get('false_reject_count', 0) or 0) == 0}**",
+        f"- Retry dependence: **{metrics.get('retry_rate', 0)}**",
+        f"- Holdout status: **run separately after a kept main improvement**",
         "",
         "## Category Metrics",
         "",
@@ -298,7 +309,7 @@ def write_human_review(path: Path, per_case: list[dict[str, Any]], raw_outputs: 
                 repeat=escape_md(str(row.get("repeat_index", ""))),
                 outcome=escape_md(str(row.get("outcome_class", ""))),
                 source_type=escape_md(str(row.get("source_type", ""))),
-                violations=escape_md(", ".join(str(v) for v in row.get("violations", []))),
+                violations=escape_md(format_violations(row)),
                 source=escape_md(str(raw.get("source_text", ""))),
                 raw_output=escape_md(str(raw.get("raw_output", ""))[:160]),
                 final=escape_md(str(row.get("final_output", ""))[:120]),
@@ -339,6 +350,17 @@ def raw_key(row: dict[str, Any]) -> str:
 
 def escape_md(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ")
+
+
+def format_violations(row: dict[str, Any]) -> str:
+    parts = [str(v) for v in row.get("violations", [])]
+    required = row.get("required_meaning_terms")
+    forbidden = row.get("forbidden_meaning_terms")
+    if required:
+        parts.append(f"required={required}")
+    if forbidden:
+        parts.append(f"forbidden={forbidden}")
+    return ", ".join(parts)
 
 
 def average_repeat_metrics(repeat_metrics: list[dict[str, Any]], *, cases_total: int) -> dict[str, Any]:
@@ -448,6 +470,8 @@ def main(argv: list[str] | None = None) -> int:
     repeat_metrics: list[dict[str, Any]] = []
     output = args.output
     output.mkdir(parents=True, exist_ok=True)
+    from manga_local_translator.hf_translators import CAT_DEFAULT_NUM_PREDICT, CAT_PROMPT_VERSION, CAT_VALIDATION_VERSION
+
     total_evaluations = len(cases) * args.repeats
     completed_evaluations = 0
     started_at = time.time()
@@ -546,6 +570,11 @@ def main(argv: list[str] | None = None) -> int:
         "benchmark_set": args.benchmark.name,
         "profile": profile,
         "profile_hash": io_adapters.profile_hash(profile),
+        "production_cat": {
+            "cat_prompt_version": CAT_PROMPT_VERSION,
+            "cat_validation_version": CAT_VALIDATION_VERSION,
+            "cat_default_num_predict": CAT_DEFAULT_NUM_PREDICT,
+        },
         "benchmark_fingerprint": benchmark_hash,
         "cat_response_score": metrics["cat_response_score"],
         "cat_quality_score": metrics["cat_quality_score"],

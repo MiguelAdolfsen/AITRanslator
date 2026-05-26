@@ -43,6 +43,19 @@ BUILTIN_PROFILES: dict[str, dict[str, Any]] = {
         "min_p": 0.0,
         "stop": ["<|im_end|>", "\n\n"],
     },
+    "production": {
+        "name": "production",
+        "use_production_prompt": True,
+        "prompt_template": "",
+        "retry_prompt_template": "",
+        "system_prompt": "You are a strict Japanese-to-English machine translation engine.",
+        "num_predict": 48,
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 1,
+        "min_p": 0.0,
+        "stop": ["<|im_end|>", "\n\n"],
+    },
 }
 
 
@@ -54,7 +67,12 @@ def load_profile(name: str = "official", profile_json: Path | None = None) -> di
         return {**BUILTIN_PROFILES["official"], **payload}
     if name not in BUILTIN_PROFILES:
         raise RuntimeError(f"Unknown CAT profile {name!r}. Known profiles: {sorted(BUILTIN_PROFILES)}")
-    return dict(BUILTIN_PROFILES[name])
+    profile = dict(BUILTIN_PROFILES[name])
+    if profile.get("use_production_prompt"):
+        from manga_local_translator.hf_translators import CAT_DEFAULT_NUM_PREDICT, cat_num_predict
+
+        profile["num_predict"] = cat_num_predict() if CAT_DEFAULT_NUM_PREDICT else int(profile.get("num_predict", 48))
+    return profile
 
 
 def profile_hash(profile: dict[str, Any]) -> str:
@@ -63,6 +81,10 @@ def profile_hash(profile: dict[str, Any]) -> str:
 
 
 def build_prompt(source_text: str, profile: dict[str, Any], *, retry: bool = False) -> str:
+    if profile.get("use_production_prompt"):
+        from manga_local_translator.hf_translators import build_cat_prompt
+
+        return build_cat_prompt(source_text, retry=retry)
     key = "retry_prompt_template" if retry else "prompt_template"
     template = str(profile.get(key) or BUILTIN_PROFILES["official"][key])
     return template.format(source_text=source_text)

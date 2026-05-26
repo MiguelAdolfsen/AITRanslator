@@ -29,12 +29,12 @@ MADLAD_MODEL_NAME = "google/madlad400-3b-mt"
 OPUS_MODEL_NAME = "Helsinki-NLP/opus-mt-ja-en"
 CAT_MODEL_NAME = "cyberagent/CAT-Translate-7b"
 CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
-CAT_PROMPT_VERSION = "cat-translate-v5-hf-chat-template"
+CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v14-short-source-phrase-guard"
+CAT_VALIDATION_VERSION = "cat-validation-v15-assistant-translation-chatter"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
-CAT_DEFAULT_NUM_PREDICT = 128
+CAT_DEFAULT_NUM_PREDICT = 48
 
 
 class CatTranslator(Translator):
@@ -363,7 +363,12 @@ def build_cat_prompt(prepared_text: str, *, retry: bool = False, retry_variant: 
                 "English:"
             )
         return f"Japanese:\n{prepared_text}\n\nEnglish:"
-    return f"Translate the following Japanese text into English.\n\n{prepared_text}"
+    return (
+        "Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, "
+        "or continue the scene. If the source is incomplete, translate the fragment as a fragment.\n"
+        f"Japanese: \"{prepared_text}\"\n"
+        "English:"
+    )
 
 
 def cat_prompt_version(*, retry: bool = False, retry_variant: str = "source_only") -> str:
@@ -722,12 +727,22 @@ def looks_like_cat_chatter(text: str) -> bool:
         "the user has requested",
         "the assistant has translated",
         "here is the english translation",
+        "here is a translation of your japanese",
+        "here's a translation of your japanese",
+        "here is the translation of your japanese",
+        "here's the translation of your japanese",
+        "sure here is a translation",
+        "sure here's a translation",
+        "sure, here is a translation",
+        "sure, here's a translation",
         "here's a short english fragment",
         "short english fragment:",
         "short english rendering",
         "complete translation of that japanese fragment",
         "scene is a short fragment",
         "english translation of the japanese sentence",
+        "translation of your japanese sentence",
+        "translation of your japanese text",
         "if you have specific information",
         "assist with translations",
         "assist with the translation",
@@ -751,6 +766,10 @@ def looks_like_explanatory_cat_output(text: str) -> bool:
         "the japanese phrase",
         "the japanese word",
         "the japanese text",
+        "translation of your japanese sentence",
+        "translation of your japanese text",
+        "here is a translation of your japanese",
+        "here's a translation of your japanese",
         "translates to",
         "can be translated as",
         "could be translated as",

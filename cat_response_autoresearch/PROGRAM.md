@@ -35,6 +35,19 @@ Required benchmark:
 
 The required benchmark uses the evaluator default of `--repeats 4`. Keep/best decisions must be based on the averaged four-pass result, not a single lucky CAT run. `--repeats 1` is allowed only for local smoke checks that are not written as best.
 
+Required real-mined benchmark for CAT quality changes:
+
+```powershell
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined `
+  --output cat_response_autoresearch\runs\real_mined_current `
+  --results cat_response_autoresearch\results\results.tsv `
+  --run-id real_mined_current `
+  --profile production
+```
+
+Use `--profile production` when checking whether the harness matches current production CAT behavior. It calls production prompt construction and token-cap settings directly.
+
 The evaluator resolves the CAT GGUF from the project root `.models/CAT-Translate` directory, even if the command is launched from inside `cat_response_autoresearch`. Do not work around model lookup by copying model files into benchmark folders.
 
 Noise guardrails:
@@ -59,6 +72,18 @@ Required holdout check after a kept main improvement:
 ```
 
 The holdout is not an optimization target. Use it to catch overfit prompt/settings behavior before promoting a profile.
+
+Real-mined holdout check after a kept real-mined improvement:
+
+```powershell
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined_holdout `
+  --output cat_response_autoresearch\runs\real_mined_holdout_current `
+  --results cat_response_autoresearch\results\results.tsv `
+  --run-id real_mined_holdout_current `
+  --profile production `
+  --no-update-best
+```
 
 Holdout cadence:
 
@@ -114,6 +139,12 @@ Keep a change only if:
 12. the improvement did not come from editing benchmark/scoring/logging files or exact frozen strings.
 
 Retry-dependent runs can be kept for iteration, but they are not automatically production-ready. Prefer profiles that reduce `retried_count`, `retry_rate`, and `primary_rejected_count` without introducing false rejects or weak accepts.
+
+Production promotion rule:
+
+```text
+Before promoting a CAT profile/settings change into manga_local_translator, run synthetic, real_mined, and the matching holdout. The promoted change must have zero hard failures, zero accepted semantic trap failures, and no regression in retry dependence unless it fixes a hard failure.
+```
 ```
 
 Otherwise revert the experiment and append a failed result row.

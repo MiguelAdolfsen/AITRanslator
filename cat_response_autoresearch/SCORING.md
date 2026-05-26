@@ -57,6 +57,8 @@ cat_quality_score =
 + 10000 * accepted_schema_fragment_rate
 +  9000 * source_text_mutation_rate
 +  7000 * accepted_forbidden_pattern_rate
++  7000 * accepted_forbidden_meaning_term_rate
++  6500 * accepted_required_meaning_missing_rate
 +  4500 * accepted_overlong_fragment_rate
 +  3500 * accepted_repetitive_rate
 +  2500 * accepted_explanatory_output_rate
@@ -75,3 +77,12 @@ Hard failures include accepted prompt chatter, accepted Japanese leakage, accept
 Category reporting is mandatory. A global score improvement is not enough if one source category gets worse without a clear compensating hard-failure reduction.
 
 Fragment-shape warnings are weak accepts, not hard failures. They catch generic bad shapes such as dangling comma fragments, unbacked apology phrasing on non-apology sources, and romanized SFX where translated SFX is expected.
+
+Semantic term checks:
+
+```text
+required_meaning_terms  = accepted outputs must include each required meaning group
+forbidden_meaning_terms = accepted outputs must not include any forbidden meaning group
+```
+
+Use these only for generic, obvious preservation checks such as honorific names, family terms, crude nouns, and metadata/date traps. Do not encode exact page-specific translations.
