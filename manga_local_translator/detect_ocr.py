@@ -226,6 +226,7 @@ def recognize_with_manga_ocr(
     deduped = deduplicate_similar_ocr_blocks(refined)
     deduped = remove_composite_overlap_ocr_blocks(deduped)
     deduped = remove_suffix_overlap_ocr_blocks(deduped)
+    deduped = merge_adjacent_prefix_ocr_blocks(deduped)
     logger.info("manga-ocr recognition complete: before=%d after=%d deduped=%d", len(candidate_blocks), len(refined), len(deduped))
     return deduped
 
@@ -629,6 +630,81 @@ def remove_suffix_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]
     return kept
 
 
+def merge_adjacent_prefix_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    replacements: dict[int, TextBlock] = {}
+    removed: set[int] = set()
+    for small_index, small in enumerate(blocks):
+        if small_index in removed or not is_short_vertical_prefix_candidate(small):
+            continue
+        for large_index, large in enumerate(blocks):
+            if large_index == small_index or large_index in removed:
+                continue
+            if not is_large_vertical_prefix_target(large):
+                continue
+            if not is_adjacent_right_prefix_pair(small, large):
+                continue
+
+            small_text = normalize_ocr_text(small.text)
+            large_text = normalize_ocr_text(large.text)
+            merged_text = large_text if large_text.startswith(small_text) else f"{small_text}{large_text}"
+            replacements[large_index] = TextBlock(
+                text=merged_text,
+                box=union_box([small.box, large.box]),
+                confidence=(small.confidence + large.confidence) / 2,
+                detector=large.detector,
+                metadata=large.metadata,
+            )
+            removed.add(small_index)
+            logger.debug(
+                "Merged adjacent OCR prefix: prefix_box=%s target_box=%s text=%s",
+                small.box,
+                large.box,
+                shorten(merged_text),
+            )
+            break
+
+    merged: list[TextBlock] = []
+    for index, block in enumerate(blocks):
+        if index in removed:
+            continue
+        merged.append(replacements.get(index, block))
+    return merged
+
+
+def is_short_vertical_prefix_candidate(block: TextBlock) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    text = normalize_ocr_text(block.text)
+    if not (2 <= len(text) <= 5):
+        return False
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) <= 25 and (y2 - y1) >= 45
+
+
+def is_large_vertical_prefix_target(block: TextBlock) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) >= 45 and (y2 - y1) >= 100
+
+
+def is_adjacent_right_prefix_pair(small: TextBlock, large: TextBlock) -> bool:
+    sx1, sy1, sx2, sy2 = small.box
+    lx1, ly1, lx2, ly2 = large.box
+    if sx1 <= lx2 or sy1 >= ly1:
+        return False
+    horizontal_gap = sx1 - lx2
+    vertical_overlap = max(0, min(sy2, ly2) - max(sy1, ly1))
+    small_height = max(1, sy2 - sy1)
+    large_height = max(1, ly2 - ly1)
+    vertical_overlap_ratio = vertical_overlap / max(1, min(small_height, large_height))
+    return 8 <= horizontal_gap <= 25 and vertical_overlap_ratio >= 0.45
+
+
 def is_suffix_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
     if getattr(block, "detector", "") != "ctd":
         return False
@@ -689,6 +765,15 @@ def overlap_area(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> 
     ax1, ay1, ax2, ay2 = a
     bx1, by1, bx2, by2 = b
     return max(0, min(ax2, bx2) - max(ax1, bx1)) * max(0, min(ay2, by2) - max(ay1, by1))
+
+
+def union_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, int]:
+    return (
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    )
 
 
 def is_ultra_tall_edge_ctd_block(block: TextBlock, *, width: int, height: int) -> bool:
