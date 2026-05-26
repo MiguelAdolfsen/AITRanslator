@@ -14,7 +14,13 @@ Required validation:
 
 ```powershell
 .\.venv\Scripts\python.exe cat_response_autoresearch\scripts\validate_fixtures.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined
+
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\validate_fixtures.py `
   --benchmark cat_response_autoresearch\benchmarks\synthetic
+
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\validate_fixtures.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined_holdout
 ```
 
 Required unit tests:
@@ -23,19 +29,7 @@ Required unit tests:
 .\.testing\run_tests.ps1
 ```
 
-Required benchmark:
-
-```powershell
-.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
-  --benchmark cat_response_autoresearch\benchmarks\synthetic `
-  --output cat_response_autoresearch\runs\current `
-  --results cat_response_autoresearch\results\results.tsv `
-  --run-id current
-```
-
-The required benchmark uses the evaluator default of `--repeats 4`. Keep/best decisions must be based on the averaged four-pass result, not a single lucky CAT run. `--repeats 1` is allowed only for local smoke checks that are not written as best.
-
-Required real-mined benchmark for CAT quality changes:
+Main optimization benchmark:
 
 ```powershell
 .\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
@@ -45,6 +39,21 @@ Required real-mined benchmark for CAT quality changes:
   --run-id real_mined_current `
   --profile production
 ```
+
+The main benchmark uses the evaluator default of `--repeats 4`. Keep/best decisions must be based on the averaged four-pass `real_mined` result, not a single lucky CAT run. `--repeats 1` is allowed only for local smoke checks that are not written as best.
+
+Synthetic regression check:
+
+```powershell
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
+  --benchmark cat_response_autoresearch\benchmarks\synthetic `
+  --output cat_response_autoresearch\runs\synthetic_regression_current `
+  --results cat_response_autoresearch\results\results.tsv `
+  --run-id synthetic_regression_current `
+  --no-update-best
+```
+
+Synthetic is a regression guard and harness smoke benchmark. It is not the main keep gate because it is cleaner than real OCR output and can make overfit prompt/validation changes look better than they are.
 
 Use `--profile production` when checking whether the harness matches current production CAT behavior. It calls production prompt construction and token-cap settings directly.
 
@@ -58,22 +67,10 @@ Noise guardrails:
 - If approval does not improve, cat_quality_score must improve by at least 0.2% before a run can replace best.
 - If approval and quality are tied, lower retry dependence can replace best. This keeps useful prompt/settings improvements visible even after quality reaches 0.
 - For visibly noisy CAT behavior, rerun likely keepers with --repeats 6 or --repeats 8 before holdout.
+- If best.json is missing or stale, the evaluator compares against the last kept result row for the same benchmark_set in results.tsv.
 ```
 
 Required holdout check after a kept main improvement:
-
-```powershell
-.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
-  --benchmark cat_response_autoresearch\benchmarks\holdout `
-  --output cat_response_autoresearch\runs\holdout_current `
-  --results cat_response_autoresearch\results\results.tsv `
-  --run-id holdout_current `
-  --no-update-best
-```
-
-The holdout is not an optimization target. Use it to catch overfit prompt/settings behavior before promoting a profile.
-
-Real-mined holdout check after a kept real-mined improvement:
 
 ```powershell
 .\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
@@ -85,14 +82,17 @@ Real-mined holdout check after a kept real-mined improvement:
   --no-update-best
 ```
 
+The holdout is not an optimization target. Use it to catch overfit prompt/settings behavior before promoting a profile. A profile that wins `real_mined` but fails holdout must not be promoted; record it as an overfit experiment instead.
+
 Holdout cadence:
 
 ```text
-- Run the main synthetic benchmark for every experiment.
-- If the main run is not kept, do not run holdout.
-- If the main run is kept or would replace current best, immediately run holdout with the same profile/settings.
+- Run `real_mined` as the main benchmark for CAT response quality experiments.
+- Run `synthetic` as a regression check with `--no-update-best`; do not tune to synthetic-only gains.
+- If the `real_mined` run is not kept, do not run holdout.
+- If the `real_mined` run is kept or would replace current best, immediately run `real_mined_holdout` with the same profile/settings.
 - Do not tune against holdout failures directly. If holdout exposes a generic category weakness, add new generic training cases to the main benchmark in a separate review pass.
-- A profile cannot be promoted into production CAT behavior unless main + holdout both have zero hard failures.
+- A profile cannot be promoted into production CAT behavior unless synthetic regression, real_mined, and real_mined_holdout all have zero hard failures.
 ```
 
 Editable project-code surface after harness setup:
@@ -127,7 +127,7 @@ Keep a change only if:
 ```text
 1. unit tests pass,
 2. fixture validation passes,
-3. cat_quality_score improves versus current best by the required margin on the averaged four-pass benchmark, cat_approval_rate improves, approval/quality tie while retry_rate improves, or approval/quality/retry tie while response score improves,
+3. cat_quality_score improves versus current best by the required margin on the averaged four-pass `real_mined` benchmark, cat_approval_rate improves, approval/quality tie while retry_rate improves, or approval/quality/retry tie while response score improves,
 4. cat_approval_rate does not decrease,
 5. accepted_prompt_chatter_count remains 0,
 6. accepted_japanese_leakage_count remains 0,
@@ -135,7 +135,7 @@ Keep a change only if:
 8. accepted_schema_fragment_count remains 0,
 9. no source category with at least two evaluations falls below 0.80 approval,
 10. false_reject_count does not increase unless hard failures decrease,
-11. the holdout check does not introduce hard failures,
+11. synthetic regression and real_mined_holdout do not introduce hard failures,
 12. the improvement did not come from editing benchmark/scoring/logging files or exact frozen strings.
 
 Retry-dependent runs can be kept for iteration, but they are not automatically production-ready. Prefer profiles that reduce `retried_count`, `retry_rate`, and `primary_rejected_count` without introducing false rejects or weak accepts.

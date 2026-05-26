@@ -158,6 +158,41 @@ def append_result(results_path: Path, row: dict[str, Any]) -> None:
         writer.writerow({key: row.get(key, 0) for key in RESULT_HEADER})
 
 
+def load_last_kept_result(results_path: Path, benchmark_set: str | None = None) -> dict[str, Any] | None:
+    if not results_path.exists() or results_path.stat().st_size == 0:
+        return None
+    with results_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        rows = [row for row in csv.DictReader(handle, delimiter="\t") if row.get("run_id")]
+    for row in reversed(rows):
+        if str(row.get("kept", "")).lower() != "true":
+            continue
+        if str(row.get("hard_failure", "")).lower() == "true":
+            continue
+        if benchmark_set and row.get("benchmark_set") != benchmark_set:
+            continue
+        return row
+    return None
+
+
+def best_from_result_row(row: dict[str, Any], *, benchmark_hash: str, benchmark_set: str | None) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "best_run_id": row.get("run_id"),
+        "best_score": row.get("cat_quality_score") or row.get("cat_response_score"),
+        "best_quality_score": row.get("cat_quality_score") or row.get("cat_response_score"),
+        "best_response_score": row.get("cat_response_score"),
+        "best_latency_score": row.get("cat_latency_score"),
+        "best_commit": row.get("commit"),
+        "benchmark_fingerprint": benchmark_hash,
+        "benchmark_set": benchmark_set or row.get("benchmark_set"),
+        "cat_approval_rate": row.get("cat_approval_rate"),
+        "retry_rate": row.get("retry_rate"),
+        "retried_count": row.get("retried_count"),
+        "primary_rejected_rate": row.get("primary_rejected_rate"),
+        "keep_reason": "loaded_from_last_kept_result",
+    }
+
+
 def load_best(best_path: Path) -> dict[str, Any]:
     if not best_path.exists():
         return {
@@ -178,12 +213,17 @@ def maybe_update_best(
     metrics: dict[str, Any],
     *,
     benchmark_hash: str,
+    benchmark_set: str | None = None,
     disabled: bool,
     min_improvement: float,
 ) -> bool:
     if disabled or metrics.get("hard_failure"):
         return False
     best = load_best(best_path)
+    if best.get("benchmark_fingerprint") != benchmark_hash or best.get("best_quality_score", best.get("best_score")) is None:
+        last_kept = load_last_kept_result(best_path.parent / "results.tsv", benchmark_set)
+        if last_kept is not None:
+            best = best_from_result_row(last_kept, benchmark_hash=benchmark_hash, benchmark_set=benchmark_set)
     current = best.get("best_quality_score", best.get("best_score"))
     current_approval = best.get("cat_approval_rate")
     current_hash = best.get("benchmark_fingerprint")
@@ -234,6 +274,7 @@ def maybe_update_best(
             "best_latency_score": metrics.get("cat_latency_score"),
             "best_commit": commit,
             "benchmark_fingerprint": benchmark_hash,
+            "benchmark_set": benchmark_set,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "cat_approval_rate": metrics.get("cat_approval_rate"),
             "retry_rate": metrics.get("retry_rate"),
@@ -561,6 +602,7 @@ def main(argv: list[str] | None = None) -> int:
         commit,
         metrics,
         benchmark_hash=benchmark_hash,
+        benchmark_set=args.benchmark.name,
         disabled=args.no_update_best,
         min_improvement=args.min_improvement,
     )

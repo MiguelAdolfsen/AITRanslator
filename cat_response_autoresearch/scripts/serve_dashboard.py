@@ -250,6 +250,7 @@ DASHBOARD_HTML = r"""<!doctype html>
       <div class="kv">
         <b>Status</b><span id="activeStatus">--</span>
         <b>Run</b><code id="activeRun">--</code>
+        <b>Benchmark</b><span id="activeBenchmark">--</span>
         <b>Progress</b><span id="activeProgress">--</span>
         <b>Current Case</b><code id="activeCase">--</code>
         <b>Profile</b><code id="activeProfile">--</code>
@@ -275,8 +276,8 @@ DASHBOARD_HTML = r"""<!doctype html>
   <section class="panel">
     <h2>Recent Runs</h2>
     <table>
-      <thead><tr><th>Run</th><th>Approval</th><th>Quality</th><th>Repeats</th><th>Low Categories</th><th>Status</th></tr></thead>
-      <tbody id="runRows"><tr><td colspan="6">No runs yet.</td></tr></tbody>
+      <thead><tr><th>Run</th><th>Benchmark</th><th>Approval</th><th>Quality</th><th>Repeats</th><th>Low Categories</th><th>Status</th></tr></thead>
+      <tbody id="runRows"><tr><td colspan="7">No runs yet.</td></tr></tbody>
     </table>
   </section>
 </main>
@@ -285,6 +286,12 @@ DASHBOARD_HTML = r"""<!doctype html>
 const fmtPct = value => Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(1)}%` : '--';
 const fmtNum = value => Number.isFinite(Number(value)) ? Number(value).toFixed(3) : '--';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function benchmarkRole(name) {
+  if (name === 'real_mined') return {label: 'real_mined', role: 'MAIN', cls: 'good'};
+  if (name === 'synthetic') return {label: 'synthetic', role: 'REGRESSION', cls: ''};
+  if (String(name || '').includes('holdout')) return {label: name || 'holdout', role: 'HOLDOUT', cls: ''};
+  return {label: name || '--', role: 'UNKNOWN', cls: ''};
+}
 
 function drawChart(canvas, rows) {
   const ctx = canvas.getContext('2d');
@@ -335,14 +342,17 @@ function renderState(state) {
   const best = state.best || {};
   const active = state.active_progress || {};
   const running = active.status === 'running';
+  const latestBench = benchmarkRole(latest.benchmark_set);
+  const bestBench = benchmarkRole(state.best_summary?.benchmark_set || best.benchmark_set);
+  const activeBench = benchmarkRole(active.benchmark_set);
   document.getElementById('liveBadge').className = running ? 'live' : 'live idle';
   document.getElementById('liveText').textContent = running ? 'Live' : 'Idle';
-  document.getElementById('subtitle').textContent = `CAT response optimization - ${rows.length} runs - last: ${state.last_updated || '--'}`;
+  document.getElementById('subtitle').textContent = `CAT response optimization - main: real_mined - synthetic: regression - ${rows.length} runs - last: ${state.last_updated || '--'}`;
 
   document.getElementById('bestApproval').textContent = fmtPct(best.cat_approval_rate);
-  document.getElementById('bestRun').textContent = best.best_run_id ? `${best.best_run_id} - quality ${fmtNum(best.best_quality_score ?? best.best_score)}` : 'No kept run yet';
+  document.getElementById('bestRun').textContent = best.best_run_id ? `${best.best_run_id} - ${bestBench.role.toLowerCase()} - quality ${fmtNum(best.best_quality_score ?? best.best_score)}` : 'No kept run yet';
   document.getElementById('latestApproval').textContent = fmtPct(latest.cat_approval_rate);
-  document.getElementById('latestRun').textContent = latest.run_id || 'No runs yet';
+  document.getElementById('latestRun').textContent = latest.run_id ? `${latest.run_id} - ${latestBench.role.toLowerCase()}` : 'No runs yet';
   document.getElementById('latestScore').textContent = fmtNum(latest.cat_quality_score ?? latest.cat_response_score);
   document.getElementById('latestFailure').textContent = `Hard failure: ${latest.hard_failure ?? '--'}`;
   const kept = rows.filter(row => String(row.kept).toLowerCase() === 'true').length;
@@ -351,6 +361,7 @@ function renderState(state) {
 
   document.getElementById('activeStatus').innerHTML = `<span class="status-pill ${running ? 'bad' : 'good'}">${esc(active.status || 'idle')}</span>`;
   document.getElementById('activeRun').textContent = active.run_id || '--';
+  document.getElementById('activeBenchmark').innerHTML = `<span class="status-pill ${activeBench.cls}">${esc(activeBench.role)}</span> ${esc(activeBench.label)}`;
   document.getElementById('activeProgress').textContent = active.evaluations_total ? `${active.completed_evaluations}/${active.evaluations_total} (${fmtPct(active.progress_rate)})` : '--';
   document.getElementById('activeCase').textContent = active.current_case_id || '--';
   document.getElementById('activeProfile').textContent = active.profile_name ? `${active.profile_name} ${active.profile_hash || ''}` : '--';
@@ -379,15 +390,17 @@ function renderState(state) {
   const recent = [...rows].slice(-10).reverse();
   runRows.innerHTML = recent.length ? recent.map(row => {
     const hard = String(row.hard_failure).toLowerCase() === 'true';
+    const bench = benchmarkRole(row.benchmark_set);
     return `<tr>
       <td><code>${esc(row.run_id)}</code></td>
+      <td><span class="status-pill ${bench.cls}">${esc(bench.role)}</span><div class="small">${esc(bench.label)}</div></td>
       <td>${fmtPct(row.cat_approval_rate)}</td>
       <td>${fmtNum(row.cat_quality_score ?? row.cat_response_score)}</td>
       <td>${esc(row.repeat_count || '')}</td>
       <td>${esc(row.low_categories || 'none')}</td>
       <td><span class="status-pill ${hard ? 'bad' : 'good'}">${hard ? 'hard fail' : 'ok'}</span></td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6">No runs yet.</td></tr>';
+  }).join('') : '<tr><td colspan="7">No runs yet.</td></tr>';
 
   drawChart(document.getElementById('approvalChart'), rows);
 }

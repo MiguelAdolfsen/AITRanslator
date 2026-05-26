@@ -369,6 +369,77 @@ class CatResponseAutoresearchTests(unittest.TestCase):
         self.assertEqual(best["best_run_id"], "faster-tie")
         self.assertEqual(best["keep_reason"], "response_score_tiebreak_improved")
 
+    def test_best_update_falls_back_to_last_kept_result_for_same_benchmark(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            best_path = root / "best.json"
+            results_path = root / "results.tsv"
+            eval_cat_responses.append_result(
+                results_path,
+                {
+                    "run_id": "previous-real-mined",
+                    "commit": "old",
+                    "benchmark_set": "real_mined",
+                    "cat_quality_score": 100.0,
+                    "cat_response_score": 120.0,
+                    "cat_latency_score": 20.0,
+                    "cat_approval_rate": 0.9,
+                    "retry_rate": 0.5,
+                    "retried_count": 5,
+                    "primary_rejected_rate": 0.5,
+                    "hard_failure": False,
+                    "kept": True,
+                },
+            )
+            worse = {
+                "hard_failure": False,
+                "cat_quality_score": 101.0,
+                "cat_response_score": 121.0,
+                "cat_latency_score": 20.0,
+                "cat_approval_rate": 0.9,
+                "retry_rate": 0.5,
+            }
+            better = {
+                "hard_failure": False,
+                "cat_quality_score": 90.0,
+                "cat_response_score": 110.0,
+                "cat_latency_score": 20.0,
+                "cat_approval_rate": 0.9,
+                "retry_rate": 0.5,
+                "retried_count": 4,
+                "primary_rejected_rate": 0.4,
+            }
+
+            self.assertFalse(
+                maybe_update_best(
+                    best_path,
+                    "worse",
+                    "commit",
+                    worse,
+                    benchmark_hash="new-real-mined-hash",
+                    benchmark_set="real_mined",
+                    disabled=False,
+                    min_improvement=0.01,
+                )
+            )
+            self.assertTrue(
+                maybe_update_best(
+                    best_path,
+                    "better",
+                    "commit",
+                    better,
+                    benchmark_hash="new-real-mined-hash",
+                    benchmark_set="real_mined",
+                    disabled=False,
+                    min_improvement=0.01,
+                )
+            )
+
+            best = json.loads(best_path.read_text(encoding="utf-8"))
+        self.assertEqual(best["best_run_id"], "better")
+        self.assertEqual(best["benchmark_set"], "real_mined")
+        self.assertEqual(best["keep_reason"], "quality_margin_improved")
+
     def test_prompt_construction_uses_official_template(self) -> None:
         profile = load_profile("official")
 

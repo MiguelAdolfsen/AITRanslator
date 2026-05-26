@@ -16,6 +16,8 @@ cat_quality_score
 
 Lower is better.
 
+The primary optimization benchmark is `benchmarks/real_mined`, because it is seeded from real CAT failures and OCR text shapes. `benchmarks/synthetic` is a regression check and harness smoke benchmark. Synthetic-only improvements should not replace the kept best profile.
+
 The kept run score is the average of 4 complete benchmark passes by default. Per-pass metrics are stored in `summary.json` as `repeat_metrics`, and the result row stores averaged counts/rates so random one-off CAT behavior does not become the recorded best.
 
 `cat_response_score` is still reported, but it includes latency. Best-run replacement prioritizes `cat_quality_score`. If approval does not improve, quality score must improve by at least 0.2% before a run replaces best. If approval and quality are tied, lower retry dependence can replace best. If approval, quality, and retry rate all tie, lower response score can replace best as an operational improvement.
@@ -73,6 +75,8 @@ cat_quality_score =
 `cat_response_score = cat_quality_score + cat_latency_score`
 
 Hard failures include accepted prompt chatter, accepted Japanese leakage, accepted prompt/schema fragments, source mutation, malformed fixtures, model crash, invalid JSON artifacts, or benchmark/scoring edits during optimization.
+
+A profile that improves `real_mined` but fails `real_mined_holdout` is treated as overfit. Keep the run artifacts for diagnosis, but do not promote that profile into production CAT behavior.
 
 Category reporting is mandatory. A global score improvement is not enough if one source category gets worse without a clear compensating hard-failure reduction.
 
