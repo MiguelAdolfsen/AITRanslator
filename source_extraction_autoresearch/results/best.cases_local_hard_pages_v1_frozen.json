@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "benchmark_set": "cases/local_hard_pages_v1_frozen",
+  "benchmark_fingerprint": null,
+  "best_run_id": "local_hard_pages_v1_baseline",
+  "best_score": 69.767442,
+  "best_commit": "787864eb5dff2375a786b63a82a7fd740ff51bbb",
+  "best_sort_key": [
+    69.767442,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    4366.4391,
+    4
+  ],
+  "best_row_timestamp": "2026-05-26T03:35:55.721627+00:00",
+  "updated_at": "2026-05-26T06:23:38.579517+00:00",
+  "notes": "Rebuilt from results.tsv; smoke and draft rows excluded. Timing is a tie-breaker."
+}

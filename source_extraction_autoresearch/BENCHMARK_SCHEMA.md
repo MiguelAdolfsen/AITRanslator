@@ -51,6 +51,13 @@ Allowed kinds: `dialogue`, `narration`, `sfx`, `sign`, `thought`, `metadata`, `c
 
 Normally extractable kinds: `dialogue`, `narration`, `thought`, `sign`, `sfx`.
 
+Fixture validation also enforces benchmark consistency:
+
+- every extractable `group_id` must have exactly one matching object in `groups`
+- group members must exist, be extractable, and point back to the group
+- `combined_source_text` must equal the concatenated `source_text` of `member_region_ids` in listed order
+- group `page_order` values must be unique within a page; split regions should share one group instead of separate groups with duplicate order
+
 Example label:
 
 ```json
@@ -156,4 +163,3 @@ Predicted output schema returned by `scripts/io_adapters.py`:
   "adapter_notes": []
 }
 ```
-

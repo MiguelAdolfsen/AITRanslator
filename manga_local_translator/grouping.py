@@ -28,6 +28,9 @@ def group_text_blocks_for_translation(
     grouping_report: list[dict[str, object]] = []
     for index, group in enumerate(groups, start=1):
         ordered_group = sort_blocks_in_reading_order(group)
+        for member in ordered_group:
+            member.metadata["translation_group_id"] = index
+            member.metadata["translation_group_size"] = len(ordered_group)
         grouped_block = merge_grouped_text_blocks(index, ordered_group)
         grouped_blocks.append(grouped_block)
         grouping_report.append(group_debug_payload(index, ordered_group, grouped_block))

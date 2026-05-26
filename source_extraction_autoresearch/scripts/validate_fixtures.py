@@ -63,6 +63,8 @@ def validate_label(label_path: Path, benchmark: Path) -> list[str]:
         errors.append(f"{label_path}: text_regions must be a list")
         regions = []
     region_ids: set[str] = set()
+    region_by_id: dict[str, dict[str, Any]] = {}
+    extractable_group_ids: set[str] = set()
     for index, region in enumerate(regions):
         prefix = f"{label_path}: text_regions[{index}]"
         if not isinstance(region, dict):
@@ -75,6 +77,7 @@ def validate_label(label_path: Path, benchmark: Path) -> list[str]:
         if region_id in region_ids:
             errors.append(f"{prefix}: duplicate region_id {region_id}")
         region_ids.add(region_id)
+        region_by_id[region_id] = region
         box_error = validate_box(region.get("box"), width=width, height=height) if width is not None else validate_box(region.get("box"))
         if box_error:
             errors.append(f"{prefix}: {box_error}")
@@ -84,12 +87,15 @@ def validate_label(label_path: Path, benchmark: Path) -> list[str]:
             errors.append(f"{prefix}: invalid kind {region.get('kind')}")
         if bool(region.get("should_extract")) and (region.get("group_id") is None or region.get("page_order") is None):
             errors.append(f"{prefix}: extractable regions require group_id and page_order")
+        if bool(region.get("should_extract")) and region.get("group_id") is not None:
+            extractable_group_ids.add(str(region.get("group_id")))
 
     groups = label.get("groups", [])
     if not isinstance(groups, list):
         errors.append(f"{label_path}: groups must be a list")
         groups = []
     group_ids: set[str] = set()
+    group_orders: dict[int, str] = {}
     for index, group in enumerate(groups):
         prefix = f"{label_path}: groups[{index}]"
         if not isinstance(group, dict):
@@ -101,9 +107,39 @@ def validate_label(label_path: Path, benchmark: Path) -> list[str]:
         if group_id in group_ids:
             errors.append(f"{prefix}: duplicate group_id {group_id}")
         group_ids.add(group_id)
+        page_order = group.get("page_order")
+        if page_order is not None:
+            try:
+                order_key = int(page_order)
+            except (TypeError, ValueError):
+                errors.append(f"{prefix}: page_order must be an integer")
+            else:
+                if order_key in group_orders:
+                    errors.append(f"{prefix}: duplicate group page_order {order_key} also used by {group_orders[order_key]}")
+                group_orders[order_key] = group_id
+        combined_parts: list[str] = []
         for member in group.get("member_region_ids", []):
-            if str(member) not in region_ids:
+            member_id = str(member)
+            if member_id not in region_ids:
                 errors.append(f"{prefix}: unknown member_region_id {member}")
+                continue
+            member_region = region_by_id[member_id]
+            if not bool(member_region.get("should_extract")):
+                errors.append(f"{prefix}: non-extractable member_region_id {member}")
+            if str(member_region.get("group_id")) != group_id:
+                errors.append(f"{prefix}: member_region_id {member} has group_id {member_region.get('group_id')}")
+            combined_parts.append(str(member_region.get("source_text") or ""))
+        if group.get("combined_source_text") is not None:
+            combined = "".join(combined_parts)
+            if str(group.get("combined_source_text") or "") != combined:
+                errors.append(f"{prefix}: combined_source_text must equal concatenated member source_text")
+    if group_ids != extractable_group_ids:
+        missing = sorted(extractable_group_ids - group_ids)
+        extra = sorted(group_ids - extractable_group_ids)
+        if missing:
+            errors.append(f"{label_path}: missing group objects for extractable group_id(s): {missing}")
+        if extra:
+            errors.append(f"{label_path}: group objects without extractable regions: {extra}")
 
     ignore_path = benchmark / "ignore_regions" / f"{page_id}.ignore.json"
     if ignore_path.exists():
@@ -163,4 +199,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -8,6 +8,15 @@ source_extraction_score
 
 Lower is better.
 
+Diagnostic metrics:
+
+```text
+source_extraction_quality_score
+timing_score_component
+```
+
+`source_extraction_score` is quality-only and equals `source_extraction_quality_score`. `timing_score_component` is the raw p95 extraction milliseconds and is reported as a tie-breaker, not added to the primary score.
+
 Formula:
 
 ```text
@@ -26,7 +35,6 @@ source_extraction_score =
 +  1800 * empty_ocr_rate
 +  1500 * non_japanese_noise_rate
 +   500 * harmless_false_positive_rate
-+     1 * p95_extraction_ms_per_page
 ```
 
 Definitions:
@@ -81,4 +89,3 @@ p95_extraction_ms_per_page:
 Hard failure conditions include failed tests, failed fixture validation, evaluator crashes, missing result rows, edited benchmark/scoring files during optimization, blanked OCR, zero predictions on pages with extractable labels, unstable IDs, invalid JSON outputs, NaN scores, or invocation of translation, rendering, Qwen, CAT, OPUS, MADLAD, Argos, or vision code.
 
 Tie-breakers: lower missed count, lower destructive false positives, lower mean OCR CER, lower severe OCR errors, lower merge errors, lower order errors, lower orientation errors, lower duplicates, lower p95 extraction time, then smaller project-code diff.
-

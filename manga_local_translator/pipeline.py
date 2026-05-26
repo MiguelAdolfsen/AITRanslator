@@ -20,14 +20,10 @@ except ImportError:  # pragma: no cover - used before dependencies are installed
 from .config import PipelineConfig
 from .debug_report import write_debug_image, write_debug_report
 from .grouping import (
-    build_page_order_report,
     context_for_block,
-    group_text_blocks_for_translation,
 )
 from .image_io import iter_images, resolve_output_path, write_image_with_fallback
 from .line_identity import (
-    assign_ocr_block_ids,
-    assign_render_line_ids,
     enrich_grouping_report,
     enrich_page_order_report,
     lookup_context,
@@ -51,7 +47,6 @@ from .text_filter import (
     block_to_debug_dict,
     count_japanese_chars,
     fallback_translation,
-    filter_text_blocks,
     is_box_like,
     suspected_bad_translation,
     unusable_translation_reason,
@@ -667,58 +662,25 @@ def prepare_page_for_translation(
     *,
     chapter_context_before: str | None = None,
 ) -> PreparedPage:
-    import cv2
+    from .source_extraction import extract_source_page
 
-    from .detect_ocr import run_ocr
-
-    logger.info("Reading image: %s", image_path)
-    image_bgr = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
-    if image_bgr is None:
-        logger.error("OpenCV could not read image: %s", image_path)
-        raise RuntimeError(f"Could not read image: {image_path}")
-    height, width = image_bgr.shape[:2]
-    logger.debug("Image loaded: width=%d height=%d channels=%d", width, height, image_bgr.shape[2])
-
-    logger.info("Running OCR")
-    raw_blocks = run_ocr(
+    extraction = extract_source_page(
         image_path,
-        detector=config.detector,
-        engine=config.ocr_engine,
-        lang=config.tesseract_lang,
-        psm=config.tesseract_psm,
-        min_confidence=config.min_confidence,
-    )
-    raw_blocks = assign_ocr_block_ids(raw_blocks, role="ocr")
-    logger.info("OCR returned %d raw text block(s)", len(raw_blocks))
-    blocks, skipped_blocks = filter_text_blocks(raw_blocks, width=width, height=height)
-    logger.info("OCR filter kept %d block(s), skipped %d block(s)", len(blocks), len(skipped_blocks))
-    render_blocks, grouping_report = group_text_blocks_for_translation(blocks, image_bgr=image_bgr)
-    page_order_report = build_page_order_report(
-        render_blocks,
-        width=width,
-        height=height,
+        output_path,
+        config,
         chapter_context_before=chapter_context_before,
     )
-    render_blocks = assign_render_line_ids(render_blocks, page_order_report, output_path)
-    page_order_report = enrich_page_order_report(page_order_report, render_blocks)
-    grouping_report = enrich_grouping_report(grouping_report, render_blocks)
-    logger.info(
-        "Translation grouping complete: input_blocks=%d render_blocks=%d grouped_sets=%d",
-        len(blocks),
-        len(render_blocks),
-        sum(1 for group in grouping_report if len(group["members"]) > 1),
-    )
     return PreparedPage(
-        image_path=image_path,
-        output_path=output_path,
-        image_bgr=image_bgr,
-        width=width,
-        height=height,
-        raw_blocks=raw_blocks,
-        render_blocks=render_blocks,
-        skipped_blocks=skipped_blocks,
-        grouping_report=grouping_report,
-        page_order_report=page_order_report,
+        image_path=extraction.image_path,
+        output_path=extraction.output_path,
+        image_bgr=extraction.image_bgr,
+        width=extraction.width,
+        height=extraction.height,
+        raw_blocks=extraction.raw_blocks,
+        render_blocks=extraction.render_blocks,
+        skipped_blocks=extraction.skipped_blocks,
+        grouping_report=extraction.grouping_report,
+        page_order_report=extraction.page_order_report,
     )
 
 

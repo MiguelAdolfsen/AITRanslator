@@ -35,7 +35,7 @@ def extract_source_page(image_path: str, page_config: dict[str, Any] | None = No
     started = time.perf_counter()
     try:
         from manga_local_translator.config import PipelineConfig
-        from manga_local_translator.pipeline import prepare_page_for_translation
+        from manga_local_translator.source_extraction import extract_source_page
     except Exception as exc:
         raise RuntimeError(f"Project source-extraction imports failed: {exc}") from exc
 
@@ -51,7 +51,7 @@ def extract_source_page(image_path: str, page_config: dict[str, Any] | None = No
         vision_facts_enabled=False,
     )
     try:
-        page = prepare_page_for_translation(image, image.with_suffix(".source-extraction.out.png"), config)
+        page = extract_source_page(image, image.with_suffix(".source-extraction.out.png"), config)
     except Exception as exc:
         raise RuntimeError(
             f"Project source extraction failed. Install detector/OCR dependencies or run with --adapter-smoke. Details: {exc}"

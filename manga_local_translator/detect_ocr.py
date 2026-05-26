@@ -184,6 +184,12 @@ def recognize_with_manga_ocr(
         if not refined_text:
             logger.debug("manga-ocr returned empty text for box=%s; keeping detector text=%s", block.box, shorten(block.text))
             refined_text = block.text
+        if is_punctuation_only_ocr_text(refined_text):
+            logger.debug("Skipping punctuation-only manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if not contains_japanese_ocr_text(refined_text):
+            logger.debug("Skipping non-Japanese manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
 
         logger.debug(
             "OCR refined: box=%s tesseract=%s manga_ocr=%s",
@@ -303,6 +309,12 @@ def recognize_with_tesseract(
         except pytesseract.TesseractNotFoundError as exc:
             logger.exception("Tesseract executable was not found")
             raise RuntimeError(tesseract_missing_message()) from exc
+        if is_punctuation_only_ocr_text(text):
+            logger.debug("Skipping punctuation-only tesseract result: box=%s text=%s", block.box, shorten(text))
+            continue
+        if not contains_japanese_ocr_text(text):
+            logger.debug("Skipping non-Japanese tesseract result: box=%s text=%s", block.box, shorten(text))
+            continue
 
         recognized.append(
             TextBlock(
@@ -373,6 +385,25 @@ def parse_confidence(value: object) -> float:
         return float(value)
     except (TypeError, ValueError):
         return -1.0
+
+
+def is_punctuation_only_ocr_text(value: str) -> bool:
+    text = normalize_ocr_text(value)
+    return bool(text) and not any(char.isalnum() for char in text)
+
+
+def contains_japanese_ocr_text(value: str) -> bool:
+    return any(is_japanese_ocr_char(char) for char in normalize_ocr_text(value))
+
+
+def is_japanese_ocr_char(char: str) -> bool:
+    code = ord(char)
+    return (
+        0x3040 <= code <= 0x30FF
+        or 0x31F0 <= code <= 0x31FF
+        or 0x3400 <= code <= 0x4DBF
+        or 0x4E00 <= code <= 0x9FFF
+    )
 
 
 def pad_box(

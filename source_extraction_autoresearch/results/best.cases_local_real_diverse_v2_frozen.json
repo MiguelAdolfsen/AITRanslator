@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "benchmark_set": "cases/local_real_diverse_v2_frozen",
+  "benchmark_fingerprint": null,
+  "best_run_id": "local_real_diverse_v2_baseline",
+  "best_score": 1836.329524,
+  "best_commit": "787864eb5dff2375a786b63a82a7fd740ff51bbb",
+  "best_sort_key": [
+    1836.329524,
+    1,
+    19,
+    0.023955,
+    4,
+    16,
+    3054.9897,
+    27
+  ],
+  "best_row_timestamp": "2026-05-26T06:07:10.333364+00:00",
+  "updated_at": "2026-05-26T06:23:38.579517+00:00",
+  "notes": "Rebuilt from results.tsv; smoke and draft rows excluded. Timing is a tie-breaker."
+}

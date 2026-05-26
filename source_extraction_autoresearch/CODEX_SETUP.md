@@ -1,5 +1,16 @@
 # Codex setup spec: isolated source-extraction autoresearch loop for AITRanslator
 
+> Current status: this file is the historical setup spec plus current implementation notes.
+> For day-to-day optimization, prefer `PROGRAM.md`, `KEEP_EXPERIMENTING.md`, `SCORING.md`,
+> `BENCHMARK_SCHEMA.md`, and `README.md`.
+>
+> Current harness facts:
+> - Project-mode extraction goes through `manga_local_translator.source_extraction.extract_source_page(...)`.
+> - `source_extraction_score` is quality-only; timing is reported as `timing_score_component` and used as a tie-breaker.
+> - Decision runs are strict: no adapter-smoke, no draft benchmarks, no skipped validation, no dirty forbidden files, and tests must be run by the harness (`--run-tests`) or supplied by `run_benchmark_matrix.py`.
+> - Best records are per benchmark: `source_extraction_autoresearch/results/best.<benchmark>.json`.
+> - Prefer `source_extraction_autoresearch/scripts/run_benchmark_matrix.py --include-historical` for keep/revert gates.
+
 You are Codex working inside the `AITRanslator` repository root. Your task is to set up an isolated autoresearch loop for the next optimization target after rendering and translation routing: **source extraction**.
 
 Source extraction means this part of the pipeline only:
@@ -133,16 +144,16 @@ Do not copy large chunks of main-project logic into the harness. Import and call
 For this repository, the preferred project-mode adapter path is:
 
 ```text
-manga_local_translator.pipeline.prepare_page_for_translation(...)
+manga_local_translator.source_extraction.extract_source_page(...)
 ```
 
-That function currently performs the source-extraction portion only:
+That function performs the source-extraction portion only:
 
 ```text
 image read -> run_ocr -> assign_ocr_block_ids -> filter_text_blocks -> group_text_blocks_for_translation -> build/enrich page order
 ```
 
-Map its returned `PreparedPage` fields into the predicted-output schema:
+Map its returned `SourceExtractionResult` fields into the predicted-output schema:
 
 ```text
 raw_blocks        -> raw detected/OCR regions
@@ -186,7 +197,7 @@ source_extraction_autoresearch/
 
   results/
     results.tsv
-    best.json
+    best.<benchmark>.json
     .gitkeep
 
   runs/
@@ -250,7 +261,8 @@ python source_extraction_autoresearch/scripts/eval_source_extraction.py \
   --benchmark source_extraction_autoresearch/benchmarks/synthetic \
   --output source_extraction_autoresearch/runs/baseline \
   --results source_extraction_autoresearch/results/results.tsv \
-  --run-id baseline
+  --run-id baseline \
+  --run-tests
 
 python source_extraction_autoresearch/scripts/summarize_results.py \
   --results source_extraction_autoresearch/results/results.tsv
@@ -294,6 +306,7 @@ Minimize missed, false, garbled, wrongly grouped, and wrongly ordered Japanese s
 Use this phase-1 editable project-code surface:
 
 ```text
+manga_local_translator/source_extraction.py
 manga_local_translator/detect_ocr.py
 manga_local_translator/grouping.py
 manga_local_translator/text_filter.py
@@ -313,10 +326,20 @@ Forbidden edits during optimization:
 
 ```text
 source_extraction_autoresearch/benchmarks/**
+source_extraction_autoresearch/BENCHMARK_SCHEMA.md
+source_extraction_autoresearch/SCORING.md
+source_extraction_autoresearch/PROGRAM.md
 source_extraction_autoresearch/scripts/eval_source_extraction.py
+source_extraction_autoresearch/scripts/io_adapters.py
 source_extraction_autoresearch/scripts/score.py
 source_extraction_autoresearch/scripts/match_regions.py
 source_extraction_autoresearch/scripts/normalize_text.py
+source_extraction_autoresearch/scripts/validate_fixtures.py
+source_extraction_autoresearch/scripts/summarize_results.py
+source_extraction_autoresearch/scripts/report_failures.py
+source_extraction_autoresearch/scripts/benchmark_coverage.py
+source_extraction_autoresearch/scripts/rebuild_best_index.py
+source_extraction_autoresearch/scripts/run_benchmark_matrix.py
 source_extraction_autoresearch/templates/**
 source_extraction_autoresearch/results/results.tsv
 render_autoresearch/**
@@ -346,7 +369,7 @@ Required commands before accepting an experiment:
   --output source_extraction_autoresearch\runs\current `
   --results source_extraction_autoresearch\results\results.tsv `
   --run-id current `
-  --tests-ok
+  --run-tests
 ```
 
 Keep a change only if:
@@ -388,7 +411,7 @@ results/*.log
 results/*.jsonl
 !results/.gitkeep
 !results/results.tsv
-!results/best.json
+!results/best.*.json
 __pycache__/
 *.pyc
 .DS_Store
@@ -406,18 +429,21 @@ Never silently rewrite previous rows.
 Append exactly one row per benchmark run.
 ```
 
-### `source_extraction_autoresearch/results/best.json`
+### `source_extraction_autoresearch/results/best.<benchmark>.json`
 
-Create a small JSON file tracking the current best run:
+The evaluator maintains per-benchmark JSON files tracking current best decision runs:
 
 ```json
 {
   "schema_version": 1,
+  "benchmark_set": "synthetic",
+  "benchmark_fingerprint": null,
   "best_run_id": null,
   "best_score": null,
   "best_commit": null,
+  "best_sort_key": null,
   "updated_at": null,
-  "notes": "Updated by eval_source_extraction.py only when a run improves the score and passes hard guards."
+  "notes": "Per-benchmark best; smoke and draft benchmarks are excluded. Timing is a tie-breaker."
 }
 ```
 
@@ -444,7 +470,7 @@ predicted OCR text
 predicted orientation
 predicted grouping
 predicted reading order
-source-extraction timing
+source-extraction timing as a reported tie-breaker
 ```
 
 The evaluator compares predictions with labels, writes per-run reports, computes one lower-is-better score, and appends one row to the result log.
@@ -757,7 +783,7 @@ Adapter rules:
 
 ```text
 Prefer importing existing project helpers.
-Prefer `manga_local_translator.pipeline.prepare_page_for_translation(...)` for project mode.
+Prefer `manga_local_translator.source_extraction.extract_source_page(...)` for project mode.
 Do not use `manga_local_translator.pipeline.process_image(...)`.
 Do not call translation, rendering, erase, Qwen, CAT, OPUS, MADLAD, Argos, vision, or GUI code.
 Do not call network services.
@@ -915,8 +941,9 @@ source_extraction_score =
 +  1800 * empty_ocr_rate
 +  1500 * non_japanese_noise_rate
 +   500 * harmless_false_positive_rate
-+     1 * p95_extraction_ms_per_page
 ```
+
+`p95_extraction_ms_per_page` is reported separately as `timing_score_component` and used as a tie-breaker only.
 
 Definitions:
 
@@ -1254,7 +1281,7 @@ Rules:
 ```text
 Keep imports local and defensive.
 Prefer direct imports from manga_local_translator.
-Prefer `manga_local_translator.pipeline.prepare_page_for_translation(...)` and map its returned `PreparedPage` into the harness schema.
+Prefer `manga_local_translator.source_extraction.extract_source_page(...)` and map its returned `SourceExtractionResult` into the harness schema.
 Do not use `process_image(...)`; it is outside the source-extraction-only scope.
 Do not use the CLI fallback for scored project-mode benchmark runs. The CLI is a full pipeline entry point and can accidentally run translation, erase, render, or vision stages.
 If direct imports are not viable, project mode should fail clearly. Existing `.ocr.json` files may be read only by `build_case_from_debug.py` to draft labels, not by the scored evaluator.
@@ -1330,7 +1357,7 @@ match predictions to labels
 score each page and aggregate summary
 write run outputs
 append one TSV row
-update best.json only when the run passes hard guards and improves the best score
+update `results/best.<benchmark>.json` only when a decision run passes hard guards and improves the best sort key
 ```
 
 Required CLI args:
@@ -1346,7 +1373,12 @@ Recommended CLI args:
 
 ```text
 --experiment-name TEXT
---tests-ok
+--run-tests
+--allow-missing-tests
+--test-context
+--decision-run / --no-decision-run
+--allow-dirty-forbidden
+--allow-dirty-results
 --overwrite-output
 --adapter-smoke
 --strict-overlays
@@ -1476,7 +1508,7 @@ During setup, Codex should complete this checklist:
 [ ] Write .gitignore.
 [ ] Write templates/result_header.tsv with the exact header.
 [ ] Create results/results.tsv with the exact header.
-[ ] Create results/best.json.
+[ ] Create per-benchmark results/best.<benchmark>.json sidecars through evaluator runs or rebuild_best_index.py.
 [ ] Create script stubs with CLI help and clear TODO-safe behavior.
 [ ] Implement validate_fixtures.py.
 [ ] Implement normalize_text.py.
@@ -1500,6 +1532,7 @@ python source_extraction_autoresearch/scripts/eval_source_extraction.py \
   --results source_extraction_autoresearch/results/results.tsv \
   --run-id smoke_baseline \
   --adapter-smoke \
+  --no-decision-run \
   --overwrite-output
 ```
 
@@ -1520,7 +1553,7 @@ README.md explains the loop is isolated
 PROGRAM.md contains clear keep/revert rules
 BENCHMARK_SCHEMA.md and SCORING.md exist
 results/results.tsv exists with the correct header
-best.json exists
+per-benchmark best sidecars can be written for decision benchmarks
 synthetic fixtures can be generated
 fixtures can be validated
 adapter-smoke benchmark can run and append one row
@@ -1542,5 +1575,15 @@ source_extraction_autoresearch/BENCHMARK_SCHEMA.md
 ```
 
 Then they should make one small project-code change at a time, run tests, run the benchmark, append exactly one result row, and keep the change only when `source_extraction_score` improves without violating hard guards.
+
+Preferred current gate:
+
+```powershell
+.\.venv\Scripts\python.exe source_extraction_autoresearch\scripts\run_benchmark_matrix.py `
+  --include-historical `
+  --overwrite-output
+```
+
+If running a single decision benchmark directly, use `eval_source_extraction.py --run-tests`. Do not use old trust-based test flags for decision rows.
 
 The loop is separate from the main project. Keep it that way.

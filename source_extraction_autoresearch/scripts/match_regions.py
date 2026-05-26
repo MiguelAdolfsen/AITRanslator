@@ -174,9 +174,13 @@ def duplicate_prediction_count(pred_regions: list[dict[str, Any]]) -> int:
 
 
 def reading_order_error_count(matches: list[RegionMatch], gt_regions: list[dict[str, Any]], pred_regions: list[dict[str, Any]]) -> int:
+    return len(reading_order_error_details(matches, gt_regions, pred_regions))
+
+
+def reading_order_error_details(matches: list[RegionMatch], gt_regions: list[dict[str, Any]], pred_regions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     gt_by_id = {str(region["region_id"]): region for region in gt_regions}
     pred_by_id = {str(region.get("pred_region_id")): region for region in pred_regions}
-    comparable: list[tuple[int, int, str]] = []
+    comparable: list[tuple[int, int, str, str]] = []
     for match in matches:
         if not match.matched or not match.pred_region_id:
             continue
@@ -184,15 +188,27 @@ def reading_order_error_count(matches: list[RegionMatch], gt_regions: list[dict[
         pred_order = pred_by_id.get(match.pred_region_id, {}).get("page_order")
         if gt_order is None or pred_order is None:
             continue
-        comparable.append((int(gt_order), int(pred_order), match.region_id))
-    errors = 0
+        comparable.append((int(gt_order), int(pred_order), match.region_id, match.pred_region_id))
+    details: list[dict[str, Any]] = []
     for i, left in enumerate(comparable):
         for right in comparable[i + 1:]:
             gt_delta = left[0] - right[0]
             pred_delta = left[1] - right[1]
             if gt_delta and pred_delta and (gt_delta > 0) != (pred_delta > 0):
-                errors += 1
-    return errors
+                details.append(
+                    {
+                        "type": "reading_order_inversion",
+                        "left_region_id": left[2],
+                        "left_pred_region_id": left[3],
+                        "left_gt_order": left[0],
+                        "left_pred_order": left[1],
+                        "right_region_id": right[2],
+                        "right_pred_region_id": right[3],
+                        "right_gt_order": right[0],
+                        "right_pred_order": right[1],
+                    }
+                )
+    return details
 
 
 def group_error_counts(
@@ -201,10 +217,23 @@ def group_error_counts(
     pred_regions: list[dict[str, Any]],
     pred_groups: list[dict[str, Any]],
 ) -> tuple[int, int]:
+    details = group_error_details(matches, gt_regions, pred_regions, pred_groups)
+    overmerge = sum(1 for item in details if item["type"] == "overmerge")
+    undermerge = sum(1 for item in details if item["type"] == "undermerge")
+    return overmerge, undermerge
+
+
+def group_error_details(
+    matches: list[RegionMatch],
+    gt_regions: list[dict[str, Any]],
+    pred_regions: list[dict[str, Any]],
+    pred_groups: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     gt_by_region = {str(region["region_id"]): region for region in gt_regions}
     pred_by_region = {str(region.get("pred_region_id")): region for region in pred_regions}
     pred_to_gt_group: dict[str, str] = {}
     gt_to_pred_group_ids: dict[str, set[str]] = {}
+    gt_to_region_ids: dict[str, set[str]] = {}
     for match in matches:
         if not match.matched or not match.pred_region_id:
             continue
@@ -214,16 +243,29 @@ def group_error_counts(
             continue
         pred_to_gt_group[str(match.pred_region_id)] = str(gt_group)
         gt_to_pred_group_ids.setdefault(str(gt_group), set()).add(str(pred_group))
+        gt_to_region_ids.setdefault(str(gt_group), set()).add(match.region_id)
 
-    overmerge = 0
+    details: list[dict[str, Any]] = []
     for group in pred_groups:
-        gt_groups = {
-            pred_to_gt_group[member]
-            for member in [str(item) for item in group.get("member_pred_region_ids", [])]
-            if member in pred_to_gt_group
-        }
+        members = [str(item) for item in group.get("member_pred_region_ids", [])]
+        gt_groups = {pred_to_gt_group[member] for member in members if member in pred_to_gt_group}
         if len(gt_groups) > 1:
-            overmerge += 1
-    undermerge = sum(1 for group_ids in gt_to_pred_group_ids.values() if len(group_ids) > 1)
-    return overmerge, undermerge
-
+            details.append(
+                {
+                    "type": "overmerge",
+                    "pred_group_id": group.get("pred_group_id"),
+                    "member_pred_region_ids": members,
+                    "gt_group_ids": sorted(gt_groups),
+                }
+            )
+    for gt_group, pred_group_ids in gt_to_pred_group_ids.items():
+        if len(pred_group_ids) > 1:
+            details.append(
+                {
+                    "type": "undermerge",
+                    "gt_group_id": gt_group,
+                    "region_ids": sorted(gt_to_region_ids.get(gt_group, set())),
+                    "pred_group_ids": sorted(pred_group_ids),
+                }
+            )
+    return details
