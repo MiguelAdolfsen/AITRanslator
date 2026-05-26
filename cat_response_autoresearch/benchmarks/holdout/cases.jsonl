@@ -1,0 +1,6 @@
+{"case_id":"holdout_short_001","line_id":"holdout_001","notes":"Very short reply fragment.","page_id":"holdout","risk_labels":["short_fragment"],"schema_version":1,"source_text":"そうか","source_type":"short_fragment"}
+{"case_id":"holdout_ellipsis_001","line_id":"holdout_002","notes":"Ellipsis plus incomplete objection.","page_id":"holdout","risk_labels":["short_fragment","ellipsis"],"schema_version":1,"source_text":"でも．．．","source_type":"ellipsis_fragment"}
+{"case_id":"holdout_honorific_001","line_id":"holdout_003","notes":"Honorific name-like source.","page_id":"holdout","risk_labels":["honorific","name_like"],"schema_version":1,"source_text":"佐藤くん","source_type":"honorific_name"}
+{"case_id":"holdout_sfx_001","line_id":"holdout_004","notes":"Small laugh SFX.","page_id":"holdout","risk_labels":["sfx","short_fragment"],"schema_version":1,"source_text":"くすっ","source_type":"sfx"}
+{"case_id":"holdout_noise_001","line_id":"holdout_005","notes":"Page noise / overlay-looking OCR.","page_id":"holdout","risk_labels":["ocr_noise","metadata_like"],"schema_version":1,"source_text":"※第2話 つづく 2024","source_type":"credits_or_metadata"}
+{"case_id":"holdout_dialogue_001","line_id":"holdout_006","notes":"Normal dialogue with no special trap.","page_id":"holdout","risk_labels":["normal_dialogue"],"schema_version":1,"source_text":"もう一度だけ聞かせて。","source_type":"normal_dialogue"}

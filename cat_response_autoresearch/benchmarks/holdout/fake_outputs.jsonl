@@ -1,0 +1,6 @@
+{"case_id":"holdout_short_001","raw_output":"I see."}
+{"case_id":"holdout_ellipsis_001","raw_output":"But..."}
+{"case_id":"holdout_honorific_001","raw_output":"Sato-kun"}
+{"case_id":"holdout_sfx_001","raw_output":"Heh."}
+{"case_id":"holdout_noise_001","raw_output":"Could you please provide the Japanese passage?"}
+{"case_id":"holdout_dialogue_001","raw_output":"Let me hear it just one more time."}

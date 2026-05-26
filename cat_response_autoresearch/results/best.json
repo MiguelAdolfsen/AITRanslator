@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "best_run_id": null,
+  "best_score": null,
+  "best_quality_score": null,
+  "best_response_score": null,
+  "best_latency_score": null,
+  "best_commit": null,
+  "benchmark_fingerprint": null,
+  "updated_at": null
+}

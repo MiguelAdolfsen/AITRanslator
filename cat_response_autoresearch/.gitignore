@@ -1,0 +1,7 @@
+runs/*
+!runs/.gitkeep
+results/*
+!results/.gitkeep
+!results/results.tsv
+!results/best.json
+
