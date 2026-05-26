@@ -73,6 +73,13 @@ def should_group_blocks(a: TextBlock, b: TextBlock, *, image_bgr=None) -> bool:
             and vertical_overlap_ratio >= 0.50
         ):
             return False
+        if (
+            min(ay1, by1) >= (image_bgr.shape[0] * 0.65 if image_bgr is not None else 1000)
+            and 24 <= horizontal_gap <= 35
+            and vertical_overlap_ratio >= 0.70
+            and min(len(compact_text(a.text)), len(compact_text(b.text))) >= 15
+        ):
+            return False
         max_gap = max(14, int(min(a_width, b_width) * 0.75))
         close_column = horizontal_gap <= max_gap and vertical_overlap_ratio >= 0.45
         tight_high_overlap_column = horizontal_gap <= 22 and vertical_overlap_ratio >= 0.65
@@ -349,6 +356,10 @@ def block_sort_key(block: TextBlock) -> tuple[int, int, int, int]:
 def box_center(box: tuple[int, int, int, int]) -> tuple[float, float]:
     x1, y1, x2, y2 = box
     return (x1 + x2) / 2, (y1 + y2) / 2
+
+
+def compact_text(value: str) -> str:
+    return "".join(str(value).split())
 
 
 def union_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, int]:
