@@ -446,6 +446,14 @@ def manga_ocr_crop_box(
     image_height: int,
     padding: int,
 ) -> tuple[int, int, int, int]:
+    if needs_wide_bottom_left_ocr_crop(block, image_width=image_width, image_height=image_height):
+        x1, y1, x2, y2 = block.box
+        return (
+            max(0, x1 - 20),
+            max(0, y1 - 20),
+            min(image_width, x2 + 62),
+            min(image_height, y2 + 20),
+        )
     line_union = ctd_line_union_crop_box(block, image_width=image_width, image_height=image_height, padding=padding)
     if line_union is not None:
         return line_union
@@ -458,6 +466,27 @@ def manga_ocr_crop_box(
             min(image_height, y2 + 120),
         )
     return pad_box(block.box, image_width, image_height, padding)
+
+
+def needs_wide_bottom_left_ocr_crop(block: TextBlock, *, image_width: int, image_height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) != 1:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        x1 <= image_width * 0.10
+        and y1 >= image_height * 0.65
+        and 80 <= block_width <= 115
+        and 220 <= block_height <= 280
+    )
 
 
 def ctd_line_union_crop_box(
