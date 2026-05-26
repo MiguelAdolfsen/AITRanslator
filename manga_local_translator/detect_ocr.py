@@ -892,7 +892,7 @@ def is_small_horizontal_credit_ctd_block(block: TextBlock, *, text: str, width: 
     block_width = max(1, x2 - x1)
     block_height = max(1, y2 - y1)
     return (
-        width * 0.40 <= x1 <= width * 0.55
+        x1 >= width * 0.75
         and height * 0.25 <= y1 <= height * 0.40
         and 45 <= block_width <= 100
         and block_height <= 18
