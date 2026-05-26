@@ -59,6 +59,13 @@ def should_group_blocks(a: TextBlock, b: TextBlock, *, image_bgr=None) -> bool:
     horizontal_overlap_ratio = horizontal_overlap / max(1, min(a_width, b_width))
 
     if bool(a.metadata.get("vertical")):
+        if (
+            image_bgr is not None
+            and 13 <= horizontal_gap <= 16
+            and vertical_overlap_ratio >= 0.45
+            and not boxes_share_white_region(image_bgr, a.box, b.box)
+        ):
+            return False
         max_gap = max(14, int(min(a_width, b_width) * 0.75))
         close_column = horizontal_gap <= max_gap and vertical_overlap_ratio >= 0.45
         tight_high_overlap_column = horizontal_gap <= 22 and vertical_overlap_ratio >= 0.65
