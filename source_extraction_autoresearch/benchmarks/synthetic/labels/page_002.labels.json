@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "page_id": "page_002",
+  "image": "pages/page_002.png",
+  "image_size": [
+    900,
+    1300
+  ],
+  "text_regions": [
+    {
+      "region_id": "r002_01",
+      "box": [
+        680,
+        90,
+        760,
+        310
+      ],
+      "source_text": "大丈夫",
+      "normalized_source_text": "大丈夫",
+      "orientation": "vertical",
+      "group_id": "g002_01",
+      "page_order": 1,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r002_02",
+      "box": [
+        520,
+        160,
+        610,
+        390
+      ],
+      "source_text": "行こう",
+      "normalized_source_text": "行こう",
+      "orientation": "vertical",
+      "group_id": "g002_02",
+      "page_order": 2,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "multi_column",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r002_03",
+      "box": [
+        330,
+        120,
+        470,
+        190
+      ],
+      "source_text": "それは違う",
+      "normalized_source_text": "それは違う",
+      "orientation": "horizontal",
+      "group_id": "g002_03",
+      "page_order": 3,
+      "kind": "narration",
+      "should_extract": true,
+      "difficulty_tags": [
+        "horizontal",
+        "narration_box"
+      ]
+    },
+    {
+      "region_id": "r002_04",
+      "box": [
+        620,
+        560,
+        735,
+        650
+      ],
+      "source_text": "ありがとう",
+      "normalized_source_text": "ありがとう",
+      "orientation": "horizontal",
+      "group_id": "g002_04",
+      "page_order": 4,
+      "kind": "sign",
+      "should_extract": true,
+      "difficulty_tags": [
+        "sign"
+      ]
+    },
+    {
+      "region_id": "r002_05",
+      "box": [
+        160,
+        640,
+        240,
+        875
+      ],
+      "source_text": "ごめんね",
+      "normalized_source_text": "ごめんね",
+      "orientation": "vertical",
+      "group_id": "g002_05",
+      "page_order": 5,
+      "kind": "thought",
+      "should_extract": true,
+      "difficulty_tags": [
+        "nearby_bubbles"
+      ]
+    },
+    {
+      "region_id": "r002_20",
+      "box": [
+        735,
+        700,
+        805,
+        900
+      ],
+      "source_text": "そっちは？",
+      "normalized_source_text": "そっちは？",
+      "orientation": "vertical",
+      "group_id": "g002_20",
+      "page_order": 6,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "close_separate_bubbles",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r002_21",
+      "box": [
+        645,
+        710,
+        715,
+        900
+      ],
+      "source_text": "こっちだよ",
+      "normalized_source_text": "こっちだよ",
+      "orientation": "vertical",
+      "group_id": "g002_21",
+      "page_order": 7,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "close_separate_bubbles",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r002_90",
+      "box": [
+        55,
+        40,
+        150,
+        80
+      ],
+      "source_text": "第2話",
+      "normalized_source_text": "第2話",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "metadata",
+      "should_extract": false,
+      "difficulty_tags": [
+        "chapter_label"
+      ]
+    },
+    {
+      "region_id": "r002_91",
+      "box": [
+        620,
+        1210,
+        820,
+        1250
+      ],
+      "source_text": "SCAN TEAM",
+      "normalized_source_text": "SCAN TEAM",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "credit",
+      "should_extract": false,
+      "difficulty_tags": [
+        "credit",
+        "latin_noise"
+      ]
+    },
+    {
+      "region_id": "r002_92",
+      "box": [
+        430,
+        1240,
+        470,
+        1275
+      ],
+      "source_text": "2",
+      "normalized_source_text": "2",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "page_number",
+      "should_extract": false,
+      "difficulty_tags": [
+        "page_number"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "group_id": "g002_01",
+      "member_region_ids": [
+        "r002_01"
+      ],
+      "combined_source_text": "大丈夫",
+      "page_order": 1,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g002_02",
+      "member_region_ids": [
+        "r002_02"
+      ],
+      "combined_source_text": "行こう",
+      "page_order": 2,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g002_03",
+      "member_region_ids": [
+        "r002_03"
+      ],
+      "combined_source_text": "それは違う",
+      "page_order": 3,
+      "kind": "narration"
+    },
+    {
+      "group_id": "g002_04",
+      "member_region_ids": [
+        "r002_04"
+      ],
+      "combined_source_text": "ありがとう",
+      "page_order": 4,
+      "kind": "sign"
+    },
+    {
+      "group_id": "g002_05",
+      "member_region_ids": [
+        "r002_05"
+      ],
+      "combined_source_text": "ごめんね",
+      "page_order": 5,
+      "kind": "thought"
+    },
+    {
+      "group_id": "g002_20",
+      "member_region_ids": [
+        "r002_20"
+      ],
+      "combined_source_text": "そっちは？",
+      "page_order": 6,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g002_21",
+      "member_region_ids": [
+        "r002_21"
+      ],
+      "combined_source_text": "こっちだよ",
+      "page_order": 7,
+      "kind": "dialogue"
+    }
+  ],
+  "notes": "Deterministic synthetic source-extraction case."
+}

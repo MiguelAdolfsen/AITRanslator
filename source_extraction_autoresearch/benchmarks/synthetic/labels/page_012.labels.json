@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "page_id": "page_012",
+  "image": "pages/page_012.png",
+  "image_size": [
+    900,
+    1300
+  ],
+  "text_regions": [
+    {
+      "region_id": "r012_01",
+      "box": [
+        680,
+        90,
+        760,
+        310
+      ],
+      "source_text": "第3話",
+      "normalized_source_text": "第3話",
+      "orientation": "vertical",
+      "group_id": "g012_01",
+      "page_order": 1,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r012_02",
+      "box": [
+        520,
+        160,
+        610,
+        390
+      ],
+      "source_text": "しずかに",
+      "normalized_source_text": "しずかに",
+      "orientation": "vertical",
+      "group_id": "g012_02",
+      "page_order": 2,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "multi_column",
+        "speech_bubble",
+        "split_group"
+      ]
+    },
+    {
+      "region_id": "r012_03",
+      "box": [
+        330,
+        120,
+        470,
+        190
+      ],
+      "source_text": "おはよう",
+      "normalized_source_text": "おはよう",
+      "orientation": "horizontal",
+      "group_id": "g012_03",
+      "page_order": 3,
+      "kind": "narration",
+      "should_extract": true,
+      "difficulty_tags": [
+        "horizontal",
+        "narration_box"
+      ]
+    },
+    {
+      "region_id": "r012_04",
+      "box": [
+        620,
+        560,
+        735,
+        650
+      ],
+      "source_text": "何してるの",
+      "normalized_source_text": "何してるの",
+      "orientation": "horizontal",
+      "group_id": "g012_04",
+      "page_order": 4,
+      "kind": "sign",
+      "should_extract": true,
+      "difficulty_tags": [
+        "sign"
+      ]
+    },
+    {
+      "region_id": "r012_05",
+      "box": [
+        160,
+        640,
+        240,
+        875
+      ],
+      "source_text": "まって",
+      "normalized_source_text": "まって",
+      "orientation": "vertical",
+      "group_id": "g012_05",
+      "page_order": 5,
+      "kind": "thought",
+      "should_extract": true,
+      "difficulty_tags": [
+        "nearby_bubbles"
+      ]
+    },
+    {
+      "region_id": "r012_20",
+      "box": [
+        790,
+        705,
+        860,
+        825
+      ],
+      "source_text": "だめ",
+      "normalized_source_text": "だめ",
+      "orientation": "vertical",
+      "group_id": "g012_20",
+      "page_order": 6,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "dense_page",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r012_21",
+      "box": [
+        695,
+        735,
+        765,
+        855
+      ],
+      "source_text": "まだ",
+      "normalized_source_text": "まだ",
+      "orientation": "vertical",
+      "group_id": "g012_21",
+      "page_order": 7,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "dense_page",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r012_22",
+      "box": [
+        600,
+        765,
+        670,
+        885
+      ],
+      "source_text": "ここ",
+      "normalized_source_text": "ここ",
+      "orientation": "vertical",
+      "group_id": "g012_22",
+      "page_order": 8,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "dense_page",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r012_23",
+      "box": [
+        505,
+        795,
+        575,
+        915
+      ],
+      "source_text": "行こう",
+      "normalized_source_text": "行こう",
+      "orientation": "vertical",
+      "group_id": "g012_23",
+      "page_order": 9,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "dense_page",
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r012_90",
+      "box": [
+        55,
+        40,
+        150,
+        80
+      ],
+      "source_text": "第12話",
+      "normalized_source_text": "第12話",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "metadata",
+      "should_extract": false,
+      "difficulty_tags": [
+        "chapter_label"
+      ]
+    },
+    {
+      "region_id": "r012_91",
+      "box": [
+        620,
+        1210,
+        820,
+        1250
+      ],
+      "source_text": "SCAN TEAM",
+      "normalized_source_text": "SCAN TEAM",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "credit",
+      "should_extract": false,
+      "difficulty_tags": [
+        "credit",
+        "latin_noise"
+      ]
+    },
+    {
+      "region_id": "r012_92",
+      "box": [
+        430,
+        1240,
+        470,
+        1275
+      ],
+      "source_text": "12",
+      "normalized_source_text": "12",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "page_number",
+      "should_extract": false,
+      "difficulty_tags": [
+        "page_number"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "group_id": "g012_01",
+      "member_region_ids": [
+        "r012_01"
+      ],
+      "combined_source_text": "第3話",
+      "page_order": 1,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g012_02",
+      "member_region_ids": [
+        "r012_02"
+      ],
+      "combined_source_text": "しずかに",
+      "page_order": 2,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g012_03",
+      "member_region_ids": [
+        "r012_03"
+      ],
+      "combined_source_text": "おはよう",
+      "page_order": 3,
+      "kind": "narration"
+    },
+    {
+      "group_id": "g012_04",
+      "member_region_ids": [
+        "r012_04"
+      ],
+      "combined_source_text": "何してるの",
+      "page_order": 4,
+      "kind": "sign"
+    },
+    {
+      "group_id": "g012_05",
+      "member_region_ids": [
+        "r012_05"
+      ],
+      "combined_source_text": "まって",
+      "page_order": 5,
+      "kind": "thought"
+    },
+    {
+      "group_id": "g012_20",
+      "member_region_ids": [
+        "r012_20"
+      ],
+      "combined_source_text": "だめ",
+      "page_order": 6,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g012_21",
+      "member_region_ids": [
+        "r012_21"
+      ],
+      "combined_source_text": "まだ",
+      "page_order": 7,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g012_22",
+      "member_region_ids": [
+        "r012_22"
+      ],
+      "combined_source_text": "ここ",
+      "page_order": 8,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g012_23",
+      "member_region_ids": [
+        "r012_23"
+      ],
+      "combined_source_text": "行こう",
+      "page_order": 9,
+      "kind": "dialogue"
+    }
+  ],
+  "notes": "Deterministic synthetic source-extraction case."
+}

@@ -1,0 +1,12 @@
+runs/*
+!runs/.gitkeep
+results/*.tmp
+results/*.log
+results/*.jsonl
+!results/.gitkeep
+!results/results.tsv
+!results/best.json
+__pycache__/
+*.pyc
+.DS_Store
+

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "best_run_id": "current",
+  "best_score": 3766.590839,
+  "best_commit": "4ee0a99ca02243a34f05344f0e0463f381f3e5fa",
+  "updated_at": "2026-05-25T17:21:27.010394+00:00",
+  "notes": "Updated by eval_source_extraction.py only when a run improves the score and passes hard guards."
+}

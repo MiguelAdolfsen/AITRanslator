@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "page_id": "page_002",
+  "ignore_regions": [
+    {
+      "box": [
+        0,
+        0,
+        900,
+        28
+      ],
+      "reason": "scan margin"
+    },
+    {
+      "box": [
+        0,
+        1276,
+        900,
+        1300
+      ],
+      "reason": "scan footer margin"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "page_id": "page_009",
+  "detector": "ctd",
+  "ocr_engine": "manga-ocr",
+  "allow_tesseract_fallback": true,
+  "notes": "Synthetic default."
+}

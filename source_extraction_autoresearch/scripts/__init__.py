@@ -1,0 +1,2 @@
+"""Source-extraction autoresearch harness."""
+

@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "page_id": "page_003",
+  "image": "pages/page_003.png",
+  "image_size": [
+    900,
+    1300
+  ],
+  "text_regions": [
+    {
+      "region_id": "r003_01",
+      "box": [
+        680,
+        90,
+        760,
+        310
+      ],
+      "source_text": "行こう",
+      "normalized_source_text": "行こう",
+      "orientation": "vertical",
+      "group_id": "g003_01",
+      "page_order": 1,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "vertical",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r003_02",
+      "box": [
+        520,
+        160,
+        610,
+        390
+      ],
+      "source_text": "それは違う",
+      "normalized_source_text": "それは違う",
+      "orientation": "vertical",
+      "group_id": "g003_02",
+      "page_order": 2,
+      "kind": "dialogue",
+      "should_extract": true,
+      "difficulty_tags": [
+        "multi_column",
+        "speech_bubble"
+      ]
+    },
+    {
+      "region_id": "r003_03",
+      "box": [
+        330,
+        120,
+        470,
+        190
+      ],
+      "source_text": "ありがとう",
+      "normalized_source_text": "ありがとう",
+      "orientation": "horizontal",
+      "group_id": "g003_03",
+      "page_order": 3,
+      "kind": "narration",
+      "should_extract": true,
+      "difficulty_tags": [
+        "horizontal",
+        "narration_box"
+      ]
+    },
+    {
+      "region_id": "r003_04",
+      "box": [
+        620,
+        560,
+        735,
+        650
+      ],
+      "source_text": "ごめんね",
+      "normalized_source_text": "ごめんね",
+      "orientation": "horizontal",
+      "group_id": "g003_04",
+      "page_order": 4,
+      "kind": "sign",
+      "should_extract": true,
+      "difficulty_tags": [
+        "sign"
+      ]
+    },
+    {
+      "region_id": "r003_05",
+      "box": [
+        160,
+        640,
+        240,
+        875
+      ],
+      "source_text": "見つけた",
+      "normalized_source_text": "見つけた",
+      "orientation": "vertical",
+      "group_id": "g003_05",
+      "page_order": 5,
+      "kind": "thought",
+      "should_extract": true,
+      "difficulty_tags": [
+        "nearby_bubbles"
+      ]
+    },
+    {
+      "region_id": "r003_20",
+      "box": [
+        110,
+        980,
+        235,
+        1030
+      ],
+      "source_text": "その時",
+      "normalized_source_text": "その時",
+      "orientation": "horizontal",
+      "group_id": "g003_20",
+      "page_order": 6,
+      "kind": "narration",
+      "should_extract": true,
+      "difficulty_tags": [
+        "split_group",
+        "horizontal",
+        "narration_box"
+      ]
+    },
+    {
+      "region_id": "r003_21",
+      "box": [
+        245,
+        980,
+        405,
+        1030
+      ],
+      "source_text": "気づいた",
+      "normalized_source_text": "気づいた",
+      "orientation": "horizontal",
+      "group_id": "g003_20",
+      "page_order": 6,
+      "kind": "narration",
+      "should_extract": true,
+      "difficulty_tags": [
+        "split_group",
+        "horizontal",
+        "narration_box"
+      ]
+    },
+    {
+      "region_id": "r003_90",
+      "box": [
+        55,
+        40,
+        150,
+        80
+      ],
+      "source_text": "第3話",
+      "normalized_source_text": "第3話",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "metadata",
+      "should_extract": false,
+      "difficulty_tags": [
+        "chapter_label"
+      ]
+    },
+    {
+      "region_id": "r003_91",
+      "box": [
+        620,
+        1210,
+        820,
+        1250
+      ],
+      "source_text": "SCAN TEAM",
+      "normalized_source_text": "SCAN TEAM",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "credit",
+      "should_extract": false,
+      "difficulty_tags": [
+        "credit",
+        "latin_noise"
+      ]
+    },
+    {
+      "region_id": "r003_92",
+      "box": [
+        430,
+        1240,
+        470,
+        1275
+      ],
+      "source_text": "3",
+      "normalized_source_text": "3",
+      "orientation": "horizontal",
+      "group_id": null,
+      "page_order": null,
+      "kind": "page_number",
+      "should_extract": false,
+      "difficulty_tags": [
+        "page_number"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "group_id": "g003_01",
+      "member_region_ids": [
+        "r003_01"
+      ],
+      "combined_source_text": "行こう",
+      "page_order": 1,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g003_02",
+      "member_region_ids": [
+        "r003_02"
+      ],
+      "combined_source_text": "それは違う",
+      "page_order": 2,
+      "kind": "dialogue"
+    },
+    {
+      "group_id": "g003_03",
+      "member_region_ids": [
+        "r003_03"
+      ],
+      "combined_source_text": "ありがとう",
+      "page_order": 3,
+      "kind": "narration"
+    },
+    {
+      "group_id": "g003_04",
+      "member_region_ids": [
+        "r003_04"
+      ],
+      "combined_source_text": "ごめんね",
+      "page_order": 4,
+      "kind": "sign"
+    },
+    {
+      "group_id": "g003_05",
+      "member_region_ids": [
+        "r003_05"
+      ],
+      "combined_source_text": "見つけた",
+      "page_order": 5,
+      "kind": "thought"
+    },
+    {
+      "group_id": "g003_20",
+      "member_region_ids": [
+        "r003_20",
+        "r003_21"
+      ],
+      "combined_source_text": "その時気づいた",
+      "page_order": 6,
+      "kind": "narration"
+    }
+  ],
+  "notes": "Deterministic synthetic source-extraction case."
+}
