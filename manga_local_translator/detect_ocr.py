@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -437,6 +438,8 @@ def fix_common_phrase_ocr_text(text: str) -> str:
     normalized = normalized.replace("休憩時間...", "休憩時間......")
     normalized = normalized.replace("でもなあー", "でもなあーー!!")
     normalized = normalized.replace("二つの告白のうちの一つ", "”二つの告白”のうちの一つ")
+    normalized = re.sub(r"(この文化祭)(?:\.|\uFF0E){3,}", r"\1......", normalized)
+    normalized = re.sub(r"(休憩時間)(?:\.|\uFF0E){3,}", r"\1......", normalized)
     return normalized
 
 
