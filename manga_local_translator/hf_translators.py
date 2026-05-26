@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import subprocess
+import unicodedata
 from contextlib import contextmanager, redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -31,7 +32,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v5-hf-chat-template"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v13-source-noise-salvage"
+CAT_VALIDATION_VERSION = "cat-validation-v14-short-source-phrase-guard"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 128
 
@@ -406,6 +407,9 @@ def cat_bypass_reason(source_text: str) -> str | None:
 def has_noisy_credit_markers(text: str) -> bool:
     if any(marker in text for marker in ("▽", "▼", "■", "□", "◆", "◇", "※", "©", "＠", "@", "http")):
         return True
+    normalized = unicodedata.normalize("NFKC", str(text))
+    if is_numbered_metadata_header(normalized):
+        return True
     if "『" in text and "』" not in text:
         return True
     if re.search(r"(?:\d{1,2}|[０-９]{1,2})\s*(?:/|月)\s*(?:\d{1,2}|[０-９]{1,2})", text) and re.search(
@@ -419,6 +423,31 @@ def has_noisy_credit_markers(text: str) -> bool:
     ):
         return True
     return False
+
+
+def is_numbered_metadata_header(text: str) -> bool:
+    normalized = unicodedata.normalize("NFKC", str(text)).strip()
+    if not re.search(r"\u7b2c\s*[0-9\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e]+\s*(?:\u8a71|\u7ae0|\u5dfb|\u56de|\u90e8)", normalized):
+        return False
+    terminal_markers = (
+        "\u304a\u308f\u308a",
+        "\u7d42\u308f\u308a",
+        "\u5b8c",
+        "\u5b8c\u7d50",
+        "\u6b21\u56de",
+        "\u66f4\u65b0",
+        "\u544a\u77e5",
+        "\u4e88\u544a",
+        "\u30b3\u30e1\u30f3\u30c8",
+        "END",
+        "comment",
+    )
+    if any(marker.lower() in normalized.lower() for marker in terminal_markers):
+        return True
+    if len(normalized) > 40 or re.search(r"[\u3002\uff01\uff1f!?]", normalized):
+        return False
+    parts = re.findall(r"\S+", normalized)
+    return len(parts) <= 4 and bool(re.search(r"\b[A-Za-z][A-Za-z0-9_-]{2,}\b", normalized))
 
 
 def is_short_kana_name_or_term(text: str) -> bool:
@@ -441,6 +470,12 @@ def cat_second_retry_enabled() -> bool:
 
 def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str, glossary) -> tuple[str, str, str | None]:
     cleaned = clean_cat_output(raw_text)
+    phrase = short_source_phrase_override(source_text, prepared_text, glossary)
+    if phrase is not None:
+        result = postprocess_translation(source_text, prepared_text, phrase, glossary)
+        final_reject_reason = cat_reject_reason(source_text, result, result)
+        if final_reject_reason is None:
+            return phrase, result, None
     reject_reason = cat_reject_reason(source_text, cleaned, raw_text)
     if reject_reason is not None:
         salvaged = salvage_cat_translation(raw_text, source_text=source_text)
@@ -457,6 +492,24 @@ def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str
     if final_reject_reason is not None:
         return cleaned, "", final_reject_reason
     return cleaned, result, None
+
+
+def short_source_phrase_override(source_text: str, prepared_text: str, glossary) -> str | None:
+    normalized = normalize_japanese_for_translation(source_text)
+    if has_noisy_credit_markers(normalized):
+        return None
+    if not is_short_symbolic_source(normalized):
+        return None
+    return translate_known_phrase(normalized, glossary) or translate_known_phrase(prepared_text, glossary)
+
+
+def is_short_symbolic_source(text: str) -> bool:
+    compact = re.sub(r"\s+", "", str(text).strip())
+    if not compact or count_japanese_chars_local(compact) == 0:
+        return False
+    if len(compact) <= 12:
+        return True
+    return bool(re.fullmatch(r"[\u3040-\u30ff\u31f0-\u31ff\u2026.!?\-ー〜～]+", compact)) and len(compact) <= 16
 
 
 def salvage_cat_translation(raw_text: str, *, source_text: str = "") -> str:
@@ -692,6 +745,8 @@ def looks_like_explanatory_cat_output(text: str) -> bool:
     lower = " ".join(str(text).lower().split())
     if not lower:
         return False
+    if looks_like_cat_chatter(text):
+        return True
     explanatory_markers = (
         "the japanese phrase",
         "the japanese word",

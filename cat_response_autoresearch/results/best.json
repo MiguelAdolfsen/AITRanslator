@@ -1,11 +1,17 @@
 {
   "schema_version": 1,
-  "best_run_id": null,
-  "best_score": null,
-  "best_quality_score": null,
-  "best_response_score": null,
-  "best_latency_score": null,
-  "best_commit": null,
-  "benchmark_fingerprint": null,
-  "updated_at": null
+  "best_run_id": "numbered_metadata_shape_guard_fragment_strict",
+  "best_score": 0.0,
+  "best_quality_score": 0.0,
+  "best_response_score": 3752.083415,
+  "best_latency_score": 3752.083415,
+  "best_commit": "6d160e6d73dca4e4e7e1651f954b5dfb4fbc16ab",
+  "benchmark_fingerprint": "13a484fa65de35493c2e4560116caf80203e47a230b0d239299afd02566a43c9",
+  "updated_at": "2026-05-26T15:19:32.226598+00:00",
+  "cat_approval_rate": 1.0,
+  "retry_rate": 0.0,
+  "retried_count": 0.0,
+  "primary_rejected_rate": 0.166667,
+  "keep_reason": "response_score_tiebreak_improved",
+  "min_improvement": 0.002
 }

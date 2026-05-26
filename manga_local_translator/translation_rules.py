@@ -159,7 +159,7 @@ def split_english_sentences(text: str) -> list[str]:
 
 
 def normalize_phrase_key(text: str) -> str:
-    return re.sub(r"[\u2026\u3002\uff0e.\u3001,!?\uff01\uff1f\u300c\u300d\u300e\u300f\s]+$", "", text)
+    return re.sub(r"[\u2026\u3002\uff0e.\u3001,!?\uff01\uff1f\u2013\u2014\u2015\u2500\u300c\u300d\u300e\u300f\s]+$", "", text)
 
 
 def translate_known_phrase(text: str, glossary: TranslationGlossary | None = None) -> str | None:
@@ -466,8 +466,26 @@ def translate_known_phrase(text: str, glossary: TranslationGlossary | None = Non
         return "Crunch crunch."
     if is_watch_out_trap_senpai_phrase(prepared):
         return "Watch out, the enemy may have set a trap... As expected, senpai!"
+    zannen_fragment = translate_short_zannen_fragment(prepared)
+    if zannen_fragment is not None:
+        return zannen_fragment
     if compact.startswith("\u3042\u3042") and len(compact) <= 4:
         return "Ah..."
+    return None
+
+
+def translate_short_zannen_fragment(text: str) -> str | None:
+    compact = normalize_phrase_key(text)
+    if not compact.startswith("\u6b8b\u5ff5"):
+        return None
+    tail = compact[len("\u6b8b\u5ff5") :]
+    if tail in {"", "\u306a"}:
+        return "What a shame."
+    if len(compact) <= 8 and (
+        tail in {"\u3060\u3051\u3069", "\u3060\u304c", "\u3067\u3059\u304c", "\u3051\u3069", "\u3067\u3082"}
+        or tail.endswith(("\u3060\u3051\u3069", "\u3060\u304c", "\u3067\u3059\u304c", "\u3051\u3069", "\u3067\u3082"))
+    ):
+        return "Too bad, but..."
     return None
 
 
