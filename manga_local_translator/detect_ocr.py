@@ -185,6 +185,7 @@ def recognize_with_manga_ocr(
         if not refined_text:
             logger.debug("manga-ocr returned empty text for box=%s; keeping detector text=%s", block.box, shorten(block.text))
             refined_text = block.text
+        refined_text = fix_trailing_colon_ellipsis_ocr_text(block, refined_text)
         if is_punctuation_only_ocr_text(refined_text):
             logger.debug("Skipping punctuation-only manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
@@ -398,6 +399,19 @@ def run_ocr(
 
 def normalize_ocr_text(value: str) -> str:
     return "".join(str(value).split())
+
+
+def fix_trailing_colon_ellipsis_ocr_text(block: TextBlock, text: str) -> str:
+    normalized = normalize_ocr_text(text)
+    if not normalized.endswith((":", "：")):
+        return text
+    if getattr(block, "detector", "") != "ctd":
+        return text
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return text
+    if len(normalize_for_filter(normalized)) < 8:
+        return text
+    return f"{normalized[:-1]}..."
 
 
 def parse_confidence(value: object) -> float:
