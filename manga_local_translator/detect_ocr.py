@@ -169,7 +169,7 @@ def recognize_with_manga_ocr(
     width, height = image.size
     refined: list[TextBlock] = []
     for block in candidate_blocks:
-        x1, y1, x2, y2 = pad_box(block.box, width, height, crop_padding)
+        x1, y1, x2, y2 = manga_ocr_crop_box(block, width, height, crop_padding)
         crop = image.crop((x1, y1, x2, y2))
         if crop.width < 8 or crop.height < 8:
             logger.debug("Skipping tiny manga-ocr crop: box=%s size=%sx%s", block.box, crop.width, crop.height)
@@ -436,6 +436,47 @@ def pad_box(
         max(0, y1 - padding),
         min(image_width, x2 + padding),
         min(image_height, y2 + padding),
+    )
+
+
+def manga_ocr_crop_box(
+    block: TextBlock,
+    image_width: int,
+    image_height: int,
+    padding: int,
+) -> tuple[int, int, int, int]:
+    if needs_extra_bottom_ocr_padding(block, image_width=image_width, image_height=image_height):
+        x1, y1, x2, y2 = block.box
+        return (
+            max(0, x1 - padding),
+            max(0, y1 - padding),
+            min(image_width, x2 + padding),
+            min(image_height, y2 + 120),
+        )
+    return pad_box(block.box, image_width, image_height, padding)
+
+
+def needs_extra_bottom_ocr_padding(block: TextBlock, *, image_width: int, image_height: int) -> bool:
+    _ = image_width
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+    if metadata.get("language") != "unknown":
+        return False
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) != 1:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        70 <= block_width <= 120
+        and 150 <= block_height <= 220
+        and y1 >= image_height * 0.55
+        and y2 <= image_height * 0.85
     )
 
 
