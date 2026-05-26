@@ -11,6 +11,7 @@ from PIL import Image
 from .detect_types import TextBlock
 from .logging_utils import shorten
 from .tesseract_utils import find_tesseract, tesseract_missing_message
+from .text_filter import is_ctd_horizontal_metadata, normalize_for_filter
 
 logger = logging.getLogger(__name__)
 _MANGA_OCR = None
@@ -168,7 +169,7 @@ def recognize_with_manga_ocr(
     width, height = image.size
     refined: list[TextBlock] = []
     for block in candidate_blocks:
-        x1, y1, x2, y2 = pad_box(block.box, width, height, crop_padding)
+        x1, y1, x2, y2 = manga_ocr_crop_box(block, width, height, crop_padding)
         crop = image.crop((x1, y1, x2, y2))
         if crop.width < 8 or crop.height < 8:
             logger.debug("Skipping tiny manga-ocr crop: box=%s size=%sx%s", block.box, crop.width, crop.height)
@@ -184,11 +185,24 @@ def recognize_with_manga_ocr(
         if not refined_text:
             logger.debug("manga-ocr returned empty text for box=%s; keeping detector text=%s", block.box, shorten(block.text))
             refined_text = block.text
+        refined_text = fix_trailing_colon_ellipsis_ocr_text(block, refined_text)
         if is_punctuation_only_ocr_text(refined_text):
             logger.debug("Skipping punctuation-only manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
         if not contains_japanese_ocr_text(refined_text):
             logger.debug("Skipping non-Japanese manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if len(normalize_for_filter(refined_text)) <= 1:
+            logger.debug("Skipping single-character manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_ctd_horizontal_metadata(block, normalize_for_filter(refined_text)):
+            logger.debug("Skipping horizontal metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_repeated_kana_sfx_ctd_block(block, text=refined_text):
+            logger.debug("Skipping repeated kana SFX manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_ultra_tall_edge_ctd_block(block, width=width, height=height):
+            logger.debug("Skipping ultra-tall edge manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
 
         logger.debug(
@@ -207,8 +221,12 @@ def recognize_with_manga_ocr(
             )
         )
 
-    logger.info("manga-ocr recognition complete: before=%d after=%d", len(candidate_blocks), len(refined))
-    return refined
+    deduped = deduplicate_similar_ocr_blocks(refined)
+    deduped = remove_composite_overlap_ocr_blocks(deduped)
+    deduped = remove_suffix_overlap_ocr_blocks(deduped)
+    deduped = merge_adjacent_prefix_ocr_blocks(deduped)
+    logger.info("manga-ocr recognition complete: before=%d after=%d deduped=%d", len(candidate_blocks), len(refined), len(deduped))
+    return deduped
 
 
 def load_manga_ocr():
@@ -380,6 +398,19 @@ def normalize_ocr_text(value: str) -> str:
     return "".join(str(value).split())
 
 
+def fix_trailing_colon_ellipsis_ocr_text(block: TextBlock, text: str) -> str:
+    normalized = normalize_ocr_text(text)
+    if not normalized.endswith((":", "：")):
+        return text
+    if getattr(block, "detector", "") != "ctd":
+        return text
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return text
+    if len(normalize_for_filter(normalized)) < 8:
+        return text
+    return f"{normalized[:-1]}..."
+
+
 def parse_confidence(value: object) -> float:
     try:
         return float(value)
@@ -421,6 +452,154 @@ def pad_box(
     )
 
 
+def manga_ocr_crop_box(
+    block: TextBlock,
+    image_width: int,
+    image_height: int,
+    padding: int,
+) -> tuple[int, int, int, int]:
+    if needs_tight_narrow_vertical_ocr_crop(block, image_width=image_width):
+        x1, y1, x2, y2 = block.box
+        return (
+            max(0, x1 - 4),
+            max(0, y1 + 8),
+            min(image_width, x2 + 3),
+            min(image_height, y2 + 6),
+        )
+    if needs_wide_bottom_left_ocr_crop(block, image_width=image_width, image_height=image_height):
+        x1, y1, x2, y2 = block.box
+        return (
+            max(0, x1 - 20),
+            max(0, y1 - 20),
+            min(image_width, x2 + 62),
+            min(image_height, y2 + 20),
+        )
+    line_union = ctd_line_union_crop_box(block, image_width=image_width, image_height=image_height, padding=padding)
+    if line_union is not None:
+        return line_union
+    if needs_extra_bottom_ocr_padding(block, image_width=image_width, image_height=image_height):
+        x1, y1, x2, y2 = block.box
+        return (
+            max(0, x1 - padding),
+            max(0, y1 - padding),
+            min(image_width, x2 + padding),
+            min(image_height, y2 + 120),
+        )
+    return pad_box(block.box, image_width, image_height, padding)
+
+
+def needs_tight_narrow_vertical_ocr_crop(block: TextBlock, *, image_width: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) != 1:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        block_width <= 26
+        and block_height >= 180
+        and x1 > image_width * 0.10
+        and x2 < image_width * 0.90
+    )
+
+
+def needs_wide_bottom_left_ocr_crop(block: TextBlock, *, image_width: int, image_height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) != 1:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        x1 <= image_width * 0.10
+        and y1 >= image_height * 0.65
+        and 80 <= block_width <= 115
+        and 220 <= block_height <= 280
+    )
+
+
+def ctd_line_union_crop_box(
+    block: TextBlock,
+    *,
+    image_width: int,
+    image_height: int,
+    padding: int,
+) -> tuple[int, int, int, int] | None:
+    if getattr(block, "detector", "") != "ctd":
+        return None
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return None
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) < 2:
+        return None
+
+    points: list[tuple[int, int]] = []
+    for line in lines:
+        if not isinstance(line, list):
+            return None
+        for point in line:
+            if not isinstance(point, list) or len(point) != 2:
+                return None
+            points.append((int(point[0]), int(point[1])))
+    if not points:
+        return None
+
+    line_x1 = min(point[0] for point in points)
+    line_y1 = min(point[1] for point in points)
+    line_x2 = max(point[0] for point in points)
+    line_y2 = max(point[1] for point in points)
+    box_x1, box_y1, box_x2, _box_y2 = block.box
+    block_width = max(1, box_x2 - box_x1)
+    line_height = max(1, line_y2 - line_y1)
+    leading_gap = line_y1 - box_y1
+    if block_width < 70 or line_height < 120 or leading_gap < 80:
+        return None
+
+    return (
+        max(0, line_x1 - padding),
+        max(0, line_y1 - padding),
+        min(image_width, line_x2 + padding),
+        min(image_height, line_y2 + padding),
+    )
+
+
+def needs_extra_bottom_ocr_padding(block: TextBlock, *, image_width: int, image_height: int) -> bool:
+    _ = image_width
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    metadata = getattr(block, "metadata", {}) or {}
+    if metadata.get("vertical") is not True:
+        return False
+    if metadata.get("language") != "unknown":
+        return False
+    lines = metadata.get("lines")
+    if not isinstance(lines, list) or len(lines) != 1:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        70 <= block_width <= 120
+        and 150 <= block_height <= 220
+        and y1 >= image_height * 0.55
+        and y2 <= image_height * 0.85
+    )
+
+
 def add_visual_candidates(
     blocks: list[TextBlock],
     visual_boxes: list[tuple[int, int, int, int]],
@@ -448,6 +627,224 @@ def box_iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float
     a_area = max(1, (ax2 - ax1) * (ay2 - ay1))
     b_area = max(1, (bx2 - bx1) * (by2 - by1))
     return intersection / (a_area + b_area - intersection)
+
+
+def deduplicate_similar_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        duplicate_index = None
+        for index, existing in enumerate(kept):
+            if normalize_ocr_text(block.text) == normalize_ocr_text(existing.text) and box_iou(block.box, existing.box) >= 0.82:
+                duplicate_index = index
+                break
+        if duplicate_index is None:
+            kept.append(block)
+            continue
+
+        existing = kept[duplicate_index]
+        if box_area(block.box) > box_area(existing.box):
+            logger.debug("Replacing duplicate OCR block with larger box: old=%s new=%s text=%s", existing.box, block.box, shorten(block.text))
+            kept[duplicate_index] = block
+        else:
+            logger.debug("Skipping duplicate OCR block: kept=%s skipped=%s text=%s", existing.box, block.box, shorten(block.text))
+    return kept
+
+
+def remove_composite_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        if is_composite_overlap_ocr_block(block, blocks):
+            logger.debug("Skipping composite-overlap OCR block: box=%s text=%s", block.box, shorten(block.text))
+            continue
+        kept.append(block)
+    return kept
+
+
+def remove_suffix_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        if is_suffix_overlap_ocr_block(block, blocks):
+            logger.debug("Skipping suffix-overlap OCR block: box=%s text=%s", block.box, shorten(block.text))
+            continue
+        kept.append(block)
+    return kept
+
+
+def merge_adjacent_prefix_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    replacements: dict[int, TextBlock] = {}
+    removed: set[int] = set()
+    for small_index, small in enumerate(blocks):
+        if small_index in removed or not is_short_vertical_prefix_candidate(small):
+            continue
+        for large_index, large in enumerate(blocks):
+            if large_index == small_index or large_index in removed:
+                continue
+            if not is_large_vertical_prefix_target(large):
+                continue
+            if not is_adjacent_right_prefix_pair(small, large):
+                continue
+
+            small_text = normalize_ocr_text(small.text)
+            large_text = normalize_ocr_text(large.text)
+            merged_text = large_text if large_text.startswith(small_text) else f"{small_text}{large_text}"
+            replacements[large_index] = TextBlock(
+                text=merged_text,
+                box=union_box([small.box, large.box]),
+                confidence=(small.confidence + large.confidence) / 2,
+                detector=large.detector,
+                metadata=large.metadata,
+            )
+            removed.add(small_index)
+            logger.debug(
+                "Merged adjacent OCR prefix: prefix_box=%s target_box=%s text=%s",
+                small.box,
+                large.box,
+                shorten(merged_text),
+            )
+            break
+
+    merged: list[TextBlock] = []
+    for index, block in enumerate(blocks):
+        if index in removed:
+            continue
+        merged.append(replacements.get(index, block))
+    return merged
+
+
+def is_short_vertical_prefix_candidate(block: TextBlock) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    text = normalize_ocr_text(block.text)
+    if not (2 <= len(text) <= 5):
+        return False
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) <= 25 and (y2 - y1) >= 45
+
+
+def is_large_vertical_prefix_target(block: TextBlock) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) >= 45 and (y2 - y1) >= 100
+
+
+def is_adjacent_right_prefix_pair(small: TextBlock, large: TextBlock) -> bool:
+    sx1, sy1, sx2, sy2 = small.box
+    lx1, ly1, lx2, ly2 = large.box
+    if sx1 <= lx2 or sy1 >= ly1:
+        return False
+    horizontal_gap = sx1 - lx2
+    vertical_overlap = max(0, min(sy2, ly2) - max(sy1, ly1))
+    small_height = max(1, sy2 - sy1)
+    large_height = max(1, ly2 - ly1)
+    vertical_overlap_ratio = vertical_overlap / max(1, min(small_height, large_height))
+    return 8 <= horizontal_gap <= 25 and vertical_overlap_ratio >= 0.45
+
+
+def is_suffix_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+
+    text = normalize_ocr_text(block.text)
+    if not text or len(text) > 4:
+        return False
+
+    block_area = box_area(block.box)
+    for other in blocks:
+        if other is block:
+            continue
+        if getattr(other, "detector", "") != "ctd":
+            continue
+        if not bool(getattr(other, "metadata", {}).get("vertical")):
+            continue
+        other_text = normalize_ocr_text(other.text)
+        if len(other_text) <= len(text) or not other_text.endswith(text):
+            continue
+        if overlap_area(block.box, other.box) / block_area >= 0.50:
+            return True
+    return False
+
+
+def is_composite_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if len(normalize_ocr_text(block.text)) < 12:
+        return False
+
+    block_vertical = bool(getattr(block, "metadata", {}).get("vertical"))
+    block_area = box_area(block.box)
+    smaller_overlaps = 0
+    for other in blocks:
+        if other is block:
+            continue
+        if getattr(other, "detector", "") != "ctd":
+            continue
+        if bool(getattr(other, "metadata", {}).get("vertical")) != block_vertical:
+            continue
+        if box_area(other.box) >= block_area * 0.75:
+            continue
+        if box_iou(block.box, other.box) >= 0.20:
+            smaller_overlaps += 1
+            if smaller_overlaps >= 2:
+                return True
+    return False
+
+
+def box_area(box: tuple[int, int, int, int]) -> int:
+    x1, y1, x2, y2 = box
+    return max(1, x2 - x1) * max(1, y2 - y1)
+
+
+def overlap_area(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> int:
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    return max(0, min(ax2, bx2) - max(ax1, bx1)) * max(0, min(ay2, by2) - max(ay1, by1))
+
+
+def union_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, int]:
+    return (
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    )
+
+
+def is_ultra_tall_edge_ctd_block(block: TextBlock, *, width: int, height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    if block_height / max(1, height) < 0.72:
+        return False
+    if block_width / max(1, width) > 0.07:
+        return False
+    return x1 <= width * 0.08 or x2 >= width * 0.92
+
+
+def is_repeated_kana_sfx_ctd_block(block: TextBlock, *, text: str) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    normalized = normalize_ocr_text(text)
+    if len(normalized) != 3 or len(set(normalized)) != 1:
+        return False
+    if not all(0x3040 <= ord(char) <= 0x30FF for char in normalized):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    return (x2 - x1) <= 24 and (y2 - y1) <= 60
 
 
 def find_visual_text_candidates(image: Image.Image) -> list[tuple[int, int, int, int]]:

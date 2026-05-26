@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "benchmark_set": "cases/local_hard_pages_v1_frozen",
-  "benchmark_fingerprint": null,
-  "best_run_id": "local_hard_pages_v1_baseline",
+  "benchmark_fingerprint": "e76e9e0079cb9d53c1712b7bae660d308e330d9b0854dad567428874186576d9",
+  "best_run_id": "matrix_20260526_075317_hard_v1",
   "best_score": 69.767442,
-  "best_commit": "787864eb5dff2375a786b63a82a7fd740ff51bbb",
+  "best_commit": "628186ba9230120492bbc134dfb0fe1f7a522e35",
   "best_sort_key": [
     69.767442,
     0,
@@ -12,10 +12,10 @@
     0.0,
     0,
     1,
-    4366.4391,
-    4
+    4270.8554,
+    3
   ],
   "best_row_timestamp": "2026-05-26T03:35:55.721627+00:00",
-  "updated_at": "2026-05-26T06:23:38.579517+00:00",
-  "notes": "Rebuilt from results.tsv; smoke and draft rows excluded. Timing is a tie-breaker."
+  "updated_at": "2026-05-26T07:55:15.015049+00:00",
+  "notes": "Per-benchmark best; smoke and draft benchmarks are excluded. Timing is a tie-breaker."
 }

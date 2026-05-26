@@ -10,6 +10,20 @@ from .logging_utils import shorten
 
 logger = logging.getLogger(__name__)
 
+_CHAPTER_OR_DATE_PATTERN = re.compile(
+    r"(?:\u7b2c[0-9]+\u8a71|[0-9]{4}\u5e74[0-9]{1,2}\u6708)"
+)
+_PROMO_METADATA_PATTERN = re.compile(
+    r"(?:TV\u30a2\u30cb\u30e1|WEB|\u767a\u58f2\u4e2d|\u7d76\u8cdb\u767a\u58f2|\u2606|\u25bd|\u540c\u4eba)"
+)
+_CREDIT_METADATA_TERMS = (
+    "\u6f2b\u753b",
+    "\u539f\u4f5c",
+    "\u30ad\u30e3\u30e9\u30af\u30bf\u30fc",
+    "\u8868\u7d19",
+    "\u5358\u884c\u672c",
+)
+
 
 def filter_text_blocks(
     blocks: list[TextBlock],
@@ -57,6 +71,8 @@ def skip_reason(block: TextBlock, *, image_area: int) -> str | None:
         return "non_japanese_text"
     if symbol_count <= 1:
         return "single_character_fragment"
+    if is_ctd_horizontal_metadata(block, text):
+        return "horizontal_metadata_or_promo"
     if kanji_count == 0 and kana_count <= 2 and japanese_count == kana_count:
         if getattr(block, "detector", "") == "ctd" and (has_dialogue_punctuation(text) or is_known_short_kana_reaction(text)):
             return None
@@ -88,6 +104,16 @@ def is_known_short_kana_reaction(text: str) -> bool:
         "\u3061\u3063",
         "\u3093",
     }
+
+
+def is_ctd_horizontal_metadata(block: TextBlock, text: str) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    if _CHAPTER_OR_DATE_PATTERN.search(text) or _PROMO_METADATA_PATTERN.search(text):
+        return True
+    return sum(term in text for term in _CREDIT_METADATA_TERMS) >= 2
 
 
 def count_japanese_chars(text: str) -> int:
