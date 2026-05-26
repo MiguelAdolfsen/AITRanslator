@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,11 @@ from normalize_text import normalize_text
 
 
 ADAPTER_NOTES: list[str] = []
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
 def _orientation_from_metadata(metadata: dict[str, Any]) -> str:
@@ -169,4 +175,3 @@ def extract_source_page_smoke(image_path: str, label: dict[str, Any]) -> dict[st
         "timing": {"detect_ms": 0.0, "ocr_ms": 0.0, "group_ms": 0.0, "total_ms": round(total_ms, 3)},
         "adapter_notes": ["adapter-smoke predictions are label-derived and not valid for project improvements"],
     }
-

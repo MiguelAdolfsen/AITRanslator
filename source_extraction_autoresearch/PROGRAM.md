@@ -39,6 +39,20 @@ Required benchmark:
   --tests-ok
 ```
 
+Required local real-page benchmark after the synthetic smoke benchmark passes:
+
+```powershell
+.\.venv\Scripts\python.exe source_extraction_autoresearch\scripts\eval_source_extraction.py `
+  --benchmark source_extraction_autoresearch\benchmarks\cases\local_spy_short_v1_frozen `
+  --output source_extraction_autoresearch\runs\local_spy_current `
+  --results source_extraction_autoresearch\results\results.tsv `
+  --run-id local_spy_current `
+  --tests-ok `
+  --overwrite-output
+```
+
+The local Spy case is ignored by git because it contains real manga pages. It is still the primary local keep/revert benchmark for this machine. Synthetic is only a smoke/regression benchmark.
+
 Phase-1 editable project-code surface:
 
 ```text
@@ -97,4 +111,3 @@ Keep a change only if:
 ```
 
 Otherwise revert the experiment change and append a failed result row. Every benchmark run appends exactly one row to `results/results.tsv`.
-
