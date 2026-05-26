@@ -191,8 +191,20 @@ def recognize_with_manga_ocr(
         if not contains_japanese_ocr_text(refined_text):
             logger.debug("Skipping non-Japanese manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
+        if len(normalize_for_filter(refined_text)) <= 1:
+            logger.debug("Skipping single-character manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
         if is_ctd_horizontal_metadata(block, normalize_for_filter(refined_text)):
             logger.debug("Skipping horizontal metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_bottom_left_short_horizontal_ctd_block(block, text=refined_text, width=width, height=height):
+            logger.debug("Skipping bottom-left title-like manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_bottom_edge_short_horizontal_ctd_block(block, text=refined_text, width=width, height=height):
+            logger.debug("Skipping bottom-edge short manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_ultra_tall_edge_ctd_block(block, width=width, height=height):
+            logger.debug("Skipping ultra-tall edge manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
 
         logger.debug(
@@ -212,6 +224,7 @@ def recognize_with_manga_ocr(
         )
 
     deduped = deduplicate_similar_ocr_blocks(refined)
+    deduped = remove_composite_overlap_ocr_blocks(deduped)
     logger.info("manga-ocr recognition complete: before=%d after=%d deduped=%d", len(candidate_blocks), len(refined), len(deduped))
     return deduped
 
@@ -476,9 +489,98 @@ def deduplicate_similar_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
     return kept
 
 
+def remove_composite_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        if is_composite_overlap_ocr_block(block, blocks):
+            logger.debug("Skipping composite-overlap OCR block: box=%s text=%s", block.box, shorten(block.text))
+            continue
+        kept.append(block)
+    return kept
+
+
+def is_composite_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if len(normalize_ocr_text(block.text)) < 12:
+        return False
+
+    block_vertical = bool(getattr(block, "metadata", {}).get("vertical"))
+    block_area = box_area(block.box)
+    smaller_overlaps = 0
+    for other in blocks:
+        if other is block:
+            continue
+        if getattr(other, "detector", "") != "ctd":
+            continue
+        if bool(getattr(other, "metadata", {}).get("vertical")) != block_vertical:
+            continue
+        if box_area(other.box) >= block_area * 0.75:
+            continue
+        if box_iou(block.box, other.box) >= 0.20:
+            smaller_overlaps += 1
+            if smaller_overlaps >= 2:
+                return True
+    return False
+
+
 def box_area(box: tuple[int, int, int, int]) -> int:
     x1, y1, x2, y2 = box
     return max(1, x2 - x1) * max(1, y2 - y1)
+
+
+def is_ultra_tall_edge_ctd_block(block: TextBlock, *, width: int, height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    if block_height / max(1, height) < 0.72:
+        return False
+    if block_width / max(1, width) > 0.07:
+        return False
+    return x1 <= width * 0.08 or x2 >= width * 0.92
+
+
+def is_bottom_left_short_horizontal_ctd_block(block: TextBlock, *, text: str, width: int, height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    if len(normalize_ocr_text(text)) > 4:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        x1 <= width * 0.04
+        and y2 >= height * 0.96
+        and block_width >= width * 0.12
+        and block_height >= height * 0.12
+    )
+
+
+def is_bottom_edge_short_horizontal_ctd_block(block: TextBlock, *, text: str, width: int, height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    if len(normalize_ocr_text(text)) > 3:
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        y1 >= height * 0.94
+        and y2 >= height * 0.97
+        and block_width <= width * 0.08
+        and block_height <= height * 0.06
+    )
 
 
 def find_visual_text_candidates(image: Image.Image) -> list[tuple[int, int, int, int]]:
