@@ -225,6 +225,7 @@ def recognize_with_manga_ocr(
 
     deduped = deduplicate_similar_ocr_blocks(refined)
     deduped = remove_composite_overlap_ocr_blocks(deduped)
+    deduped = remove_suffix_overlap_ocr_blocks(deduped)
     logger.info("manga-ocr recognition complete: before=%d after=%d deduped=%d", len(candidate_blocks), len(refined), len(deduped))
     return deduped
 
@@ -589,6 +590,42 @@ def remove_composite_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlo
     return kept
 
 
+def remove_suffix_overlap_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        if is_suffix_overlap_ocr_block(block, blocks):
+            logger.debug("Skipping suffix-overlap OCR block: box=%s text=%s", block.box, shorten(block.text))
+            continue
+        kept.append(block)
+    return kept
+
+
+def is_suffix_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+
+    text = normalize_ocr_text(block.text)
+    if not text or len(text) > 4:
+        return False
+
+    block_area = box_area(block.box)
+    for other in blocks:
+        if other is block:
+            continue
+        if getattr(other, "detector", "") != "ctd":
+            continue
+        if not bool(getattr(other, "metadata", {}).get("vertical")):
+            continue
+        other_text = normalize_ocr_text(other.text)
+        if len(other_text) <= len(text) or not other_text.endswith(text):
+            continue
+        if overlap_area(block.box, other.box) / block_area >= 0.50:
+            return True
+    return False
+
+
 def is_composite_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) -> bool:
     if getattr(block, "detector", "") != "ctd":
         return False
@@ -617,6 +654,12 @@ def is_composite_overlap_ocr_block(block: TextBlock, blocks: list[TextBlock]) ->
 def box_area(box: tuple[int, int, int, int]) -> int:
     x1, y1, x2, y2 = box
     return max(1, x2 - x1) * max(1, y2 - y1)
+
+
+def overlap_area(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> int:
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    return max(0, min(ax2, bx2) - max(ax1, bx1)) * max(0, min(ay2, by2) - max(ay1, by1))
 
 
 def is_ultra_tall_edge_ctd_block(block: TextBlock, *, width: int, height: int) -> bool:
