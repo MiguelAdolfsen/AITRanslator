@@ -11,6 +11,7 @@ from PIL import Image
 from .detect_types import TextBlock
 from .logging_utils import shorten
 from .tesseract_utils import find_tesseract, tesseract_missing_message
+from .text_filter import is_ctd_horizontal_metadata, normalize_for_filter
 
 logger = logging.getLogger(__name__)
 _MANGA_OCR = None
@@ -190,6 +191,9 @@ def recognize_with_manga_ocr(
         if not contains_japanese_ocr_text(refined_text):
             logger.debug("Skipping non-Japanese manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
+        if is_ctd_horizontal_metadata(block, normalize_for_filter(refined_text)):
+            logger.debug("Skipping horizontal metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
 
         logger.debug(
             "OCR refined: box=%s tesseract=%s manga_ocr=%s",
@@ -207,8 +211,9 @@ def recognize_with_manga_ocr(
             )
         )
 
-    logger.info("manga-ocr recognition complete: before=%d after=%d", len(candidate_blocks), len(refined))
-    return refined
+    deduped = deduplicate_similar_ocr_blocks(refined)
+    logger.info("manga-ocr recognition complete: before=%d after=%d deduped=%d", len(candidate_blocks), len(refined), len(deduped))
+    return deduped
 
 
 def load_manga_ocr():
@@ -448,6 +453,32 @@ def box_iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float
     a_area = max(1, (ax2 - ax1) * (ay2 - ay1))
     b_area = max(1, (bx2 - bx1) * (by2 - by1))
     return intersection / (a_area + b_area - intersection)
+
+
+def deduplicate_similar_ocr_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+    kept: list[TextBlock] = []
+    for block in blocks:
+        duplicate_index = None
+        for index, existing in enumerate(kept):
+            if normalize_ocr_text(block.text) == normalize_ocr_text(existing.text) and box_iou(block.box, existing.box) >= 0.82:
+                duplicate_index = index
+                break
+        if duplicate_index is None:
+            kept.append(block)
+            continue
+
+        existing = kept[duplicate_index]
+        if box_area(block.box) > box_area(existing.box):
+            logger.debug("Replacing duplicate OCR block with larger box: old=%s new=%s text=%s", existing.box, block.box, shorten(block.text))
+            kept[duplicate_index] = block
+        else:
+            logger.debug("Skipping duplicate OCR block: kept=%s skipped=%s text=%s", existing.box, block.box, shorten(block.text))
+    return kept
+
+
+def box_area(box: tuple[int, int, int, int]) -> int:
+    x1, y1, x2, y2 = box
+    return max(1, x2 - x1) * max(1, y2 - y1)
 
 
 def find_visual_text_candidates(image: Image.Image) -> list[tuple[int, int, int, int]]:
