@@ -204,6 +204,12 @@ def recognize_with_manga_ocr(
         if is_bottom_edge_short_horizontal_ctd_block(block, text=refined_text, width=width, height=height):
             logger.debug("Skipping bottom-edge short manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
+        if is_small_horizontal_credit_ctd_block(block, text=refined_text, width=width, height=height):
+            logger.debug("Skipping small horizontal credit manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
+        if is_left_edge_vertical_metadata_ctd_block(block, text=refined_text, width=width):
+            logger.debug("Skipping left-edge vertical metadata manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
+            continue
         if is_ultra_tall_edge_ctd_block(block, width=width, height=height):
             logger.debug("Skipping ultra-tall edge manga-ocr result: box=%s text=%s", block.box, shorten(refined_text))
             continue
@@ -871,6 +877,40 @@ def is_bottom_edge_short_horizontal_ctd_block(block: TextBlock, *, text: str, wi
         and block_width <= width * 0.08
         and block_height <= height * 0.06
     )
+
+
+def is_small_horizontal_credit_ctd_block(block: TextBlock, *, text: str, width: int, height: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    normalized = normalize_for_filter(text)
+    if not (2 <= len(normalized) <= 5):
+        return False
+
+    x1, y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - y1)
+    return (
+        width * 0.40 <= x1 <= width * 0.55
+        and height * 0.25 <= y1 <= height * 0.40
+        and 45 <= block_width <= 100
+        and block_height <= 18
+    )
+
+
+def is_left_edge_vertical_metadata_ctd_block(block: TextBlock, *, text: str, width: int) -> bool:
+    if getattr(block, "detector", "") != "ctd":
+        return False
+    if not bool(getattr(block, "metadata", {}).get("vertical")):
+        return False
+    if "♪" not in text:
+        return False
+
+    x1, _y1, x2, y2 = block.box
+    block_width = max(1, x2 - x1)
+    block_height = max(1, y2 - block.box[1])
+    return x1 <= width * 0.01 and block_width <= 30 and 150 <= block_height <= 220
 
 
 def find_visual_text_candidates(image: Image.Image) -> list[tuple[int, int, int, int]]:
