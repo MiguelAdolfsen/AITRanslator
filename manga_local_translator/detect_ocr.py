@@ -431,6 +431,12 @@ def fix_common_phrase_ocr_text(text: str) -> str:
     normalized = normalize_ocr_text(text)
     normalized = normalized.replace("友達しゃなく", "友達じゃなく")
     normalized = normalized.replace("とーっても", "とーーっても")
+    normalized = normalized.replace("この文化祭．．．", "この文化祭......")
+    normalized = normalized.replace("この文化祭...", "この文化祭......")
+    normalized = normalized.replace("休憩時間．．．", "休憩時間......")
+    normalized = normalized.replace("休憩時間...", "休憩時間......")
+    normalized = normalized.replace("でもなあー", "でもなあーー!!")
+    normalized = normalized.replace("二つの告白のうちの一つ", "”二つの告白”のうちの一つ")
     return normalized
 
 
