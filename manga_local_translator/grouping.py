@@ -65,7 +65,7 @@ def should_group_blocks(a: TextBlock, b: TextBlock, *, image_bgr=None) -> bool:
         same_bubble_column = (
             image_bgr is not None
             and horizontal_gap <= 62
-            and vertical_overlap_ratio >= 0.35
+            and vertical_overlap_ratio >= 0.50
             and boxes_share_white_region(image_bgr, a.box, b.box)
         )
         return close_column or tight_high_overlap_column or same_bubble_column
