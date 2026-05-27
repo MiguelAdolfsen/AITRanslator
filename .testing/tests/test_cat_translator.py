@@ -122,7 +122,7 @@ class CatTranslatorTests(unittest.TestCase):
     def test_cat_prompts_use_short_default_and_source_only_retry(self) -> None:
         self.assertEqual(
             build_cat_prompt("\u6bcd"),
-            'Translate exactly. Return only concise English. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. Do not replace honorifics with English titles. Do not explain, apologize, ask for clarification, or continue the scene. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
+            'Translate exactly. Return only concise English. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. Do not replace honorifics with English titles. Do not explain, apologize, ask for clarification, or continue the scene. Never say you do not understand or need more context. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
         )
         self.assertEqual(build_cat_prompt("\u6bcd", retry=True), "Japanese:\n\u6bcd\n\nEnglish:")
         self.assertEqual(
