@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "name": "current_production",
+  "description": "Conservative production-equivalent vision facts profile.",
+  "vision_facts_enabled": true,
+  "artifact_mode": "numbered_page",
+  "crop_mode": "numbered_full_page",
+  "chunk_size": 4,
+  "validation_policy_version": "production_v1",
+  "context_render_format": "production_v1",
+  "enabled_fields": [
+    "bubble_type",
+    "line_role",
+    "speaker_position",
+    "speaker_anchor",
+    "visible_emotion",
+    "tone_hint",
+    "observable_action",
+    "facts",
+    "context_hints"
+  ],
+  "prompt": {
+    "task": "describe only grounded visual facts for numbered OCR lines",
+    "extra_instructions": []
+  },
+  "models": {
+    "qwen_judge_model": ".models/qwen/Qwen3.5-9B-Q8_0.gguf",
+    "qwen_critic_model": ".models/qwen/Qwen3.5-9B-Q8_0.gguf",
+    "qwen_fallback_model": ".models/qwen/Qwen3.5-9B-Q8_0.gguf",
+    "vision_model": ".models/qwen/Qwen3.5-9B-Q8_0.gguf",
+    "vision_projector": ".models/qwen/mmproj-Qwen3.5-9B-BF16.gguf"
+  }
+}
+

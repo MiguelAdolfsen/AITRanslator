@@ -49,11 +49,15 @@ class VisionFactsResult:
     number: int
     source_text: str
     bubble_type: str = "unknown"
+    line_role: str = "unknown"
     speaker_position: str = "unknown"
+    speaker_anchor: str = "unknown"
     visible_emotion: str = "unknown"
+    tone_hint: str = "unknown"
     observable_action: str = "unknown"
     mapping_confidence: str = "medium"
     facts: tuple[str, ...] = ()
+    context_hints: tuple[str, ...] = ()
     needs_review: bool = False
     risk_flags: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()

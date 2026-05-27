@@ -52,6 +52,11 @@ def vision_facts_from_payload(payload: dict[str, object]) -> VisionFactsResult |
         facts = [facts]
     if not isinstance(facts, list):
         facts = []
+    context_hints = payload.get("context_hints", [])
+    if isinstance(context_hints, str):
+        context_hints = [context_hints]
+    if not isinstance(context_hints, list):
+        context_hints = []
     warnings = payload.get("warnings", [])
     if not isinstance(warnings, list):
         warnings = []
@@ -63,11 +68,15 @@ def vision_facts_from_payload(payload: dict[str, object]) -> VisionFactsResult |
         number=number,
         source_text=clean_qwen_output(str(payload.get("source_text", "") or "")),
         bubble_type=enum_string(payload.get("bubble_type"), {"speech", "thought", "narration", "sound_effect", "sign", "unknown"}, "unknown"),
+        line_role=enum_string(payload.get("line_role"), {"speech", "thought", "narration", "sound_effect", "sign", "metadata", "unknown"}, "unknown"),
         speaker_position=clean_qwen_output(str(payload.get("speaker_position", "") or "unknown")),
+        speaker_anchor=clean_qwen_output(str(payload.get("speaker_anchor", "") or "unknown")),
         visible_emotion=clean_qwen_output(str(payload.get("visible_emotion", "") or "unknown")),
+        tone_hint=clean_qwen_output(str(payload.get("tone_hint", "") or "unknown")),
         observable_action=clean_qwen_output(str(payload.get("observable_action", "") or "unknown")),
         mapping_confidence=enum_string(payload.get("mapping_confidence"), {"low", "medium", "high"}, "medium"),
         facts=tuple(clean_qwen_output(str(value)) for value in facts if str(value).strip()),
+        context_hints=tuple(clean_qwen_output(str(value)) for value in context_hints if str(value).strip()),
         needs_review=bool(payload.get("needs_review", False)),
         risk_flags=tuple(clean_qwen_output(str(value)) for value in risk_flags if str(value).strip()),
         warnings=tuple(clean_qwen_output(str(value)) for value in warnings if str(value).strip()),
@@ -200,9 +209,12 @@ def vision_facts_acceptance_reason(
         return "contains_translation_field"
     fact_values = [
         result.speaker_position,
+        result.speaker_anchor,
         result.visible_emotion,
+        result.tone_hint,
         result.observable_action,
         *result.facts,
+        *result.context_hints,
     ]
     if any(visual_fact_looks_invalid(value) for value in fact_values):
         return "invalid_visual_fact"
@@ -210,6 +222,8 @@ def vision_facts_acceptance_reason(
         return "contains_translation"
     if specific_speaker_is_ungrounded(request.source_text, result.speaker_position, result.mapping_confidence):
         return "ungrounded_speaker"
+    if specific_speaker_is_ungrounded(request.source_text, result.speaker_anchor, result.mapping_confidence):
+        return "ungrounded_speaker_anchor"
     return None
 
 

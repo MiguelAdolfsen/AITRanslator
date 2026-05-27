@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "dataset": "frieren_ch26_pages_002_010",
+  "page_id": "frieren_ch26_006",
+  "page_number": 6,
+  "japanese_image": "mangafolder\\sousou-no-frieren-chapter-26\\006.jpg",
+  "english_image": "mangafolder\\Frieren-Chapter 26 Present for a Warrior-ENGLISH\\6.jpg",
+  "prepared_cache": "quality-runs\\frieren-cat-final-20260527\\quality\\.manga-work\\0006-006.prepared.json",
+  "image_size": [
+    836,
+    1200
+  ],
+  "labels": [
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_001",
+      "page_order": 1,
+      "source_text": "登場人物",
+      "source_box": [
+        746,
+        86,
+        777,
+        173
+      ],
+      "block_id": "ocr_0001_68066c40",
+      "source_hash": "1ca49e1a2e7e2131",
+      "reference_text": "",
+      "alignment_confidence": "high",
+      "reference_role": "metadata",
+      "skip_reference": true,
+      "skip_reason": "metadata_not_dialogue",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_002",
+      "page_order": 2,
+      "source_text": "たくさん人助けをしている．．．",
+      "source_box": [
+        650,
+        113,
+        706,
+        281
+      ],
+      "block_id": "ocr_0002_f1f4f82f",
+      "source_hash": "15fb21fbebf6e4f3",
+      "reference_text": "He has been helping a lot of people...",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_003",
+      "page_order": 3,
+      "source_text": "シュタルク様があんなえっちな薬を貰って喜ぶはずが．．．",
+      "source_box": [
+        75,
+        43,
+        158,
+        235
+      ],
+      "block_id": "ocr_0004_8574472a",
+      "source_hash": "68bfcfdc3709b759",
+      "reference_text": "There is no way that Stark-sama would be pleased with such a perverted drug...",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_004",
+      "page_order": 4,
+      "source_text": "フリーレン様は流石に失礼です。",
+      "source_box": [
+        440,
+        203,
+        502,
+        363
+      ],
+      "block_id": "ocr_0003_c8e3e592",
+      "source_hash": "3de5a7b2eb09bd74",
+      "reference_text": "Frieren-sama has been discourteous after all.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_005",
+      "page_order": 5,
+      "source_text": "●フリーレの息玉を倒した勇者一行の魔法はい。エルフだから長生きドライ魔法オラク。",
+      "source_box": [
+        738,
+        222,
+        786,
+        571
+      ],
+      "block_id": "ocr_0005_aaf59ac3",
+      "source_hash": "29a260f71aef33fe",
+      "reference_text": "",
+      "alignment_confidence": "high",
+      "reference_role": "metadata",
+      "skip_reference": true,
+      "skip_reason": "metadata_not_dialogue",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_006",
+      "page_order": 6,
+      "source_text": "シュタルクさ．．．",
+      "source_box": [
+        554,
+        435,
+        575,
+        582
+      ],
+      "block_id": "ocr_0006_b35417c1",
+      "source_hash": "0406b87fa9d7d391",
+      "reference_text": "Stark-sa-",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_007",
+      "page_order": 7,
+      "source_text": "あの雲おっぱいみたいだ。",
+      "source_box": [
+        365,
+        771,
+        427,
+        968
+      ],
+      "block_id": "ocr_0007_cb1763b9",
+      "source_hash": "04ef65f37f94cf8c",
+      "reference_text": "Those clouds look like breasts.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_006",
+      "line_id": "006_008",
+      "page_order": 8,
+      "source_text": "えっちだった。",
+      "source_box": [
+        207,
+        690,
+        240,
+        874
+      ],
+      "block_id": "ocr_0008_15f0d6e8",
+      "source_hash": "2ded43ea2e5197c2",
+      "reference_text": "He is a pervert.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    }
+  ]
+}

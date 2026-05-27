@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "dataset": "frieren_ch26_pages_002_010",
+  "page_id": "frieren_ch26_002",
+  "page_number": 2,
+  "japanese_image": "mangafolder\\sousou-no-frieren-chapter-26\\002.jpg",
+  "english_image": "mangafolder\\Frieren-Chapter 26 Present for a Warrior-ENGLISH\\2.jpg",
+  "prepared_cache": "quality-runs\\frieren-cat-final-20260527\\quality\\.manga-work\\0002-002.prepared.json",
+  "image_size": [
+    836,
+    1200
+  ],
+  "labels": [
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_001",
+      "page_order": 1,
+      "source_text": "勇者ヒンメルの死から２９年後。",
+      "source_box": [
+        643,
+        58,
+        706,
+        204
+      ],
+      "block_id": "ocr_0001_71a090b4",
+      "source_hash": "dc844d43b6985c20",
+      "reference_text": "Twenty-nine years have elapsed since the Hero Himmel's passing.",
+      "alignment_confidence": "high",
+      "reference_role": "narration",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_002",
+      "page_order": 2,
+      "source_text": "最新できた３人気町でちょっと休憩で",
+      "source_box": [
+        48,
+        51,
+        336,
+        76
+      ],
+      "block_id": "ocr_0003_e240149d",
+      "source_hash": "9c3977de37b54006",
+      "reference_text": "",
+      "alignment_confidence": "high",
+      "reference_role": "metadata",
+      "skip_reference": true,
+      "skip_reason": "metadata",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_003",
+      "page_order": 3,
+      "source_text": "じゃあ宿に荷物置いたら夜まで自由行動ね。",
+      "source_box": [
+        259,
+        119,
+        350,
+        298
+      ],
+      "block_id": "ocr_0002_dac998c2",
+      "source_hash": "e4ba0fbeacca7930",
+      "reference_text": "Well then, after we set down our luggage inside the inn, we'll have free time until evening",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_004",
+      "page_order": 4,
+      "source_text": "北側諸国アペティート地方。",
+      "source_box": [
+        436,
+        376,
+        495,
+        552
+      ],
+      "block_id": "ocr_0004_6f231101",
+      "source_hash": "340d6d4c94216032",
+      "reference_text": "We're in the Northern Contries. SPecifically the Appetit Region.",
+      "alignment_confidence": "high",
+      "reference_role": "narration",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_005",
+      "page_order": 5,
+      "source_text": "久々の町だな。羽を伸ばせるぜ。",
+      "source_box": [
+        86,
+        396,
+        153,
+        554
+      ],
+      "block_id": "ocr_0005_2f405c2c",
+      "source_hash": "47cfde5e68ef964f",
+      "reference_text": "It's been a while since we found a town huh? Now I can stretch my wings a bit.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_006",
+      "page_order": 6,
+      "source_text": "フリーレン様どうします？",
+      "source_box": [
+        707,
+        629,
+        753,
+        755
+      ],
+      "block_id": "ocr_0006_897ed78f",
+      "source_hash": "a2b8db328a26f81e",
+      "reference_text": "Frieren-sama, what will you do?",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_007",
+      "page_order": 7,
+      "source_text": "私はいいや。",
+      "source_box": [
+        534,
+        713,
+        556,
+        827
+      ],
+      "block_id": "ocr_0008_ac9793b7",
+      "source_hash": "7ff5c34c2450f185",
+      "reference_text": "I'm fine.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_008",
+      "page_order": 8,
+      "source_text": "そうですか。じゃあ私一人で．．．",
+      "source_box": [
+        322,
+        633,
+        404,
+        749
+      ],
+      "block_id": "ocr_0009_b02d123f",
+      "source_hash": "337b33606a931ea7",
+      "reference_text": "Is that so. Well then, on my own...",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_009",
+      "page_order": 9,
+      "source_text": "あ、そうだ。今日はシュタルクの１８歳の誕生日だから。",
+      "source_box": [
+        46,
+        629,
+        162,
+        820
+      ],
+      "block_id": "ocr_0011_5a699ef8",
+      "source_hash": "bbf40c6a43b9a046",
+      "reference_text": "Ah, that reminds me. Today is Stark's 18th birthday.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_010",
+      "page_order": 10,
+      "source_text": "一緒にお店とか見て回りますか？",
+      "source_box": [
+        694,
+        800,
+        748,
+        970
+      ],
+      "block_id": "ocr_0007_1d578bb0",
+      "source_hash": "5e123dce3ea63ed1",
+      "reference_text": "Shall we explore the stores and the like together?",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_002",
+      "line_id": "002_011",
+      "page_order": 11,
+      "source_text": "宿でゆっくり魔導書を読むよ。",
+      "source_box": [
+        458,
+        810,
+        515,
+        965
+      ],
+      "block_id": "ocr_0010_57087377",
+      "source_hash": "6388b10bb458cb94",
+      "reference_text": "I'm going to leisurely read grimoires here in the inn.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    }
+  ]
+}

@@ -1802,21 +1802,34 @@ def visual_facts_for_context(context: dict[str, object]) -> tuple[str, ...]:
         return ()
     facts: list[str] = []
     bubble_type = str(context.get("bubble_type") or "").strip()
+    line_role = str(context.get("line_role") or "").strip()
     speaker_position = str(context.get("speaker_position") or "").strip()
+    speaker_anchor = str(context.get("speaker_anchor") or "").strip()
     visible_emotion = str(context.get("visible_emotion") or "").strip()
+    tone_hint = str(context.get("tone_hint") or "").strip()
     observable_action = str(context.get("observable_action") or "").strip()
     if bubble_type and bubble_type != "unknown":
         facts.append(f"Bubble type: {bubble_type}")
+    if line_role and line_role != "unknown":
+        facts.append(f"Line role: {line_role}")
     if speaker_position and speaker_position != "unknown":
         facts.append(f"Speaker position: {speaker_position}")
+    if speaker_anchor and speaker_anchor != "unknown":
+        facts.append(f"Speaker anchor: {speaker_anchor}")
     if visible_emotion and visible_emotion != "unknown":
         facts.append(f"Visible emotion: {visible_emotion}")
+    if tone_hint and tone_hint != "unknown":
+        facts.append(f"Tone hint: {tone_hint}")
     if observable_action and observable_action != "unknown":
         facts.append(f"Observable action: {observable_action}")
     for value in context.get("visual_facts") or []:
         text = str(value).strip()
         if text:
             facts.append(text)
+    for value in context.get("context_hints") or []:
+        text = str(value).strip()
+        if text:
+            facts.append(f"Context hint: {text}")
     return tuple(dict.fromkeys(facts))
 
 

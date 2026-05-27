@@ -232,6 +232,7 @@ def apply_vision_facts(
             )
             context = lookup_context(translation_contexts, TextBlock(entry.source_text, entry.box, 0.0, metadata={"line_id": entry.state_key if entry.state_key != entry.source_text else ""}))
             visual_facts = list(result.facts) if result and reject_reason is None else []
+            context_hints = list(result.context_hints) if result and reject_reason is None else []
             context.update(
                 {
                     "vision_facts_attempted": True,
@@ -245,11 +246,15 @@ def apply_vision_facts(
                     "vision_facts_reject_reason": reject_reason,
                     "vision_facts_structural_error": structural_errors.get(request.line_id),
                     "bubble_type": result.bubble_type if result else "unknown",
+                    "line_role": result.line_role if result else "unknown",
                     "speaker_position": result.speaker_position if result else "unknown",
+                    "speaker_anchor": result.speaker_anchor if result else "unknown",
                     "visible_emotion": result.visible_emotion if result else "unknown",
+                    "tone_hint": result.tone_hint if result else "unknown",
                     "observable_action": result.observable_action if result else "unknown",
                     "mapping_confidence": result.mapping_confidence if result else "unknown",
                     "visual_facts": visual_facts,
+                    "context_hints": context_hints,
                     "vision_facts_needs_review": result.needs_review if result else False,
                     "vision_facts_risk_flags": list(result.risk_flags) if result else [],
                     "vision_facts_warnings": list(result.warnings) if result else [],

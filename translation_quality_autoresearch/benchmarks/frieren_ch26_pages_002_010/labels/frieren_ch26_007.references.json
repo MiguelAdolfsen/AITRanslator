@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "dataset": "frieren_ch26_pages_002_010",
+  "page_id": "frieren_ch26_007",
+  "page_number": 7,
+  "japanese_image": "mangafolder\\sousou-no-frieren-chapter-26\\007.jpg",
+  "english_image": "mangafolder\\Frieren-Chapter 26 Present for a Warrior-ENGLISH\\7.jpg",
+  "prepared_cache": "quality-runs\\frieren-cat-final-20260527\\quality\\.manga-work\\0007-007.prepared.json",
+  "image_size": [
+    836,
+    1200
+  ],
+  "labels": [
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_001",
+      "page_order": 1,
+      "source_text": "あっちはうんこだ。",
+      "source_box": [
+        192,
+        119,
+        239,
+        212
+      ],
+      "block_id": "ocr_0001_f7086b09",
+      "source_hash": "5a17055b7fed768f",
+      "reference_text": "Now those look like dung.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_002",
+      "page_order": 2,
+      "source_text": "マジかよ．．．",
+      "source_box": [
+        599,
+        287,
+        620,
+        390
+      ],
+      "block_id": "ocr_0002_9a4a51fd",
+      "source_hash": "40e29b473953a989",
+      "reference_text": "Seriously...",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_003",
+      "page_order": 3,
+      "source_text": "こいつガキなんだ．．．",
+      "source_box": [
+        610,
+        660,
+        663,
+        787
+      ],
+      "block_id": "ocr_0004_ee0ff979",
+      "source_hash": "15262e3971b108d9",
+      "reference_text": "This guy's just a kid...",
+      "alignment_confidence": "high",
+      "reference_role": "narration",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_004",
+      "page_order": 4,
+      "source_text": "後でフェルンに教えてやろう。",
+      "source_box": [
+        344,
+        499,
+        405,
+        646
+      ],
+      "block_id": "ocr_0003_29a34577",
+      "source_hash": "5f8d647b2f305293",
+      "reference_text": "I think I'll tell Fern about them afterwards.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_005",
+      "page_order": 5,
+      "source_text": "リアクションに困るよ！！",
+      "source_box": [
+        259,
+        513,
+        293,
+        778
+      ],
+      "block_id": "ocr_0005_cd6a829d",
+      "source_hash": "c17ec243046ee234",
+      "reference_text": "I don't know how to respond!",
+      "alignment_confidence": "high",
+      "reference_role": "narration",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_006",
+      "page_order": 6,
+      "source_text": "．．．シュタルク様。",
+      "source_box": [
+        749,
+        836,
+        776,
+        993
+      ],
+      "block_id": "ocr_0007_f6e15cdb",
+      "source_hash": "8daa1f6c55b8a20f",
+      "reference_text": "...Stark-sama.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_007",
+      "page_order": 7,
+      "source_text": "フェルン。ちょうどいいところに。",
+      "source_box": [
+        556,
+        839,
+        630,
+        966
+      ],
+      "block_id": "ocr_0008_367c8383",
+      "source_hash": "b9f473637d69a7e5",
+      "reference_text": "Fern. Perfect timing.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_008",
+      "page_order": 8,
+      "source_text": "少し歩きませんか？",
+      "source_box": [
+        198,
+        837,
+        255,
+        943
+      ],
+      "block_id": "ocr_0006_0911af00",
+      "source_hash": "ca21250d6881dc44",
+      "reference_text": "would you like to take a little walk?",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_009",
+      "page_order": 9,
+      "source_text": "あの雲さー",
+      "source_box": [
+        563,
+        1011,
+        583,
+        1103
+      ],
+      "block_id": "ocr_0009_ba60d00c",
+      "source_hash": "81471386d2771925",
+      "reference_text": "Those clouds-",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_010",
+      "page_order": 10,
+      "source_text": "．．．すみません。なんでもないです。",
+      "source_box": [
+        329,
+        999,
+        377,
+        1176
+      ],
+      "block_id": "ocr_0010_eb3956d3",
+      "source_hash": "af0c8457f662834e",
+      "reference_text": "...I apologize it is nothing.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_007",
+      "line_id": "007_011",
+      "page_order": 11,
+      "source_text": "はい。",
+      "source_box": [
+        102,
+        1033,
+        132,
+        1093
+      ],
+      "block_id": "ocr_0011_fc197777",
+      "source_hash": "2910a18eec8fd2dd",
+      "reference_text": "Okay.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    }
+  ]
+}

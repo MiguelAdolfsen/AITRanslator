@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "dataset": "frieren_ch26_pages_002_010",
+  "page_id": "frieren_ch26_004",
+  "page_number": 4,
+  "japanese_image": "mangafolder\\sousou-no-frieren-chapter-26\\004.jpg",
+  "english_image": "mangafolder\\Frieren-Chapter 26 Present for a Warrior-ENGLISH\\4.jpg",
+  "prepared_cache": "quality-runs\\frieren-cat-final-20260527\\quality\\.manga-work\\0004-004.prepared.json",
+  "image_size": [
+    836,
+    1200
+  ],
+  "labels": [
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_001",
+      "page_order": 1,
+      "source_text": "ぁあああっ！！",
+      "source_box": [
+        506,
+        50,
+        540,
+        253
+      ],
+      "block_id": "ocr_0001_9b8e2e79",
+      "source_hash": "608ad9cd32c75bfc",
+      "reference_text": "Ahh!!!",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_002",
+      "page_order": 2,
+      "source_text": "うぅぅ．．．",
+      "source_box": [
+        498,
+        297,
+        542,
+        324
+      ],
+      "block_id": "ocr_0004_a0a831fd",
+      "source_hash": "078e978d86f2987e",
+      "reference_text": "",
+      "alignment_confidence": "high",
+      "reference_role": "sfx",
+      "skip_reference": true,
+      "skip_reason": "untranslated_sfx",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_003",
+      "page_order": 3,
+      "source_text": "この下品な薬、買ったときに私、返品しろって言いましたよね。",
+      "source_box": [
+        308,
+        25,
+        393,
+        345
+      ],
+      "block_id": "render_0003_3809954c",
+      "source_hash": "09cbb4ad62c07d6d",
+      "reference_text": "This vulgar drug... When you bought it, I... told you to return it, did I not?",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_004",
+      "page_order": 4,
+      "source_text": "フリーレン様なんて知りません。",
+      "source_box": [
+        143,
+        457,
+        202,
+        646
+      ],
+      "block_id": "ocr_0005_60ace148",
+      "source_hash": "e772a1071ccb99d5",
+      "reference_text": "I do not care about you anymore, Frieren-sama.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_005",
+      "page_order": 5,
+      "source_text": "．．．この薬貴重だったのに。",
+      "source_box": [
+        576,
+        730,
+        636,
+        889
+      ],
+      "block_id": "ocr_0006_65e8344c",
+      "source_hash": "1ba34b2630f6b22b",
+      "reference_text": "...Even though this drug was precious.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_006",
+      "page_order": 6,
+      "source_text": "プレゼントどうするかな。",
+      "source_box": [
+        294,
+        716,
+        342,
+        851
+      ],
+      "block_id": "ocr_0007_db6779c7",
+      "source_hash": "05bfb7b98f2f6280",
+      "reference_text": "Now, what should I do for a present...",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_007",
+      "page_order": 7,
+      "source_text": "２０１５年１",
+      "source_box": [
+        600,
+        1133,
+        724,
+        1176
+      ],
+      "block_id": "ocr_0008_819adb16",
+      "source_hash": "f9a5d4965d81ed8b",
+      "reference_text": "",
+      "alignment_confidence": "high",
+      "reference_role": "metadata",
+      "skip_reference": true,
+      "skip_reason": "metadata",
+      "notes": ""
+    },
+    {
+      "page_id": "frieren_ch26_004",
+      "line_id": "004_008",
+      "page_order": 8,
+      "source_text": "ああ。これがあったか。",
+      "source_box": [
+        102,
+        1003,
+        179,
+        1181
+      ],
+      "block_id": "render_0008_de5e5aa3",
+      "source_hash": "39839174cb672095",
+      "reference_text": "Ah. So there was this.",
+      "alignment_confidence": "high",
+      "reference_role": "speech",
+      "skip_reference": false,
+      "skip_reason": "",
+      "notes": ""
+    }
+  ]
+}
