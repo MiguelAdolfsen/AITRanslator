@@ -32,7 +32,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v17-honorific-name-shape"
+CAT_VALIDATION_VERSION = "cat-validation-v18-short-honorific-shape"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 48
 
@@ -851,6 +851,8 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
         return "cat_source_metadata_or_noise"
     if count_japanese_chars_local(text) > 0:
         return "cat_untranslated_japanese"
+    if source_has_nonfamily_honorific(source_text) and not has_romanized_honorific(text):
+        return "cat_missing_honorific"
     if looks_repetitive_or_verbose(source_text, text):
         return "cat_verbose_or_repetitive"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", text):
@@ -858,6 +860,80 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
     if source_text.strip() and text.strip() == source_text.strip():
         return "cat_unchanged_source"
     return None
+
+
+def source_has_nonfamily_honorific(source_text: str) -> bool:
+    compact = normalize_japanese_for_translation(source_text)
+    compact = compact.strip("\u300c\u300d\u300e\u300f\"'")
+    shape_compact = re.sub(r"[\s\u3000\u300c\u300d\u300e\u300f\"'\u2026.!?\uff01\uff1f\uff0e\u3002\u3001,，、\-]+", "", compact)
+    if len(shape_compact) > 10:
+        return False
+    suffixes = (
+        "\u3055\u3093",
+        "\u30b5\u30f3",
+        "\u3055\u307e",
+        "\u30b5\u30de",
+        "\u69d8",
+        "\u3061\u3083\u3093",
+        "\u30c1\u30e3\u30f3",
+        "\u304f\u3093",
+        "\u30af\u30f3",
+        "\u541b",
+        "\u5148\u8f29",
+        "\u305b\u3093\u3071\u3044",
+        "\u30bb\u30f3\u30d1\u30a4",
+        "\u5148\u751f",
+        "\u305b\u3093\u305b\u3044",
+        "\u30bb\u30f3\u30bb\u30a4",
+        "\u6bbf",
+        "\u3069\u306e",
+        "\u30c9\u30ce",
+        "\u6c0f",
+    )
+    family_bases = {
+        "\u7236",
+        "\u6bcd",
+        "\u5144",
+        "\u59c9",
+        "\u5f1f",
+        "\u59b9",
+        "\u304a\u7236",
+        "\u304a\u6bcd",
+        "\u304a\u5144",
+        "\u304a\u59c9",
+        "\u304a\u3058",
+        "\u304a\u3070",
+        "\u3058\u3044",
+        "\u3070\u3042",
+        "\u3068\u3046",
+        "\u304b\u3042",
+        "\u306b\u3044",
+        "\u306d\u3048",
+        "\u7686",
+        "\u7686\u69d8",
+        "\u307f\u306a",
+        "\u307f\u3093\u306a",
+        "\u5ba2",
+        "\u304a\u5ba2",
+        "\u795e",
+        "\u4ecf",
+    }
+    for suffix in sorted(suffixes, key=len, reverse=True):
+        pattern = re.compile(
+            rf"(?P<name>[\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9fffA-Za-z][\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9fffA-Za-z0-9_-]{{0,24}}){re.escape(suffix)}"
+        )
+        for match in pattern.finditer(compact):
+            name = match.group("name")
+            if name in family_bases:
+                continue
+            if name.endswith(("\u5c4b", "\u5e97", "\u4f1a\u793e", "\u5b66\u6821", "\u5bb6")):
+                continue
+            return True
+    return False
+
+
+def has_romanized_honorific(text: str) -> bool:
+    return bool(re.search(r"\b(?:san|sama|kun|chan|senpai|sensei|dono|shi)\b", str(text), flags=re.IGNORECASE))
 
 
 def looks_like_cat_chatter(text: str) -> bool:
