@@ -6,6 +6,8 @@ The project takes manga page images, detects Japanese text regions, OCRs the tex
 
 It is designed for local experimentation and personal translation workflows. It includes both a GUI and a CLI, plus optional Qwen-based translation, verification, and vision-assisted repair.
 
+Agents should start with [`AGENTS.md`](AGENTS.md) and the deeper [`docs/agent-wiki/README.md`](docs/agent-wiki/README.md) project wiki.
+
 ---
 
 ## What the pipeline does
