@@ -76,6 +76,43 @@ class EvalHandoffTests(unittest.TestCase):
             )
             self.assertEqual(result, 1)
 
+    def test_replay_eval_rejects_missing_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            case = case_row()
+            write_jsonl(root / "cases.jsonl", [case])
+            write_jsonl(root / "references.jsonl", [])
+            write_jsonl(
+                root / "frozen.jsonl",
+                [
+                    {
+                        "case_id": "case_001",
+                        "source_hash": case["source_hash"],
+                        "candidates": [{"candidate_id": "c1", "agent": "baseline", "text": "Please."}],
+                    }
+                ],
+            )
+            result = eval_silent(
+                [
+                    "--mode",
+                    "replay",
+                    "--cases",
+                    str(root / "cases.jsonl"),
+                    "--references",
+                    str(root / "references.jsonl"),
+                    "--frozen-outputs",
+                    str(root / "frozen.jsonl"),
+                    "--output",
+                    str(root / "run"),
+                    "--results",
+                    str(root / "results.tsv"),
+                    "--run-id",
+                    "missing_ref",
+                    "--no-append-results",
+                ]
+            )
+            self.assertEqual(result, 1)
+
     def test_eval_loads_human_gold_from_selected_benchmark_folder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -125,6 +162,65 @@ class EvalHandoffTests(unittest.TestCase):
             summary = load_json(root / "run" / "summary.json")
             self.assertTrue(summary["hard_reject"])
             self.assertEqual(summary["hard_failure_count"], 1)
+
+    def test_eval_writes_agent_handoff_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            case = case_row()
+            case["context_before"] = ["Before line."]
+            case["context_after"] = ["After line."]
+            case["glossary_terms"] = ["お願い"]
+            write_jsonl(root / "cases.jsonl", [case])
+            write_jsonl(root / "references.jsonl", [{"case_id": "case_001", "reference_translations": ["Please."]}])
+            write_jsonl(
+                root / "frozen.jsonl",
+                [
+                    {
+                        "case_id": "case_001",
+                        "source_hash": case["source_hash"],
+                        "source_text": case["source_text"],
+                        "context_before": case["context_before"],
+                        "context_after": case["context_after"],
+                        "glossary_terms": case["glossary_terms"],
+                        "candidates": [
+                            {"candidate_id": "base", "agent": "baseline", "text": "Please.", "cost_proxy": 1.0},
+                            {"candidate_id": "alt", "agent": "qwen_page", "text": "Please!", "cost_proxy": 4.0},
+                        ],
+                    }
+                ],
+            )
+            result = eval_silent(
+                [
+                    "--mode",
+                    "replay",
+                    "--cases",
+                    str(root / "cases.jsonl"),
+                    "--references",
+                    str(root / "references.jsonl"),
+                    "--frozen-outputs",
+                    str(root / "frozen.jsonl"),
+                    "--output",
+                    str(root / "run"),
+                    "--results",
+                    str(root / "results.tsv"),
+                    "--run-id",
+                    "handoff",
+                    "--no-append-results",
+                ]
+            )
+            self.assertEqual(result, 0)
+            for name in ["case_results.jsonl", "traces.jsonl", "failures.jsonl", "artifacts/run_manifest.json"]:
+                self.assertTrue((root / "run" / name).exists(), name)
+            trace = json.loads((root / "run" / "traces.jsonl").read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(trace["source_text"], case["source_text"])
+            self.assertEqual(trace["context_before"], ["Before line."])
+            self.assertEqual(trace["glossary_terms"], ["お願い"])
+            self.assertEqual(trace["final_accepted_translation"], "Please.")
+            self.assertTrue(trace["pairwise_baseline"]["enabled"])
+            summary = load_json(root / "run" / "summary.json")
+            self.assertEqual(summary["mode"], "replay")
+            self.assertIn("scoring_layers", summary)
+            self.assertEqual(summary["artifacts"]["traces"], "traces.jsonl")
 
 
 if __name__ == "__main__":

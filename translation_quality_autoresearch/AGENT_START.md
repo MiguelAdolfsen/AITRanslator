@@ -99,6 +99,20 @@ Run these before keeping a change:
 
 Use `--no-append-results` for local smoke checks that should not be recorded.
 
+## Run artifacts
+
+Every accepted experiment run must preserve:
+
+```text
+summary.json
+case_results.jsonl
+traces.jsonl
+failures.jsonl
+artifacts/run_manifest.json
+```
+
+Use `case_results.jsonl` for final selections, `traces.jsonl` for source/context/candidate/reranker details, and `failures.jsonl` for hard-check and warning review. `candidate_scores.jsonl` and `case_decisions.jsonl` are legacy compatibility outputs.
+
 ## Keep/revert policy
 
 Keep a change only if:

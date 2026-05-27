@@ -70,9 +70,18 @@ def main(argv: list[str] | None = None) -> int:
         trace = {
             "case_id": case.case_id,
             "source_hash": case.source_hash,
+            "source_text": case.source_text,
+            "context_before": case.context_before,
+            "context_after": case.context_after,
+            "glossary_terms": case.glossary_terms,
+            "speaker_hint": case.speaker_hint,
+            "page_id": case.page_id,
+            "group_id": case.group_id,
+            "page_order": case.page_order,
             "run_id": args.output.parent.name or "live_candidates",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "candidates": [],
+            "critic_repair_decisions": [],
         }
         for agent in agents:
             if agent in unavailable:
@@ -180,9 +189,18 @@ def dry_trace(case: TranslationCase, agents: list[str]) -> dict[str, Any]:
     return {
         "case_id": case.case_id,
         "source_hash": case.source_hash,
+        "source_text": case.source_text,
+        "context_before": case.context_before,
+        "context_after": case.context_after,
+        "glossary_terms": case.glossary_terms,
+        "speaker_hint": case.speaker_hint,
+        "page_id": case.page_id,
+        "group_id": case.group_id,
+        "page_order": case.page_order,
         "run_id": "dry_run",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "candidates": [skipped_candidate(case, agent, "dry_run") for agent in agents],
+        "critic_repair_decisions": [],
     }
 
 

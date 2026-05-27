@@ -47,6 +47,36 @@ class CompareRunsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compare_summaries(baseline, candidate)
 
+    def test_rejects_reference_policy_mismatch(self) -> None:
+        baseline = {
+            "benchmark_id": "benchmark_a",
+            "reference_policy": "manual_codex_translation",
+            "translation_quality_score": 10,
+        }
+        candidate = {
+            "benchmark_id": "benchmark_a",
+            "reference_policy": "seed_synthetic",
+            "translation_quality_score": 9,
+        }
+        with self.assertRaises(ValueError):
+            compare_summaries(baseline, candidate)
+
+    def test_rejects_case_count_mismatch(self) -> None:
+        baseline = {
+            "benchmark_id": "benchmark_a",
+            "reference_policy": "manual_codex_translation",
+            "case_count": 60,
+            "translation_quality_score": 10,
+        }
+        candidate = {
+            "benchmark_id": "benchmark_a",
+            "reference_policy": "manual_codex_translation",
+            "case_count": 59,
+            "translation_quality_score": 9,
+        }
+        with self.assertRaises(ValueError):
+            compare_summaries(baseline, candidate)
+
 
 if __name__ == "__main__":
     unittest.main()

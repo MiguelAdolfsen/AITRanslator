@@ -79,7 +79,18 @@ Live generation writes traces only. Evaluation of those traces is deterministic 
 
 ## Inspecting Runs
 
-Each run writes `summary.json`, `summary.md`, `candidate_scores.jsonl`, `case_decisions.jsonl`, and `failure_table.tsv`. The append-only result log is `results/translation_quality_results.tsv`; pass `--no-append-results` for local smoke runs that should not be recorded.
+Each run writes the handoff artifacts expected by optimization agents:
+
+```text
+summary.json
+summary.md
+case_results.jsonl
+traces.jsonl
+failures.jsonl
+artifacts/run_manifest.json
+```
+
+`candidate_scores.jsonl`, `case_decisions.jsonl`, and `failure_table.tsv` are still written for backward-compatible inspection. The append-only result log is `results/translation_quality_results.tsv`; pass `--no-append-results` for local smoke runs that should not be recorded.
 
 Add benchmark cases by editing or creating JSONL files under `benchmark/`, then run `scripts/validate_benchmark.py`. Do not tune prompts, rules, or rerankers against hidden label edits. Future optimization agents must not modify benchmark files, scorer code, tests, or result logs unless the explicit task is to improve the harness itself.
 

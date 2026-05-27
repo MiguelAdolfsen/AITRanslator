@@ -45,6 +45,18 @@ def compare_summaries(baseline: dict, candidate: dict) -> dict:
     candidate_benchmark = str(candidate.get("benchmark_id") or "")
     if baseline_benchmark and candidate_benchmark and baseline_benchmark != candidate_benchmark:
         raise ValueError(f"benchmark_id mismatch: {baseline_benchmark} != {candidate_benchmark}")
+    baseline_policy = str(baseline.get("reference_policy") or "")
+    candidate_policy = str(candidate.get("reference_policy") or "")
+    if baseline_policy and candidate_policy and baseline_policy != candidate_policy:
+        raise ValueError(f"reference_policy mismatch: {baseline_policy} != {candidate_policy}")
+    baseline_version = str(baseline.get("benchmark_version_path") or "")
+    candidate_version = str(candidate.get("benchmark_version_path") or "")
+    if baseline_version and candidate_version and baseline_version != candidate_version:
+        raise ValueError(f"benchmark_version_path mismatch: {baseline_version} != {candidate_version}")
+    baseline_cases = int(baseline.get("case_count") or 0)
+    candidate_cases = int(candidate.get("case_count") or 0)
+    if baseline_cases and candidate_cases and baseline_cases != candidate_cases:
+        raise ValueError(f"case_count mismatch: {baseline_cases} != {candidate_cases}")
     delta = float(candidate.get("translation_quality_score") or 0.0) - float(
         baseline.get("translation_quality_score") or 0.0
     )

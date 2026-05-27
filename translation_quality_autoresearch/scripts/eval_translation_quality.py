@@ -70,12 +70,19 @@ def run_eval(args: argparse.Namespace) -> None:
     config = load_json(args.config, default={}) or {}
     if args.mqm_judge_provider is not None:
         config["mqm_judge_provider"] = args.mqm_judge_provider
+    if args.pairwise_judge_provider is not None:
+        config["pairwise_judge_provider"] = args.pairwise_judge_provider
+    config["enable_comet"] = bool(args.enable_comet or config.get("enable_comet"))
+    config["enable_cometkiwi"] = bool(args.enable_cometkiwi or config.get("enable_cometkiwi"))
+    config["enable_xcomet"] = bool(args.enable_xcomet or config.get("enable_xcomet"))
+    config["allow_metric_downloads"] = bool(args.allow_metric_downloads or config.get("allow_metric_downloads"))
     weights = load_weights(args.weights)
     glossary = load_json(args.glossary, default={}) if args.glossary else {}
     cases = load_cases(args.cases, tag=args.tag, case_id=args.case_id, limit=args.limit)
     benchmark_metadata = load_benchmark_metadata(args.cases)
     references = {row.case_id: row for row in (ReferenceRecord.from_dict(item) for item in load_jsonl(args.references))}
-    candidate_map, source_hashes = load_candidate_source(args)
+    validate_reference_coverage(cases, references)
+    candidate_map, source_hashes, source_rows = load_candidate_source(args)
     validate_candidate_source(cases, candidate_map, source_hashes)
 
     if args.output.exists():
@@ -83,9 +90,11 @@ def run_eval(args: argparse.Namespace) -> None:
             raise RuntimeError(f"output already exists: {args.output}; pass --overwrite-output")
         shutil.rmtree(args.output)
     args.output.mkdir(parents=True, exist_ok=True)
+    (args.output / "artifacts").mkdir(parents=True, exist_ok=True)
 
     candidate_rows: list[dict[str, Any]] = []
     decisions: list[dict[str, Any]] = []
+    traces: list[dict[str, Any]] = []
     for case in cases:
         case_candidates = candidate_map.get(case.case_id, [])
         scored = [
@@ -100,6 +109,7 @@ def run_eval(args: argparse.Namespace) -> None:
         selected = ranked[0]
         rejected = [{"candidate_id": row["candidate_id"], "reason": rejected_candidate_reason(row)} for row in ranked[1:]]
         hard_failures = selected.get("deterministic", {}).get("warnings", []) if selected.get("hard_reject") else []
+        pairwise_baseline = baseline_pairwise(selected, scored, str(config.get("baseline_agent") or "baseline"))
         decision = {
             "case_id": case.case_id,
             "source_hash": case.source_hash,
@@ -108,16 +118,23 @@ def run_eval(args: argparse.Namespace) -> None:
             "selected_text": selected["text"],
             "selection_reason": "lowest candidate score; no hard warnings" if not selected.get("hard_reject") else "all candidates hard-rejected; lowest score selected for inspection",
             "rejected_candidates": rejected,
+            "pairwise_baseline": pairwise_baseline,
             "case_score": selected["candidate_quality_score"],
             "hard_failures": hard_failures,
             "warnings": selected.get("deterministic", {}).get("warnings", []),
         }
-        decisions.append(apply_human_gold_gate(decision, args, case))
+        decision = apply_human_gold_gate(decision, args, case)
+        decisions.append(decision)
+        traces.append(build_case_trace(case, source_rows.get(case.case_id, {}), scored, decision))
 
-    summary = build_summary(args, cases, candidate_rows, decisions, weights, benchmark_metadata)
+    summary = build_summary(args, cases, candidate_rows, decisions, weights, benchmark_metadata, config)
     write_jsonl(args.output / "candidate_scores.jsonl", candidate_rows)
     write_jsonl(args.output / "case_decisions.jsonl", decisions)
+    write_jsonl(args.output / "case_results.jsonl", decisions)
+    write_jsonl(args.output / "traces.jsonl", traces)
+    write_jsonl(args.output / "failures.jsonl", failure_rows(candidate_rows, decisions))
     write_json(args.output / "summary.json", summary)
+    write_json(args.output / "artifacts" / "run_manifest.json", run_manifest(args, summary, config))
     write_summary_md(args.output / "summary.md", summary)
     write_failure_table(args.output / "failure_table.tsv", candidate_rows, decisions)
     if args.append_results:
@@ -141,7 +158,7 @@ def load_cases(value: str, *, tag: str | None, case_id: str | None, limit: int |
     return cases
 
 
-def load_candidate_source(args: argparse.Namespace) -> tuple[dict[str, list[Candidate]], dict[str, str]]:
+def load_candidate_source(args: argparse.Namespace) -> tuple[dict[str, list[Candidate]], dict[str, str], dict[str, dict[str, Any]]]:
     if args.mode == "replay":
         if not args.frozen_outputs:
             raise RuntimeError("--frozen-outputs is required in replay mode")
@@ -152,13 +169,15 @@ def load_candidate_source(args: argparse.Namespace) -> tuple[dict[str, list[Cand
         rows = load_jsonl(args.traces)
     result: dict[str, list[Candidate]] = defaultdict(list)
     source_hashes: dict[str, str] = {}
+    source_rows: dict[str, dict[str, Any]] = {}
     for row in rows:
         case_id = str(row.get("case_id") or "")
         source_hashes[case_id] = str(row.get("source_hash") or "")
+        source_rows[case_id] = row
         for payload in row.get("candidates") or []:
             if isinstance(payload, dict) and payload.get("candidate_id") and payload.get("agent") is not None:
                 result[case_id].append(Candidate.from_dict(payload))
-    return dict(result), source_hashes
+    return dict(result), source_hashes, source_rows
 
 
 def validate_candidate_source(
@@ -176,6 +195,16 @@ def validate_candidate_source(
     ]
     if mismatched:
         raise RuntimeError(f"candidate source_hash mismatch for case(s): {', '.join(mismatched[:10])}")
+
+
+def validate_reference_coverage(cases: list[TranslationCase], references: dict[str, ReferenceRecord]) -> None:
+    missing = [case.case_id for case in cases if case.case_id not in references]
+    if missing:
+        raise RuntimeError(f"missing references for case(s): {', '.join(missing[:10])}")
+    selected_case_ids = {case.case_id for case in cases}
+    empty = [case_id for case_id, row in references.items() if case_id in selected_case_ids and not row.reference_translations]
+    if empty:
+        raise RuntimeError(f"empty reference_translations for case(s): {', '.join(empty[:10])}")
 
 
 def benchmark_root_from_cases(value: str | Path) -> Path | None:
@@ -238,10 +267,128 @@ def no_candidate_decision(case: TranslationCase, weights: dict[str, float]) -> d
         "selected_text": "",
         "selection_reason": "no candidates",
         "rejected_candidates": [],
+        "pairwise_baseline": {"enabled": False, "reason": "no selected candidate"},
         "case_score": weights["hard_fail_penalty"],
         "hard_failures": ["no_candidates"],
         "warnings": ["no_candidates"],
     }
+
+
+def baseline_pairwise(selected: dict[str, Any], scored: list[dict[str, Any]], baseline_agent: str) -> dict[str, Any]:
+    baseline_candidates = [row for row in scored if row.get("agent") == baseline_agent]
+    if not baseline_candidates:
+        return {"enabled": False, "reason": f"baseline agent not present: {baseline_agent}"}
+    baseline = sorted(baseline_candidates, key=lambda row: float(row.get("candidate_quality_score") or 0.0))[0]
+    selected_score = float(selected.get("candidate_quality_score") or 0.0)
+    baseline_score = float(baseline.get("candidate_quality_score") or 0.0)
+    delta = round(selected_score - baseline_score, 6)
+    if selected.get("candidate_id") == baseline.get("candidate_id"):
+        outcome = "selected_baseline"
+    elif delta < 0:
+        outcome = "selected_better_than_baseline"
+    elif delta > 0:
+        outcome = "selected_worse_than_baseline"
+    else:
+        outcome = "tie_with_baseline"
+    return {
+        "enabled": True,
+        "judge_provider": "deterministic_score_delta",
+        "baseline_agent": baseline_agent,
+        "baseline_candidate_id": baseline.get("candidate_id"),
+        "baseline_text": baseline.get("text"),
+        "baseline_score": baseline_score,
+        "selected_score": selected_score,
+        "score_delta_selected_minus_baseline": delta,
+        "outcome": outcome,
+    }
+
+
+def build_case_trace(
+    case: TranslationCase,
+    source_row: dict[str, Any],
+    scored: list[dict[str, Any]],
+    decision: dict[str, Any],
+) -> dict[str, Any]:
+    candidate_translations = []
+    for row in scored:
+        candidate_translations.append(
+            {
+                "candidate_id": row.get("candidate_id"),
+                "agent": row.get("agent"),
+                "text": row.get("text"),
+                "candidate_quality_score": row.get("candidate_quality_score"),
+                "hard_reject": row.get("hard_reject"),
+                "deterministic": row.get("deterministic"),
+                "mqm": row.get("mqm"),
+                "mt_metrics": row.get("mt_metrics"),
+                "style": row.get("style"),
+                "cost_proxy": row.get("cost_proxy"),
+                "latency_ms": row.get("latency_ms"),
+            }
+        )
+    return {
+        "case_id": case.case_id,
+        "source_hash": case.source_hash,
+        "source_text": case.source_text,
+        "context_before": case.context_before,
+        "context_after": case.context_after,
+        "glossary_terms": case.glossary_terms,
+        "candidate_translations": candidate_translations,
+        "agent_trace": {
+            key: value
+            for key, value in source_row.items()
+            if key not in {"candidates"}
+        },
+        "critic_repair_decisions": source_row.get("critic_repair_decisions") or [],
+        "reranker_scores": [
+            {
+                "candidate_id": row.get("candidate_id"),
+                "candidate_quality_score": row.get("candidate_quality_score"),
+                "hard_reject": row.get("hard_reject"),
+            }
+            for row in scored
+        ],
+        "final_accepted_translation": decision.get("selected_text"),
+        "final_candidate_id": decision.get("selected_candidate_id"),
+        "final_agent": decision.get("selected_agent"),
+        "reason_final_candidate_was_selected": decision.get("selection_reason"),
+        "rejected_candidates": decision.get("rejected_candidates") or [],
+        "pairwise_baseline": decision.get("pairwise_baseline") or {},
+        "hard_failures": decision.get("hard_failures") or [],
+        "warnings": decision.get("warnings") or [],
+    }
+
+
+def failure_rows(candidate_rows: list[dict[str, Any]], decisions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    for decision in decisions:
+        if decision.get("hard_failures") or decision.get("warnings"):
+            failures.append(
+                {
+                    "case_id": decision.get("case_id"),
+                    "scope": "selected_decision",
+                    "selected_candidate_id": decision.get("selected_candidate_id"),
+                    "hard_failures": decision.get("hard_failures") or [],
+                    "warnings": decision.get("warnings") or [],
+                    "selected_text": decision.get("selected_text"),
+                }
+            )
+    for row in candidate_rows:
+        deterministic = row.get("deterministic") or {}
+        if row.get("hard_reject") or deterministic.get("warnings"):
+            failures.append(
+                {
+                    "case_id": row.get("case_id"),
+                    "scope": "candidate",
+                    "candidate_id": row.get("candidate_id"),
+                    "agent": row.get("agent"),
+                    "hard_reject": row.get("hard_reject"),
+                    "warnings": deterministic.get("warnings") or [],
+                    "deterministic": deterministic,
+                    "text": row.get("text"),
+                }
+            )
+    return failures
 
 
 def apply_human_gold_gate(decision: dict[str, Any], args: argparse.Namespace, case: TranslationCase) -> dict[str, Any]:
@@ -277,6 +424,7 @@ def build_summary(
     decisions: list[dict[str, Any]],
     weights: dict[str, float],
     benchmark_metadata: dict[str, Any],
+    config: dict[str, Any],
 ) -> dict[str, Any]:
     deterministic_rows = [row.get("deterministic") or {} for row in candidate_rows]
     tag_slices: dict[str, dict[str, Any]] = {}
@@ -291,8 +439,11 @@ def build_summary(
             }
     score = run_score(decisions, candidate_rows, weights)
     hard_failure_count = sum(1 for row in decisions if row.get("hard_failures"))
+    pairwise_rows = [row.get("pairwise_baseline") or {} for row in decisions]
+    pairwise_enabled = [row for row in pairwise_rows if row.get("enabled")]
     return {
         "run_id": args.run_id,
+        "mode": args.mode,
         "benchmark_id": benchmark_metadata["benchmark_id"],
         "reference_policy": benchmark_metadata["reference_policy"],
         "benchmark_version_path": benchmark_metadata["benchmark_version_path"],
@@ -308,10 +459,45 @@ def build_summary(
         "japanese_leakage_count": sum(1 for row in deterministic_rows if row.get("japanese_leakage")),
         "assistant_chatter_count": sum(1 for row in deterministic_rows if row.get("assistant_chatter")),
         "glossary_violation_count": sum(1 for row in deterministic_rows if row.get("glossary_violation")),
+        "pairwise_baseline": {
+            "enabled_count": len(pairwise_enabled),
+            "selected_better_than_baseline": sum(1 for row in pairwise_enabled if row.get("outcome") == "selected_better_than_baseline"),
+            "selected_worse_than_baseline": sum(1 for row in pairwise_enabled if row.get("outcome") == "selected_worse_than_baseline"),
+            "selected_baseline": sum(1 for row in pairwise_enabled if row.get("outcome") == "selected_baseline"),
+            "tie_with_baseline": sum(1 for row in pairwise_enabled if row.get("outcome") == "tie_with_baseline"),
+        },
+        "scoring_layers": {
+            "deterministic_hard_checks": True,
+            "mt_metrics": {
+                "reference_token_f1": True,
+                "comet": bool(config.get("enable_comet")),
+                "cometkiwi": bool(config.get("enable_cometkiwi")),
+                "xcomet": bool(config.get("enable_xcomet")),
+            },
+            "mqm_judge_provider": str(config.get("mqm_judge_provider") or "none"),
+            "pairwise_judge_provider": str(config.get("pairwise_judge_provider") or "none"),
+            "human_gold_gate": human_gold_path(args).exists(),
+        },
+        "artifacts": {
+            "summary": "summary.json",
+            "case_results": "case_results.jsonl",
+            "traces": "traces.jsonl",
+            "failures": "failures.jsonl",
+            "candidate_scores_legacy": "candidate_scores.jsonl",
+            "case_decisions_legacy": "case_decisions.jsonl",
+            "manifest": "artifacts/run_manifest.json",
+        },
         "selected_agents": count_values(row.get("selected_agent") for row in decisions),
         "tag_slices": tag_slices,
         "notes": args.notes,
     }
+
+
+def human_gold_path(args: argparse.Namespace) -> Path:
+    if args.human_gold is not None:
+        return args.human_gold
+    root = benchmark_root_from_cases(args.cases)
+    return (root / "human_gold.jsonl") if root else Path("translation_quality_autoresearch/benchmark/human_gold.jsonl")
 
 
 def count_values(values) -> dict[str, int]:
@@ -329,6 +515,7 @@ def write_summary_md(path: Path, summary: dict[str, Any]) -> None:
         "# Translation Quality Summary",
         "",
         f"- run_id: {summary['run_id']}",
+        f"- mode: {summary.get('mode', '')}",
         f"- benchmark_id: {summary.get('benchmark_id', '')}",
         f"- reference_policy: {summary.get('reference_policy', '')}",
         f"- translation_quality_score: {summary['translation_quality_score']}",
@@ -339,6 +526,7 @@ def write_summary_md(path: Path, summary: dict[str, Any]) -> None:
         f"- japanese_leakage_count: {summary['japanese_leakage_count']}",
         f"- assistant_chatter_count: {summary['assistant_chatter_count']}",
         f"- glossary_violation_count: {summary['glossary_violation_count']}",
+        f"- pairwise_baseline: {summary.get('pairwise_baseline', {})}",
         "",
         "## Tag Slices",
     ]
@@ -387,6 +575,31 @@ def result_row(summary: dict[str, Any], args: argparse.Namespace) -> dict[str, A
         "assistant_chatter_count": summary["assistant_chatter_count"],
         "glossary_violation_count": summary["glossary_violation_count"],
         "notes": args.notes,
+    }
+
+
+def run_manifest(args: argparse.Namespace, summary: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "run_id": args.run_id,
+        "mode": args.mode,
+        "benchmark_id": summary.get("benchmark_id", ""),
+        "reference_policy": summary.get("reference_policy", ""),
+        "cases": str(args.cases),
+        "references": str(args.references),
+        "frozen_outputs": str(args.frozen_outputs or ""),
+        "traces": str(args.traces or ""),
+        "glossary": str(args.glossary or ""),
+        "weights": str(args.weights),
+        "config": str(args.config),
+        "effective_scoring_layers": summary.get("scoring_layers") or {},
+        "effective_config_flags": {
+            "mqm_judge_provider": config.get("mqm_judge_provider"),
+            "pairwise_judge_provider": config.get("pairwise_judge_provider"),
+            "enable_comet": config.get("enable_comet"),
+            "enable_cometkiwi": config.get("enable_cometkiwi"),
+            "enable_xcomet": config.get("enable_xcomet"),
+            "allow_metric_downloads": config.get("allow_metric_downloads"),
+        },
     }
 
 
