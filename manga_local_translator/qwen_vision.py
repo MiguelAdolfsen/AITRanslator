@@ -68,7 +68,7 @@ class QwenVisionClient:
             [
                 {
                     "role": "system",
-                    "content": "You are a manga translation QA assistant. Return JSON only. Do not OCR image text.",
+                    "content": "/no_think\nYou are a manga translation QA assistant. Return JSON only. Do not OCR image text.",
                 },
                 {
                     "role": "user",
@@ -87,7 +87,7 @@ class QwenVisionClient:
             [
                 {
                     "role": "system",
-                    "content": "You extract grounded manga visual facts. Return JSON only. Do not translate and do not OCR image text.",
+                    "content": "/no_think\nYou extract grounded manga visual facts. Return JSON only. Do not translate and do not OCR image text.",
                 },
                 {
                     "role": "user",
@@ -105,7 +105,7 @@ class QwenVisionClient:
             [
                 {
                     "role": "system",
-                    "content": "You repair malformed JSON. Return valid JSON only.",
+                    "content": "/no_think\nYou repair malformed JSON. Return valid JSON only.",
                 },
                 {"role": "user", "content": prompt},
             ],

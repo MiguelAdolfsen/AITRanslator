@@ -194,7 +194,7 @@ def build_qwen_repair_prompt(
     before_items = normalize_context_window(before_contexts, fallback=before)
     after_items = normalize_context_window(after_contexts, fallback=after)
     lines = [
-        "/think",
+        "/no_think",
         "Task: Repair one failed Japanese-to-English manga bubble translation.",
         *ANTI_HALLUCINATION_RULES,
         "Translate only TARGET. Do not translate neighboring context lines.",
