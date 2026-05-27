@@ -24,7 +24,9 @@ from manga_local_translator.hf_translators import (
     finalize_cat_translation,
     resolve_cat_gguf_path,
     salvage_cat_translation,
+    translate_kana_honorific_name_fragment,
 )
+from manga_local_translator.translation_rules import apply_honorific_title_replacements
 from manga_local_translator.pipeline import (
     apply_qwen_fallback_translations,
     retry_cat_failures,
@@ -120,12 +122,12 @@ class CatTranslatorTests(unittest.TestCase):
     def test_cat_prompts_use_short_default_and_source_only_retry(self) -> None:
         self.assertEqual(
             build_cat_prompt("\u6bcd"),
-            'Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, or continue the scene. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
+            'Translate exactly. Return only concise English. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. Do not replace honorifics with English titles. Do not explain, apologize, ask for clarification, or continue the scene. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
         )
         self.assertEqual(build_cat_prompt("\u6bcd", retry=True), "Japanese:\n\u6bcd\n\nEnglish:")
         self.assertEqual(
             build_cat_prompt("\u6bcd", retry=True, retry_variant="incomplete_fragment"),
-            'Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\nJapanese: "\u6bcd"\nEnglish:',
+            'Translate exactly. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\nJapanese: "\u6bcd"\nEnglish:',
         )
 
     def test_cat_num_predict_reads_bounded_environment_value(self) -> None:
@@ -148,6 +150,7 @@ class CatTranslatorTests(unittest.TestCase):
             self.assertEqual(cat_bypass_reason("\u4f55\u3042\u308c"), "short_ambiguous_fragment")
             self.assertEqual(cat_bypass_reason("\u25bd\u65e5\uff11\u56de\u5065\u4eba\u300e\u30a2\u30d9\u30c4\u30aa\u30ca"), "noisy_credit_or_metadata")
             self.assertEqual(cat_bypass_reason("\u30a6\u30a3\u30ea\u30a2\u30e0"), "short_ambiguous_fragment")
+            self.assertEqual(cat_bypass_reason("\uff12\uff10\uff12\uff10\u5e74\uff11\uff12\u6708"), "noisy_credit_or_metadata")
             self.assertIsNone(cat_bypass_reason("\u304a\u307e\u3048\u306f\u304a\u98a8\u5442\u306b\u4ed8\u304f\u5408\u3044\u306f\u305a\u3060\u3063\u305f\u3060\u3051\u3058\u3083\u306a\u3044\u3002"))
 
     def test_cat_reject_reason_catches_chatter_prompt_and_japanese(self) -> None:
@@ -213,6 +216,30 @@ class CatTranslatorTests(unittest.TestCase):
         self.assertEqual(cleaned, "")
         self.assertEqual(final, "")
         self.assertEqual(reason, "cat_chatter")
+
+    def test_short_kana_honorific_name_fragment_uses_source_shape(self) -> None:
+        self.assertEqual(translate_kana_honorific_name_fragment("\u30ea\u30f3\u69d8"), "Rin sama")
+        self.assertIsNone(translate_kana_honorific_name_fragment("\u30a2\u30fc\u30cb\u30e3\u69d8"))
+        self.assertEqual(translate_kana_honorific_name_fragment("\u304b\u3050\u3084\u69d8\u2026"), "Kaguya sama...")
+        self.assertIsNone(translate_kana_honorific_name_fragment("\u304a\u3070\u3055\u3093"))
+
+    def test_finalize_cat_translation_overrides_short_kana_honorific_title(self) -> None:
+        cleaned, final, reason = finalize_cat_translation(
+            "\u304b\u3050\u3084\u69d8",
+            "\u304b\u3050\u3084\u69d8",
+            "Princess Kaguya",
+            None,
+        )
+
+        self.assertEqual(cleaned, "Kaguya sama")
+        self.assertEqual(final, "Kaguya sama")
+        self.assertIsNone(reason)
+
+    def test_honorific_postprocess_converts_generic_titles(self) -> None:
+        result, changes = apply_honorific_title_replacements("\u304b\u3050\u3084\u69d8", "Princess Kaguya")
+
+        self.assertEqual(result, "Kaguya sama")
+        self.assertTrue(changes)
 
     def test_finalize_cat_translation_rejects_assistant_translation_chatter(self) -> None:
         source = "\u5fc5\u305a\u3001\u4eba\u6c17\u526f\u4f5c\uff23\u30ab\u30e9\u30fc\uff01\uff01\u3042\u306a\u305f\u3092\u3057\u305d\u306e\u601d\u3044\u51fa\u3055\u305b\u3066\u3001\u5f7c\u306f\u304d\u3063\u3068\u5f37\u304f\u306a\u308b\u3088\u3046\u306a\u6c17\u6301\u3061\u3060\u3002"
