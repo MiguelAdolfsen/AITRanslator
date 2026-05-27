@@ -1,0 +1,15 @@
+{
+  "enabled_by_default": false,
+  "severities": {
+    "critical": "Meaning is unusable, unsafe, or contradicts the source.",
+    "major": "Important meaning, term, or speaker relation is wrong or missing.",
+    "minor": "Small nuance, fluency, or style issue."
+  },
+  "categories": {
+    "accuracy": ["mistranslation", "omission", "addition", "wrong_speaker", "wrong_gender", "wrong_name"],
+    "terminology": ["glossary_conflict", "honorific_loss", "name_drift"],
+    "locale_style": ["unnatural_dialogue", "oververbose", "not_renderable"],
+    "fluency": ["grammar", "awkward_literal", "punctuation"],
+    "format": ["assistant_chatter", "japanese_leakage", "json_or_label_output", "line_mapping"]
+  }
+}

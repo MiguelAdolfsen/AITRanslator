@@ -1,0 +1,4 @@
+Repair only the listed problems.
+Do not rewrite good content unnecessarily.
+Do not add new facts.
+Return only the repaired translation.

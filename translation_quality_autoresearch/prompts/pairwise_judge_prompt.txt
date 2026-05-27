@@ -1,0 +1,3 @@
+Compare candidate vs baseline on faithfulness, naturalness, glossary adherence, brevity/renderability, and lack of hallucination.
+
+Prefer the candidate only when it is clearly equal or better on meaning and has no hard format problems.

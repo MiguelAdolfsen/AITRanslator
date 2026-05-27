@@ -1,0 +1,3 @@
+Judge this manga translation using MQM-style categories.
+
+Report critical, major, and minor errors for accuracy, terminology, style, fluency, and format. Do not reward added explanations.

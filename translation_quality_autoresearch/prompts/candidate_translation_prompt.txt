@@ -1,0 +1,6 @@
+Translate Japanese manga dialogue to natural English.
+Preserve meaning.
+Do not add names, speakers, genders, facts, or explanations not present in source/context.
+Use context only to resolve ambiguity, not to invent plot.
+Return only the English translation.
+No labels, no JSON, no commentary.

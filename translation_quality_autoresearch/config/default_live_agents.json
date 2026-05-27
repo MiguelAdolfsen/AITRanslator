@@ -1,0 +1,13 @@
+{
+  "agents": ["opus", "qwen_block", "qwen_page", "cat"],
+  "temperature": 0.2,
+  "max_tokens": 256,
+  "timeout_seconds": 120,
+  "qwen_model": null,
+  "qwen_critic_model": null,
+  "qwen_fallback_model": null,
+  "cat_model": null,
+  "use_page_context": true,
+  "use_glossary": true,
+  "store_raw_outputs": true
+}

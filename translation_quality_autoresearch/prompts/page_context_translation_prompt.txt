@@ -1,0 +1,21 @@
+Translate the target source line to natural English manga dialogue.
+
+Source line:
+{source_line}
+
+Previous lines:
+{previous_lines}
+
+Next lines:
+{next_lines}
+
+Speaker hint:
+{speaker_hint}
+
+Glossary terms:
+{glossary_terms}
+
+Style notes:
+{style_notes}
+
+Return only the English translation. Do not add names, speakers, genders, facts, labels, JSON, or commentary.

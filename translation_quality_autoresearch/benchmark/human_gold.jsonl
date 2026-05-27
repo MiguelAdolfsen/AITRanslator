@@ -1,0 +1,1 @@
+{"case_id":"seed_ocr_noisy_007","source_text":"\u305f\u305f \u3044\u307e","source_hash":"sha256:db97c357f5ecb0b12b6d8c46856f5a224c97050d7175976ab08b9e62e637fe5d","gold_rating":{"must_select_one_of":["I'm home.","I'm back."],"forbid":["The battle started at home."],"notes":"Synthetic noisy homecoming phrase."},"severity_if_failed":"critical"}

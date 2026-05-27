@@ -1,0 +1,2 @@
+timestamp	run_id	benchmark_id	reference_policy	experiment_name	translation_quality_score	case_count	candidate_count	hard_reject	hard_failure_rate	critical_mqm_errors	japanese_leakage_count	assistant_chatter_count	glossary_violation_count	notes
+2026-05-27T06:05:35.154660+00:00	baseline_replay	benchmark	seed_synthetic		3.016202	12	24	False	0.0	0	1	2	3	

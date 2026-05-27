@@ -1,0 +1,6 @@
+# Optional only. The baseline harness must run without these.
+# Install manually if you want neural MT metrics or prompt optimization.
+unbabel-comet
+# dspy
+# inspect-ai
+# promptfoo

@@ -1,0 +1,3 @@
+Check the translation for faithfulness, omission, addition, wrong speaker/name/gender, glossary conflicts, Japanese leakage, assistant chatter, and naturalness.
+
+Return concise findings only.
