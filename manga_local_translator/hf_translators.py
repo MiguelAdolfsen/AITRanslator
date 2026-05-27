@@ -29,7 +29,7 @@ MADLAD_MODEL_NAME = "google/madlad400-3b-mt"
 OPUS_MODEL_NAME = "Helsinki-NLP/opus-mt-ja-en"
 CAT_MODEL_NAME = "cyberagent/CAT-Translate-7b"
 CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
-CAT_PROMPT_VERSION = "cat-translate-v9-token-complete-primary"
+CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
 CAT_VALIDATION_VERSION = "cat-validation-v17-honorific-name-shape"
@@ -354,20 +354,18 @@ class CatTranslator(Translator):
 
 
 def build_cat_prompt(prepared_text: str, *, retry: bool = False, retry_variant: str = "source_only") -> str:
+    # Frozen production prompt. CAT autoresearch may tune validation/retry rules,
+    # but prompt wording changes need explicit user approval.
     if retry:
         if retry_variant == "incomplete_fragment":
             return (
-                "Translate exactly. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. "
-                "If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\n"
+                "Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\n"
                 f"Japanese: \"{prepared_text}\"\n"
                 "English:"
             )
         return f"Japanese:\n{prepared_text}\n\nEnglish:"
     return (
-        "Translate exactly. Return only concise English. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. "
-        "Translate every source token; romanize katakana names instead of dropping them. "
-        "Do not replace honorifics with English titles. Do not explain, apologize, ask for clarification, or continue the scene. "
-        "Never say you do not understand or need more context. "
+        "Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, or continue the scene. "
         "If the source is incomplete, translate the fragment as a fragment.\n"
         f"Japanese: \"{prepared_text}\"\n"
         "English:"

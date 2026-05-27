@@ -122,13 +122,14 @@ class CatTranslatorTests(unittest.TestCase):
     def test_cat_prompts_use_short_default_and_source_only_retry(self) -> None:
         self.assertEqual(
             build_cat_prompt("\u6bcd"),
-            'Translate exactly. Return only concise English. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. Translate every source token; romanize katakana names instead of dropping them. Do not replace honorifics with English titles. Do not explain, apologize, ask for clarification, or continue the scene. Never say you do not understand or need more context. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
+            'Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, or continue the scene. If the source is incomplete, translate the fragment as a fragment.\nJapanese: "\u6bcd"\nEnglish:',
         )
         self.assertEqual(build_cat_prompt("\u6bcd", retry=True), "Japanese:\n\u6bcd\n\nEnglish:")
         self.assertEqual(
             build_cat_prompt("\u6bcd", retry=True, retry_variant="incomplete_fragment"),
-            'Translate exactly. Preserve names, terms, relationship words, and romanized honorifics such as san, sama, kun, chan, senpai, and sensei. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\nJapanese: "\u6bcd"\nEnglish:',
+            'Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\nJapanese: "\u6bcd"\nEnglish:',
         )
+        self.assertEqual(CAT_PROMPT_VERSION, "cat-translate-v6-fragment-strict-primary")
 
     def test_cat_num_predict_reads_bounded_environment_value(self) -> None:
         with patch.dict("os.environ", {"MANGA_CAT_NUM_PREDICT": "48"}):

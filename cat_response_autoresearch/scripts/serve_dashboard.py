@@ -254,6 +254,7 @@ DASHBOARD_HTML = r"""<!doctype html>
         <b>Progress</b><span id="activeProgress">--</span>
         <b>Current Case</b><code id="activeCase">--</code>
         <b>Profile</b><code id="activeProfile">--</code>
+        <b>Blind Report</b><span id="activeBlind">--</span>
       </div>
       <div class="progress-shell"><div id="progressFill" class="progress-fill"></div></div>
     </div>
@@ -261,8 +262,8 @@ DASHBOARD_HTML = r"""<!doctype html>
 
   <section class="grid">
     <div class="panel">
-      <h2>Best Prompt / Settings</h2>
-      <div id="bestPrompt" class="kv"></div>
+      <h2>Current Prompt / Settings</h2>
+      <div id="currentPrompt" class="kv"></div>
     </div>
     <div class="panel">
       <h2>Category Health</h2>
@@ -354,7 +355,7 @@ function renderState(state) {
   document.getElementById('latestApproval').textContent = fmtPct(latest.cat_approval_rate);
   document.getElementById('latestRun').textContent = latest.run_id ? `${latest.run_id} - ${latestBench.role.toLowerCase()}` : 'No runs yet';
   document.getElementById('latestScore').textContent = fmtNum(latest.cat_quality_score ?? latest.cat_response_score);
-  document.getElementById('latestFailure').textContent = `Hard failure: ${latest.hard_failure ?? '--'}`;
+  document.getElementById('latestFailure').textContent = `Hard failure: ${latest.hard_failure ?? '--'}${state.latest_summary?.blind_report ? ' - blind report' : ''}`;
   const kept = rows.filter(row => String(row.kept).toLowerCase() === 'true').length;
   document.getElementById('runsKept').textContent = `${rows.length}/${kept}`;
   document.getElementById('lastUpdated').textContent = `Last update: ${state.last_updated || '--'}`;
@@ -365,18 +366,26 @@ function renderState(state) {
   document.getElementById('activeProgress').textContent = active.evaluations_total ? `${active.completed_evaluations}/${active.evaluations_total} (${fmtPct(active.progress_rate)})` : '--';
   document.getElementById('activeCase').textContent = active.current_case_id || '--';
   document.getElementById('activeProfile').textContent = active.profile_name ? `${active.profile_name} ${active.profile_hash || ''}` : '--';
+  document.getElementById('activeBlind').innerHTML = `<span class="status-pill ${active.blind_report ? 'good' : ''}">${active.blind_report ? 'enabled' : 'off'}</span>`;
   document.getElementById('progressFill').style.width = `${Math.max(0, Math.min(100, Number(active.progress_rate || 0) * 100))}%`;
 
-  const profile = state.best_summary?.profile || {};
-  const bestPrompt = document.getElementById('bestPrompt');
+  const promptSummary = running && state.active_summary?.profile ? state.active_summary : (state.latest_summary?.profile ? state.latest_summary : state.best_summary || {});
+  const profile = promptSummary.profile || {};
+  const production = promptSummary.production_cat || {};
+  const promptSource = running && state.active_summary?.profile ? 'active run' : (state.latest_summary?.profile ? 'latest run' : (state.best_summary?.profile ? 'best run' : '--'));
+  const currentPrompt = document.getElementById('currentPrompt');
   const promptRows = [
+    ['Source', promptSource],
+    ['Run', promptSummary.run_id || '--'],
     ['Profile', profile.name || '--'],
+    ['Prompt Version', production.cat_prompt_version || '--'],
+    ['Validation Version', production.cat_validation_version || '--'],
     ['Prompt', profile.prompt_template || '--'],
     ['Retry', profile.retry_prompt_template || '--'],
     ['System', profile.system_prompt || '--'],
     ['Settings', `num_predict=${profile.num_predict ?? '--'}, temp=${profile.temperature ?? '--'}, top_p=${profile.top_p ?? '--'}, top_k=${profile.top_k ?? '--'}`],
   ];
-  bestPrompt.innerHTML = promptRows.map(([k, v]) => `<b>${esc(k)}</b><code>${esc(v)}</code>`).join('');
+  currentPrompt.innerHTML = promptRows.map(([k, v]) => `<b>${esc(k)}</b><code>${esc(v)}</code>`).join('');
 
   const categories = state.latest_summary?.metrics?.category_metrics || {};
   const categoryRows = document.getElementById('categoryRows');
@@ -476,6 +485,10 @@ def dashboard_state(results_path: Path, best_path: Path, runs_dir: Path) -> dict
     best_run_id = best.get("best_run_id")
     if best_run_id:
         best_summary = read_json(runs_dir / str(best_run_id) / "summary.json")
+    active_summary: dict[str, Any] = {}
+    active_run_id = active_progress.get("run_id")
+    if active_run_id:
+        active_summary = read_json(runs_dir / str(active_run_id) / "summary.json")
 
     last_updated = ""
     latest_times = [file_mtime(path) for path in [results_path, best_path, *(summary_files[-1:] or []), *(progress_files[-1:] or [])]]
@@ -492,6 +505,7 @@ def dashboard_state(results_path: Path, best_path: Path, runs_dir: Path) -> dict
         "latest_result": latest_result,
         "latest_summary": latest_summary,
         "best_summary": best_summary,
+        "active_summary": active_summary,
         "active_progress": active_progress,
     }
 

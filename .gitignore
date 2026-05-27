@@ -12,6 +12,7 @@ quality-runs/
 .testing/input/
 .testing/work/
 mangafolder/
+private_manga_benchmarks/
 render_autoresearch/
 translation_routing_autoresearch/
 labeler/

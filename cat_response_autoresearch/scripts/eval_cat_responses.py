@@ -385,6 +385,151 @@ def write_human_review(path: Path, per_case: list[dict[str, Any]], raw_outputs: 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_blind_review(path: Path, per_case: list[dict[str, Any]], cases: list[dict[str, Any]], metrics: dict[str, Any]) -> None:
+    cases_by_id = {str(case.get("case_id")): case for case in cases}
+    lines = [
+        "# Blind CAT Response Review",
+        "",
+        "This report intentionally hides source text, CAT raw output, final output, references, and exact required/forbidden terms.",
+        "",
+        f"- CAT approval rate: **{metrics.get('cat_approval_rate')}**",
+        f"- CAT response score: **{metrics.get('cat_response_score')}**",
+        f"- Retry rate: **{metrics.get('retry_rate', 0)}** ({metrics.get('retried_count', 0)} / {metrics.get('evaluations_total', metrics.get('cases_total', 0))})",
+        f"- Hard failure: **{metrics.get('hard_failure')}**",
+        f"- Low categories: **{metrics.get('low_categories', '') or 'none'}**",
+        "",
+        "## Category Metrics",
+        "",
+        "| Source type | Evaluations | Approval rate | Retry rate | False rejects | Unsafe accepts | Weak accepts |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    category_metrics = metrics.get("category_metrics") if isinstance(metrics.get("category_metrics"), dict) else {}
+    if not category_metrics:
+        lines.append("| _none_ | 0 |  |  |  |  |  |")
+    for source_type, data in sorted(category_metrics.items()):
+        lines.append(
+            "| {source_type} | {evaluations} | {approval_rate} | {retry_rate} | {false_rejects} | {unsafe_accepts} | {weak_accepts} |".format(
+                source_type=escape_md(str(source_type)),
+                evaluations=data.get("evaluations", 0),
+                approval_rate=data.get("approval_rate", ""),
+                retry_rate=data.get("retry_rate", ""),
+                false_rejects=data.get("false_reject_count", 0),
+                unsafe_accepts=data.get("unsafe_accept_count", 0),
+                weak_accepts=data.get("weak_accept_count", 0),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "## Sanitized Failures",
+            "",
+            "| Case | Repeat | Outcome | Source type | Source shape | Risks | Violations | Retried | Primary reject | Final reject | Meaning checks |",
+            "|---|---:|---|---|---|---|---|---|---|---|---|",
+        ]
+    )
+    failures = [row for row in per_case if row.get("violations")]
+    if not failures:
+        lines.append("| _none_ |  |  |  |  |  |  |  |  |  |  |")
+    for row in failures:
+        case = cases_by_id.get(str(row.get("case_id")), {})
+        blind = blind_case_row(row, case)
+        lines.append(
+            "| {case_id} | {repeat} | {outcome} | {source_type} | {source_shape} | {risks} | {violations} | {retried} | {primary_reject} | {reject} | {meaning} |".format(
+                case_id=escape_md(str(blind.get("case_id", ""))),
+                repeat=escape_md(str(blind.get("repeat_index", ""))),
+                outcome=escape_md(str(blind.get("outcome_class", ""))),
+                source_type=escape_md(str(blind.get("source_type", ""))),
+                source_shape=escape_md(str(blind.get("source_shape", ""))),
+                risks=escape_md(",".join(blind.get("risk_labels", []) or [])),
+                violations=escape_md(",".join(blind.get("violations", []) or [])),
+                retried=escape_md(str(blind.get("retried", ""))),
+                primary_reject=escape_md(str(blind.get("primary_reject_reason", ""))),
+                reject=escape_md(str(blind.get("reject_reason", ""))),
+                meaning=escape_md(str(blind.get("meaning_checks", ""))),
+            )
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def blind_case_row(row: dict[str, Any], case: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "case_id": row.get("case_id"),
+        "repeat_index": row.get("repeat_index"),
+        "source_type": row.get("source_type"),
+        "source_shape": source_shape(case),
+        "risk_labels": list(case.get("risk_labels", []) or []),
+        "accepted": row.get("accepted"),
+        "expected_accept": row.get("expected_accept"),
+        "approved": row.get("approved"),
+        "outcome_class": row.get("outcome_class"),
+        "retried": row.get("retried"),
+        "primary_rejected": row.get("primary_rejected"),
+        "primary_reject_reason": row.get("primary_reject_reason"),
+        "reject_reason": row.get("reject_reason"),
+        "violations": row.get("violations", []),
+        "required_meaning_term_count": len(row.get("required_meaning_terms", []) or []),
+        "forbidden_meaning_term_count": len(row.get("forbidden_meaning_terms", []) or []),
+        "meaning_checks": "required={required}; forbidden={forbidden}".format(
+            required=len(row.get("required_meaning_terms", []) or []),
+            forbidden=len(row.get("forbidden_meaning_terms", []) or []),
+        ),
+        "latency_ms": row.get("latency_ms"),
+        "output_shape": {
+            "raw_char_bucket": length_bucket(row.get("raw_output", "")),
+            "final_char_bucket": length_bucket(row.get("final_output", "")),
+            "final_word_bucket": word_bucket(row.get("final_output", "")),
+            "raw_has_newline": "\n" in str(row.get("raw_output", "") or ""),
+            "final_has_newline": "\n" in str(row.get("final_output", "") or ""),
+        },
+    }
+
+
+def source_shape(case: dict[str, Any]) -> str:
+    source = str(case.get("source_text", "") or "")
+    flags: list[str] = [f"chars={length_bucket(source)}"]
+    if any(char.isdigit() or "０" <= char <= "９" for char in source):
+        flags.append("digits")
+    if any(char in source for char in ("…", "．", ".", "ー", "―", "！", "!", "？", "?")):
+        flags.append("fragment_punctuation")
+    if any(0x30A0 <= ord(char) <= 0x30FF for char in source):
+        flags.append("katakana")
+    if any(0x4E00 <= ord(char) <= 0x9FFF for char in source):
+        flags.append("kanji")
+    if any(0x3040 <= ord(char) <= 0x309F for char in source):
+        flags.append("hiragana")
+    if "\n" in source:
+        flags.append("multi_line")
+    return ",".join(flags)
+
+
+def length_bucket(value: object) -> str:
+    length = len(str(value or "").strip())
+    if length == 0:
+        return "0"
+    if length <= 4:
+        return "1-4"
+    if length <= 10:
+        return "5-10"
+    if length <= 20:
+        return "11-20"
+    if length <= 40:
+        return "21-40"
+    return "41+"
+
+
+def word_bucket(value: object) -> str:
+    count = len(str(value or "").split())
+    if count == 0:
+        return "0"
+    if count <= 3:
+        return "1-3"
+    if count <= 8:
+        return "4-8"
+    if count <= 16:
+        return "9-16"
+    return "17+"
+
+
 def raw_key(row: dict[str, Any]) -> str:
     return f"{int(row.get('repeat_index', 1) or 1)}:{row.get('case_id')}"
 
@@ -490,6 +635,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--no-update-best", action="store_true")
     parser.add_argument("--allow-hard-failure", action="store_true")
+    parser.add_argument(
+        "--blind-report",
+        action="store_true",
+        help="Write sanitized review artifacts only; source text, raw output, final output, and references are omitted from the run output.",
+    )
+    parser.add_argument(
+        "--private-output",
+        type=Path,
+        help="Optional private directory for unredacted raw outputs/reviews when --blind-report is used.",
+    )
     args = parser.parse_args(argv)
 
     if args.repeats < 1:
@@ -526,6 +681,7 @@ def main(argv: list[str] | None = None) -> int:
             "benchmark_set": args.benchmark.name,
             "profile_name": profile.get("name", "custom"),
             "profile_hash": io_adapters.profile_hash(profile),
+            "blind_report": bool(args.blind_report),
             "repeat_count": args.repeats,
             "cases_total": len(cases),
             "evaluations_total": total_evaluations,
@@ -555,6 +711,7 @@ def main(argv: list[str] | None = None) -> int:
                     "benchmark_set": args.benchmark.name,
                     "profile_name": profile.get("name", "custom"),
                     "profile_hash": io_adapters.profile_hash(profile),
+                    "blind_report": bool(args.blind_report),
                     "repeat_count": args.repeats,
                     "current_repeat": repeat_index,
                     "cases_total": len(cases),
@@ -586,10 +743,23 @@ def main(argv: list[str] | None = None) -> int:
     metrics["low_category_count"] = len(low_categories)
     metrics["low_categories"] = ",".join(low_categories)
     metrics["hard_failure"] = bool(metrics.get("hard_failure")) or bool(low_categories)
-    write_jsonl(output / "raw_outputs.jsonl", raw_outputs)
-    write_jsonl(output / "per_case_metrics.jsonl", per_case)
-    write_jsonl(output / "failures.jsonl", [row for row in per_case if row.get("violations")])
-    write_human_review(output / "human_review.md", per_case, raw_outputs, metrics)
+    if args.blind_report:
+        cases_by_id = {str(case.get("case_id")): case for case in cases}
+        blind_rows = [blind_case_row(row, cases_by_id.get(str(row.get("case_id")), {})) for row in per_case]
+        write_jsonl(output / "blind_per_case_metrics.jsonl", blind_rows)
+        write_jsonl(output / "blind_failures.jsonl", [row for row in blind_rows if row.get("violations")])
+        write_blind_review(output / "blind_human_review.md", per_case, cases, metrics)
+        if args.private_output:
+            args.private_output.mkdir(parents=True, exist_ok=True)
+            write_jsonl(args.private_output / "raw_outputs.jsonl", raw_outputs)
+            write_jsonl(args.private_output / "per_case_metrics.jsonl", per_case)
+            write_jsonl(args.private_output / "failures.jsonl", [row for row in per_case if row.get("violations")])
+            write_human_review(args.private_output / "human_review.md", per_case, raw_outputs, metrics)
+    else:
+        write_jsonl(output / "raw_outputs.jsonl", raw_outputs)
+        write_jsonl(output / "per_case_metrics.jsonl", per_case)
+        write_jsonl(output / "failures.jsonl", [row for row in per_case if row.get("violations")])
+        write_human_review(output / "human_review.md", per_case, raw_outputs, metrics)
 
     commit = git_value(["rev-parse", "HEAD"])
     parent_commit = git_value(["rev-parse", "HEAD^"])
@@ -625,6 +795,7 @@ def main(argv: list[str] | None = None) -> int:
         "hard_failure": metrics["hard_failure"],
         "metrics": metrics,
         "repeat_metrics": repeat_metrics,
+        "blind_report": bool(args.blind_report),
     }
     (output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_progress(
@@ -636,6 +807,7 @@ def main(argv: list[str] | None = None) -> int:
             "benchmark_set": args.benchmark.name,
             "profile_name": profile.get("name", "custom"),
             "profile_hash": io_adapters.profile_hash(profile),
+            "blind_report": bool(args.blind_report),
             "repeat_count": args.repeats,
             "cases_total": len(cases),
             "evaluations_total": total_evaluations,
