@@ -32,7 +32,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v18-short-honorific-shape"
+CAT_VALIDATION_VERSION = "cat-validation-v19-honorific-cleanup-first"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 48
 
@@ -500,6 +500,11 @@ def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str
             return phrase, result, None
     reject_reason = cat_reject_reason(source_text, cleaned, raw_text)
     if reject_reason is not None:
+        if reject_reason == "cat_missing_honorific":
+            result = postprocess_translation(source_text, prepared_text, cleaned, glossary)
+            final_reject_reason = cat_reject_reason(source_text, result, raw_text)
+            if final_reject_reason is None:
+                return cleaned, result, None
         salvaged = salvage_cat_translation(raw_text, source_text=source_text)
         if salvaged:
             salvage_reject_reason = cat_reject_reason(source_text, salvaged, salvaged)
