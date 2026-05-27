@@ -239,6 +239,7 @@ def apply_fake_vision_facts(pages: list) -> None:
 
 def apply_profile_vision_facts(pages: list, profile: dict[str, Any], config: PipelineConfig) -> None:
     client = get_qwen_vision_client(config)
+    enabled_fields = enabled_vision_fields(profile)
     for page in pages:
         artifact = create_vision_artifact(
             page.image_bgr,
@@ -304,16 +305,16 @@ def apply_profile_vision_facts(pages: list, profile: dict[str, Any], config: Pip
                         "vision_facts_raw_json_repair_prompt": json_repair_prompt,
                         "vision_facts_raw_json_repair_response": raw_json_repair_response,
                         "vision_facts_json_repair_used": json_repair_used,
-                        "bubble_type": result.bubble_type if result else "unknown",
-                        "line_role": result.line_role if result else "unknown",
-                        "speaker_position": result.speaker_position if result else "unknown",
-                        "speaker_anchor": result.speaker_anchor if result else "unknown",
-                        "visible_emotion": result.visible_emotion if result else "unknown",
-                        "tone_hint": result.tone_hint if result else "unknown",
-                        "observable_action": result.observable_action if result else "unknown",
+                        "bubble_type": result.bubble_type if result and "bubble_type" in enabled_fields else "unknown",
+                        "line_role": result.line_role if result and "line_role" in enabled_fields else "unknown",
+                        "speaker_position": result.speaker_position if result and "speaker_position" in enabled_fields else "unknown",
+                        "speaker_anchor": result.speaker_anchor if result and "speaker_anchor" in enabled_fields else "unknown",
+                        "visible_emotion": result.visible_emotion if result and "visible_emotion" in enabled_fields else "unknown",
+                        "tone_hint": result.tone_hint if result and "tone_hint" in enabled_fields else "unknown",
+                        "observable_action": result.observable_action if result and "observable_action" in enabled_fields else "unknown",
                         "mapping_confidence": result.mapping_confidence if result else "unknown",
-                        "visual_facts": list(result.facts) if accepted else [],
-                        "context_hints": list(result.context_hints) if accepted else [],
+                        "visual_facts": list(result.facts) if accepted and "facts" in enabled_fields else [],
+                        "context_hints": list(result.context_hints) if accepted and "context_hints" in enabled_fields else [],
                         "vision_facts_risk_flags": list(result.risk_flags) if result else [],
                         "vision_facts_warnings": list(result.warnings) if result else [],
                     }
@@ -323,26 +324,34 @@ def apply_profile_vision_facts(pages: list, profile: dict[str, Any], config: Pip
 
 def build_profile_vision_prompt(requests: list[VisionFactsRequest], profile: dict[str, Any], *, mode: str) -> str:
     payload = [{"line_id": request.line_id, "number": request.number, "source_text": request.source_text} for request in requests]
-    enabled_fields = [str(value) for value in profile.get("enabled_fields", []) or []]
+    enabled_fields = sorted(enabled_vision_fields(profile))
     required_fields = [field for field in VISION_FACTS_REQUIRED_FIELDS if field in core_or_enabled(enabled_fields)]
-    extra = profile.get("prompt", {}).get("extra_instructions", []) if isinstance(profile.get("prompt"), dict) else []
+    prompt_config = profile.get("prompt", {}) if isinstance(profile.get("prompt"), dict) else {}
+    task = str(prompt_config.get("task") or "describe only grounded visual facts for the numbered OCR lines listed below").strip()
+    extra = prompt_config.get("extra_instructions", [])
     lines = [
         "/no_think",
         "You are a conservative manga visual-context extractor.",
-        "Task: describe only grounded visual facts for the numbered OCR lines listed below.",
+        f"Task: {task}.",
         "Do not translate. Do not rewrite source_text. Do not OCR Japanese from the image.",
         "The provided source_text is authoritative and is included only for ID matching.",
         "Do not describe, paraphrase, quote, or translate the text printed in the bubble.",
+        "If a field would require reading bubble text, use unknown or an empty array.",
         "Do not invent names, gender, relationships, motives, backstory, locations, dialogue, or narration.",
+        "Use character/bubble positions instead of names or gendered identities.",
         "If uncertain, use unknown, set needs_review=true, and add a risk flag.",
         "Return JSON only. Do not use markdown fences. Do not include thinking text.",
         "For each input line, return exactly one object with the same line_id, number, and source_text copied exactly.",
         f"Required fields in every output line object: {', '.join(required_fields)}.",
+        "Do not include keys outside the required fields list. Never include translation, action, english, or current_translation keys.",
         "Allowed bubble_type values: speech, thought, narration, sound_effect, sign, unknown.",
         "Allowed line_role values: speech, thought, narration, sound_effect, sign, metadata, unknown.",
         "Allowed mapping_confidence values: low, medium, high.",
-        "speaker_anchor must be a visual anchor only, not a name.",
-        "facts and context_hints must be short visual/context facts, not English translations.",
+        "speaker_position and speaker_anchor must be visual anchors only, such as left of bubble, narrator, or unknown.",
+        "Never output character names, gendered labels, ages, or relationships in speaker fields.",
+        "facts must be short observable visual facts only, not English translations or bubble text.",
+        "context_hints, when enabled, must be short line-role or visible-tone hints only; do not include pronoun guidance.",
+        "Use at most two facts and two context_hints, each 12 words or fewer.",
     ]
     lines.extend(str(value) for value in extra if str(value).strip())
     lines.extend(
@@ -356,6 +365,10 @@ def build_profile_vision_prompt(requests: list[VisionFactsRequest], profile: dic
         ]
     )
     return "\n".join(lines)
+
+
+def enabled_vision_fields(profile: dict[str, Any]) -> set[str]:
+    return {str(value) for value in profile.get("enabled_fields", []) or []}
 
 
 def vision_image_for_chunk(page, artifact_path: Path, requests: list[VisionFactsRequest], profile: dict[str, Any]) -> Path:

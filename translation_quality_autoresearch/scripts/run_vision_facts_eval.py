@@ -176,7 +176,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id", default="")
     parser.add_argument("--output-root", type=Path, default=Path("translation_quality_autoresearch/runs"))
     parser.add_argument("--results", type=Path, default=Path("translation_quality_autoresearch/results/translation_quality_results.tsv"))
-    parser.add_argument("--fake", action="store_true", help="Use fake CAT/vision/judge outputs for harness smoke tests.")
+    parser.add_argument(
+        "--fake",
+        action="store_true",
+        help="Plumbing smoke-test mode only: use fake CAT, fake vision facts, and heuristic judging. No CAT/Qwen/vision models are loaded.",
+    )
     parser.add_argument("--promote", action="store_true", help="Commit and push candidate profile if promotion gates pass.")
     parser.add_argument("--limit-pages", default="", help="Comma-separated page IDs for smoke/debug runs.")
     return parser

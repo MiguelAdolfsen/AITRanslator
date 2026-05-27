@@ -220,10 +220,14 @@ def vision_facts_acceptance_reason(
         return "invalid_visual_fact"
     if any(visual_fact_looks_like_translation(value) for value in fact_values):
         return "contains_translation"
-    if specific_speaker_is_ungrounded(request.source_text, result.speaker_position, result.mapping_confidence):
+    if visual_speaker_identity_is_ungrounded(result.speaker_position):
         return "ungrounded_speaker"
-    if specific_speaker_is_ungrounded(request.source_text, result.speaker_anchor, result.mapping_confidence):
+    if visual_speaker_identity_is_ungrounded(result.speaker_anchor):
         return "ungrounded_speaker_anchor"
+    if any(visual_fact_too_long(value) for value in fact_values):
+        return "invalid_visual_fact"
+    if len(result.facts) > 2 or len(result.context_hints) > 2:
+        return "invalid_visual_fact"
     return None
 
 
@@ -246,6 +250,8 @@ def visual_fact_looks_invalid(text: str) -> bool:
         return True
     if re.search(r"\b(thinks|knows|wants|intends|decides|remembers|because)\b", normalized):
         return True
+    if re.search(r"\b(use|prefer|choose)\s+(he|she|him|her|his|hers)\b", normalized):
+        return True
     return False
 
 
@@ -260,6 +266,49 @@ def visual_fact_looks_like_translation(text: str) -> bool:
     if re.search(r"[.!?]$", text.strip()) and len(content_words(text)) >= 3:
         return True
     return False
+
+
+def visual_speaker_identity_is_ungrounded(text: str) -> bool:
+    normalized = text.strip().lower()
+    if not normalized or normalized in {"unknown", "narrator", "speaker", "character"}:
+        return False
+    anchor_words = {
+        "Above",
+        "Below",
+        "Bottom",
+        "Bubble",
+        "Center",
+        "Character",
+        "Left",
+        "Lower",
+        "Middle",
+        "Narrator",
+        "Right",
+        "Side",
+        "Speaker",
+        "Speech",
+        "Thought",
+        "Top",
+        "Upper",
+    }
+    if proper_noun_tokens(text) - anchor_words:
+        return True
+    return bool(
+        re.search(
+            r"\b("
+            r"male|female|man|woman|boy|girl|father|mother|brother|sister|"
+            r"husband|wife|son|daughter|child|adult|elderly|young"
+            r")\b",
+            normalized,
+        )
+    )
+
+
+def visual_fact_too_long(text: str) -> bool:
+    normalized = text.strip()
+    if not normalized or normalized.lower() in {"unknown", "none", "n/a"}:
+        return False
+    return len(content_words(normalized)) > 12
 
 
 def vision_acceptance_reason(

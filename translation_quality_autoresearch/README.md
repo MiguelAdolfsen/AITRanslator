@@ -4,14 +4,14 @@ This folder is for the isolated translation-quality harness and its benchmark fi
 
 ## Vision-Facts Harness
 
-Validate the current benchmark:
+Validate the current benchmark. This checks fixture integrity only; it does not run CAT, Qwen, or vision models:
 
 ```powershell
 .\.venv\Scripts\python.exe translation_quality_autoresearch\scripts\validate_benchmark.py `
   --benchmark translation_quality_autoresearch\benchmarks\frieren_ch26_pages_002_010
 ```
 
-Smoke-test the harness without loading CAT/Qwen/vision models:
+Smoke-test harness plumbing only. This command deliberately uses fake CAT output, fake vision facts, and heuristic scoring. It does **not** load or call any CAT, Qwen, or vision model:
 
 ```powershell
 .\.venv\Scripts\python.exe translation_quality_autoresearch\scripts\run_vision_facts_eval.py `
@@ -20,13 +20,24 @@ Smoke-test the harness without loading CAT/Qwen/vision models:
   --run-id fake_smoke
 ```
 
-Run a live paired eval against the current best profile:
+Run a one-page live model smoke test. This loads live CAT, Qwen vision, Qwen critic/fallback, and Qwen judge. Do **not** pass `--fake` when checking model behavior:
+
+```powershell
+.\.venv\Scripts\python.exe translation_quality_autoresearch\scripts\run_vision_facts_eval.py `
+  --candidate-profile current_production `
+  --limit-pages frieren_ch26_002 `
+  --run-id live_smoke_002
+```
+
+Run the full live paired eval against the current best profile:
 
 ```powershell
 .\.venv\Scripts\python.exe translation_quality_autoresearch\scripts\run_vision_facts_eval.py `
   --candidate-profile current_production `
   --run-id current_production_live
 ```
+
+After any live run, confirm `summary.json` contains `"fake": false`. If it says `"fake": true`, the run was a plumbing smoke test and no models were used.
 
 Add `--promote` only when the candidate profile should be committed and pushed automatically after passing the main and holdout gates. The harness never edits benchmark labels as part of promotion.
 

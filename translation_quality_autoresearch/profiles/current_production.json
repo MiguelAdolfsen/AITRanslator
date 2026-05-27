@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "name": "current_production",
-  "description": "Conservative production-equivalent vision facts profile.",
+  "description": "Conservative vision facts profile with schema-gated Qwen context.",
   "vision_facts_enabled": true,
   "artifact_mode": "numbered_page",
   "crop_mode": "numbered_full_page",
-  "chunk_size": 4,
+  "chunk_size": 3,
   "validation_policy_version": "production_v1",
   "context_render_format": "production_v1",
   "enabled_fields": [
@@ -16,12 +16,14 @@
     "visible_emotion",
     "tone_hint",
     "observable_action",
-    "facts",
-    "context_hints"
+    "facts"
   ],
   "prompt": {
     "task": "describe only grounded visual facts for numbered OCR lines",
-    "extra_instructions": []
+    "extra_instructions": [
+      "Prefer unknown over identity, relationship, or pronoun guesses.",
+      "Only facts from enabled fields may influence downstream Qwen critic or fallback context."
+    ]
   },
   "models": {
     "qwen_judge_model": ".models/qwen/Qwen3.5-9B-Q8_0.gguf",
@@ -31,4 +33,3 @@
     "vision_projector": ".models/qwen/mmproj-Qwen3.5-9B-BF16.gguf"
   }
 }
-
