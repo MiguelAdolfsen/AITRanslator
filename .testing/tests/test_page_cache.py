@@ -4,14 +4,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import cv2
 import numpy as np
 
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.page_cache import load_prepared_page_cache, save_prepared_page_cache
 from manga_local_translator.page_types import PreparedPage
 
+try:
+    import cv2
+except ModuleNotFoundError:
+    cv2 = None
 
+
+@unittest.skipIf(cv2 is None, "opencv-python is not installed")
 class PageCacheTests(unittest.TestCase):
     def test_load_prepared_page_cache_can_override_output_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

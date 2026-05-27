@@ -12,6 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 BUILTIN_PROFILES: dict[str, dict[str, Any]] = {
+    # Prompt text is frozen for CAT response autoresearch. Do not tune these
+    # templates to benchmark cases without explicit user approval.
     "official": {
         "name": "official",
         "prompt_template": "Translate the following Japanese text into English.\n\n{source_text}",
@@ -31,10 +33,7 @@ BUILTIN_PROFILES: dict[str, dict[str, Any]] = {
             "or continue the scene. If the source is incomplete, translate the fragment as a fragment.\n"
             "Japanese: \"{source_text}\"\nEnglish:"
         ),
-        "retry_prompt_template": (
-            "Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\n"
-            "Japanese: \"{source_text}\"\nEnglish:"
-        ),
+        "retry_prompt_template": "Japanese:\n{source_text}\n\nEnglish:",
         "system_prompt": "You are a strict Japanese-to-English machine translation engine.",
         "num_predict": 48,
         "temperature": 0.0,
@@ -69,9 +68,11 @@ def load_profile(name: str = "official", profile_json: Path | None = None) -> di
         raise RuntimeError(f"Unknown CAT profile {name!r}. Known profiles: {sorted(BUILTIN_PROFILES)}")
     profile = dict(BUILTIN_PROFILES[name])
     if profile.get("use_production_prompt"):
-        from manga_local_translator.hf_translators import CAT_DEFAULT_NUM_PREDICT, cat_num_predict
+        from manga_local_translator.hf_translators import CAT_DEFAULT_NUM_PREDICT, build_cat_prompt, cat_num_predict
 
         profile["num_predict"] = cat_num_predict() if CAT_DEFAULT_NUM_PREDICT else int(profile.get("num_predict", 48))
+        profile["prompt_template"] = build_cat_prompt("{source_text}")
+        profile["retry_prompt_template"] = build_cat_prompt("{source_text}", retry=True)
     return profile
 
 

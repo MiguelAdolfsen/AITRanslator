@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,6 +24,9 @@ from cat_response_autoresearch.scripts.validate_fixtures import validate_benchma
 from manga_local_translator.hf_translators import build_cat_prompt, cat_num_predict  # noqa: E402
 
 
+POWERSHELL = shutil.which("powershell") or shutil.which("pwsh")
+
+
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -30,6 +36,28 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
 
 
 class CatResponseAutoresearchTests(unittest.TestCase):
+    def run_private_blind_wrapper(
+        self,
+        args: list[str],
+        *,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        if POWERSHELL is None:
+            self.skipTest("PowerShell is required for private blind wrapper tests")
+        script = REPO_ROOT / "cat_response_autoresearch" / "scripts" / "run_private_blind_benchmark.ps1"
+        command = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), *args]
+        return subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+
     def test_validate_fixtures_rejects_missing_reference_and_duplicate_case(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             benchmark = Path(temp_dir)
@@ -453,7 +481,15 @@ class CatResponseAutoresearchTests(unittest.TestCase):
 
         self.assertEqual(build_prompt("母", profile), build_cat_prompt("母"))
         self.assertEqual(build_prompt("母", profile, retry=True), build_cat_prompt("母", retry=True))
+        self.assertEqual(profile["prompt_template"], build_cat_prompt("{source_text}"))
+        self.assertEqual(profile["retry_prompt_template"], build_cat_prompt("{source_text}", retry=True))
         self.assertEqual(profile["num_predict"], cat_num_predict())
+
+    def test_fragment_strict_profile_uses_strict_benchmark_retry_prompt(self) -> None:
+        profile = load_profile("fragment_strict")
+
+        self.assertEqual(build_prompt("母", profile, retry=True), build_cat_prompt("母", retry=True))
+        self.assertEqual(profile["retry_prompt_template"], build_cat_prompt("{source_text}", retry=True))
 
     def test_eval_fake_outputs_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -550,8 +586,200 @@ class CatResponseAutoresearchTests(unittest.TestCase):
             ]
             self.assertEqual(len(raw_rows), 4)
 
-    def test_real_mined_fixtures_validate_and_fake_smoke_runs(self) -> None:
-        for benchmark_name in ("real_mined", "real_mined_holdout"):
+    def test_eval_blind_report_hides_source_and_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            benchmark = root / "benchmark"
+            output = root / "run"
+            private_output = root / "private"
+            results = root / "results.tsv"
+            write_jsonl(
+                benchmark / "cases.jsonl",
+                [
+                    {
+                        "schema_version": 1,
+                        "case_id": "accept-1",
+                        "source_text": "秘密の日本語",
+                        "source_type": "normal_dialogue",
+                        "risk_labels": ["semantic_trap"],
+                    }
+                ],
+            )
+            write_jsonl(
+                benchmark / "references.jsonl",
+                [
+                    {
+                        "schema_version": 1,
+                        "case_id": "accept-1",
+                        "expected_decision": "accept",
+                        "required_meaning_terms": ["secret"],
+                        "forbidden_patterns": [],
+                        "allowed_japanese_output": False,
+                        "max_chars": 80,
+                        "max_words": 12,
+                    }
+                ],
+            )
+            fake = benchmark / "fake_outputs.jsonl"
+            write_jsonl(fake, [{"case_id": "accept-1", "raw_output": "This misses the required term."}])
+
+            with redirect_stdout(StringIO()):
+                code = eval_cat_responses.main(
+                    [
+                        "--benchmark",
+                        str(benchmark),
+                        "--output",
+                        str(output),
+                        "--results",
+                        str(results),
+                        "--run-id",
+                        "blind",
+                        "--fake-outputs",
+                        str(fake),
+                        "--repeats",
+                        "1",
+                        "--no-update-best",
+                        "--allow-hard-failure",
+                        "--blind-report",
+                        "--private-output",
+                        str(private_output),
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            self.assertTrue((output / "blind_human_review.md").exists())
+            self.assertTrue((output / "blind_per_case_metrics.jsonl").exists())
+            self.assertFalse((output / "raw_outputs.jsonl").exists())
+            self.assertFalse((output / "human_review.md").exists())
+            blind_text = (output / "blind_human_review.md").read_text(encoding="utf-8")
+            blind_json = (output / "blind_per_case_metrics.jsonl").read_text(encoding="utf-8")
+            self.assertNotIn("秘密の日本語", blind_text)
+            self.assertNotIn("This misses the required term", blind_text)
+            self.assertNotIn("secret", blind_text)
+            self.assertNotIn("秘密の日本語", blind_json)
+            self.assertNotIn("This misses the required term", blind_json)
+            self.assertNotIn("secret", blind_json)
+            self.assertTrue((private_output / "raw_outputs.jsonl").exists())
+            self.assertIn("秘密の日本語", (private_output / "human_review.md").read_text(encoding="utf-8"))
+
+    def test_private_blind_wrapper_rejects_missing_benchmark_env(self) -> None:
+        env = os.environ.copy()
+        env.pop("CAT_PRIVATE_BENCHMARK", None)
+
+        completed = self.run_private_blind_wrapper(["-RunId", "missing-env", "-NoUpdateBest"], env=env)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("CAT_PRIVATE_BENCHMARK is required", completed.stderr + completed.stdout)
+
+    def test_private_blind_wrapper_rejects_repo_benchmark_path(self) -> None:
+        env = os.environ.copy()
+        env["CAT_PRIVATE_BENCHMARK"] = str(REPO_ROOT / "cat_response_autoresearch" / "benchmarks" / "synthetic")
+
+        completed = self.run_private_blind_wrapper(["-RunId", "repo-path", "-NoUpdateBest"], env=env)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("must point outside the repo workspace", completed.stderr + completed.stdout)
+
+    def test_private_blind_wrapper_writes_only_sanitized_public_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            benchmark = root / "private_benchmark"
+            output_root = root / "public_runs"
+            results = root / "results.tsv"
+            write_jsonl(
+                benchmark / "cases.jsonl",
+                [
+                    {
+                        "schema_version": 1,
+                        "case_id": "private-1",
+                        "source_text": "隠蔽する日本語",
+                        "source_type": "normal_dialogue",
+                        "risk_labels": ["private_smoke"],
+                    }
+                ],
+            )
+            write_jsonl(
+                benchmark / "references.jsonl",
+                [
+                    {
+                        "schema_version": 1,
+                        "case_id": "private-1",
+                        "expected_decision": "accept",
+                        "forbidden_patterns": ["please provide"],
+                        "allowed_japanese_output": False,
+                        "max_chars": 80,
+                        "max_words": 12,
+                    }
+                ],
+            )
+            fake = benchmark / "fake_outputs.jsonl"
+            write_jsonl(fake, [{"case_id": "private-1", "raw_output": "Hidden Japanese text."}])
+            env = os.environ.copy()
+            env["CAT_PRIVATE_BENCHMARK"] = str(benchmark)
+
+            completed = self.run_private_blind_wrapper(
+                [
+                    "-RunId",
+                    "private-smoke",
+                    "-Repeats",
+                    "1",
+                    "-NoUpdateBest",
+                    "-OutputRoot",
+                    str(output_root),
+                    "-Results",
+                    str(results),
+                    "-FakeOutputs",
+                    str(fake),
+                ],
+                env=env,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+            output = output_root / "private-smoke"
+            self.assertTrue((output / "blind_human_review.md").exists())
+            self.assertTrue((output / "blind_per_case_metrics.jsonl").exists())
+            self.assertFalse((output / "raw_outputs.jsonl").exists())
+            self.assertFalse((output / "human_review.md").exists())
+            blind_text = (output / "blind_human_review.md").read_text(encoding="utf-8")
+            blind_json = (output / "blind_per_case_metrics.jsonl").read_text(encoding="utf-8")
+            self.assertNotIn("隠蔽する日本語", blind_text)
+            self.assertNotIn("Hidden Japanese text.", blind_text)
+            self.assertNotIn("隠蔽する日本語", blind_json)
+            self.assertNotIn("Hidden Japanese text.", blind_json)
+
+    def test_private_blind_wrapper_rejects_private_output_inside_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            benchmark = root / "private_benchmark"
+            write_jsonl(
+                benchmark / "cases.jsonl",
+                [{"schema_version": 1, "case_id": "private-1", "source_text": "テスト", "source_type": "short_fragment", "risk_labels": []}],
+            )
+            write_jsonl(
+                benchmark / "references.jsonl",
+                [
+                    {
+                        "schema_version": 1,
+                        "case_id": "private-1",
+                        "expected_decision": "accept",
+                        "forbidden_patterns": [],
+                        "allowed_japanese_output": False,
+                        "max_chars": 80,
+                        "max_words": 12,
+                    }
+                ],
+            )
+            env = os.environ.copy()
+            env["CAT_PRIVATE_BENCHMARK"] = str(benchmark)
+            env["CAT_PRIVATE_OUTPUT"] = str(REPO_ROOT / "cat_response_autoresearch" / "runs" / "private_unredacted")
+
+            completed = self.run_private_blind_wrapper(["-RunId", "bad-private-output", "-NoUpdateBest"], env=env)
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("CAT_PRIVATE_OUTPUT must point outside the repo workspace", completed.stderr + completed.stdout)
+
+    def test_public_fixtures_validate_and_fake_smoke_runs(self) -> None:
+        for benchmark_name in ("synthetic", "real_mined_holdout"):
             benchmark = REPO_ROOT / "cat_response_autoresearch" / "benchmarks" / benchmark_name
             with self.subTest(benchmark=benchmark_name):
                 self.assertEqual(validate_benchmark(benchmark), [])
@@ -615,6 +843,46 @@ class CatResponseAutoresearchTests(unittest.TestCase):
         self.assertEqual(state["best"]["best_run_id"], "run-a")
         self.assertEqual(state["active_progress"]["status"], "running")
         self.assertEqual(state["best_summary"]["profile"]["name"], "official")
+
+    def test_dashboard_state_includes_summary_only_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            results = root / "results.tsv"
+            best = root / "best.json"
+            runs = root / "runs"
+            run_dir = runs / "summary-only-main"
+            run_dir.mkdir(parents=True)
+            results.write_text(
+                "\t".join(["run_id", "benchmark_set", "cat_approval_rate", "hard_failure", "kept"])
+                + "\n"
+                + "\t".join(["old-main", "real_mined", "0.5", "True", "False"])
+                + "\n",
+                encoding="utf-8",
+            )
+            best.write_text("{}", encoding="utf-8")
+            (run_dir / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "summary-only-main",
+                        "benchmark_set": "real_mined",
+                        "cat_approval_rate": 0.75,
+                        "cat_quality_score": 123.0,
+                        "hard_failure": True,
+                        "metrics": {"repeat_count": 4, "low_categories": "honorific_name"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_dir / "progress.json").write_text(
+                json.dumps({"run_id": "summary-only-main", "status": "complete", "updated_at": "2026-05-27T04:14:27+00:00"}),
+                encoding="utf-8",
+            )
+
+            state = dashboard_state(results, best, runs)
+
+        self.assertEqual(state["latest_result"]["run_id"], "summary-only-main")
+        self.assertEqual(state["latest_main_result"]["run_id"], "summary-only-main")
+        self.assertEqual(state["latest_main_summary"]["cat_approval_rate"], 0.75)
 
 
 if __name__ == "__main__":

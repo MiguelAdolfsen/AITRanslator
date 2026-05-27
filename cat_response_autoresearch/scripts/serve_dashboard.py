@@ -219,17 +219,17 @@ DASHBOARD_HTML = r"""<!doctype html>
 
   <section class="cards">
     <div class="card">
-      <div class="label">Current Best</div>
+      <div class="label">Kept Best</div>
       <div id="bestApproval" class="value accent">--</div>
       <div id="bestRun" class="small">No kept run yet</div>
     </div>
     <div class="card">
-      <div class="label">Latest Approval</div>
+      <div class="label">Main Approval</div>
       <div id="latestApproval" class="value">--</div>
-      <div id="latestRun" class="small">No runs yet</div>
+      <div id="latestRun" class="small">No main runs yet</div>
     </div>
     <div class="card">
-      <div class="label">Latest Quality</div>
+      <div class="label">Main Quality</div>
       <div id="latestScore" class="value">--</div>
       <div id="latestFailure" class="small">Hard failure: --</div>
     </div>
@@ -254,6 +254,7 @@ DASHBOARD_HTML = r"""<!doctype html>
         <b>Progress</b><span id="activeProgress">--</span>
         <b>Current Case</b><code id="activeCase">--</code>
         <b>Profile</b><code id="activeProfile">--</code>
+        <b>Blind Report</b><span id="activeBlind">--</span>
       </div>
       <div class="progress-shell"><div id="progressFill" class="progress-fill"></div></div>
     </div>
@@ -261,8 +262,8 @@ DASHBOARD_HTML = r"""<!doctype html>
 
   <section class="grid">
     <div class="panel">
-      <h2>Best Prompt / Settings</h2>
-      <div id="bestPrompt" class="kv"></div>
+      <h2>Current Prompt / Settings</h2>
+      <div id="currentPrompt" class="kv"></div>
     </div>
     <div class="panel">
       <h2>Category Health</h2>
@@ -287,9 +288,9 @@ const fmtPct = value => Number.isFinite(Number(value)) ? `${(Number(value) * 100
 const fmtNum = value => Number.isFinite(Number(value)) ? Number(value).toFixed(3) : '--';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function benchmarkRole(name) {
-  if (name === 'real_mined') return {label: 'real_mined', role: 'MAIN', cls: 'good'};
+  if (name === 'real_mined') return {label: 'private real_mined', role: 'MAIN', cls: 'good'};
   if (name === 'synthetic') return {label: 'synthetic', role: 'REGRESSION', cls: ''};
-  if (String(name || '').includes('holdout')) return {label: name || 'holdout', role: 'HOLDOUT', cls: ''};
+  if (String(name || '').includes('holdout')) return {label: name || 'holdout', role: 'HOLDOUT', cls: 'bad'};
   return {label: name || '--', role: 'UNKNOWN', cls: ''};
 }
 
@@ -338,23 +339,26 @@ function drawChart(canvas, rows) {
 
 function renderState(state) {
   const rows = state.results || [];
-  const latest = state.latest_result || {};
+  const latest = state.latest_main_result || state.latest_result || {};
   const best = state.best || {};
   const active = state.active_progress || {};
   const running = active.status === 'running';
   const latestBench = benchmarkRole(latest.benchmark_set);
   const bestBench = benchmarkRole(state.best_summary?.benchmark_set || best.benchmark_set);
   const activeBench = benchmarkRole(active.benchmark_set);
+  const anyLatest = state.latest_result || {};
+  const regression = state.latest_synthetic_result || {};
+  const holdout = state.latest_holdout_result || {};
   document.getElementById('liveBadge').className = running ? 'live' : 'live idle';
   document.getElementById('liveText').textContent = running ? 'Live' : 'Idle';
-  document.getElementById('subtitle').textContent = `CAT response optimization - main: real_mined - synthetic: regression - ${rows.length} runs - last: ${state.last_updated || '--'}`;
+  document.getElementById('subtitle').textContent = `CAT response optimization - focus: private real_mined - synthetic is regression only - ${rows.length} runs - last: ${anyLatest.run_id || '--'}`;
 
   document.getElementById('bestApproval').textContent = fmtPct(best.cat_approval_rate);
   document.getElementById('bestRun').textContent = best.best_run_id ? `${best.best_run_id} - ${bestBench.role.toLowerCase()} - quality ${fmtNum(best.best_quality_score ?? best.best_score)}` : 'No kept run yet';
   document.getElementById('latestApproval').textContent = fmtPct(latest.cat_approval_rate);
   document.getElementById('latestRun').textContent = latest.run_id ? `${latest.run_id} - ${latestBench.role.toLowerCase()}` : 'No runs yet';
   document.getElementById('latestScore').textContent = fmtNum(latest.cat_quality_score ?? latest.cat_response_score);
-  document.getElementById('latestFailure').textContent = `Hard failure: ${latest.hard_failure ?? '--'}`;
+  document.getElementById('latestFailure').textContent = `Hard failure: ${latest.hard_failure ?? '--'}${state.latest_main_summary?.blind_report ? ' - blind report' : ''} | synthetic ${fmtPct(regression.cat_approval_rate)} | holdout ${fmtPct(holdout.cat_approval_rate)}`;
   const kept = rows.filter(row => String(row.kept).toLowerCase() === 'true').length;
   document.getElementById('runsKept').textContent = `${rows.length}/${kept}`;
   document.getElementById('lastUpdated').textContent = `Last update: ${state.last_updated || '--'}`;
@@ -365,20 +369,29 @@ function renderState(state) {
   document.getElementById('activeProgress').textContent = active.evaluations_total ? `${active.completed_evaluations}/${active.evaluations_total} (${fmtPct(active.progress_rate)})` : '--';
   document.getElementById('activeCase').textContent = active.current_case_id || '--';
   document.getElementById('activeProfile').textContent = active.profile_name ? `${active.profile_name} ${active.profile_hash || ''}` : '--';
+  document.getElementById('activeBlind').innerHTML = `<span class="status-pill ${active.blind_report ? 'good' : ''}">${active.blind_report ? 'enabled' : 'off'}</span>`;
   document.getElementById('progressFill').style.width = `${Math.max(0, Math.min(100, Number(active.progress_rate || 0) * 100))}%`;
 
-  const profile = state.best_summary?.profile || {};
-  const bestPrompt = document.getElementById('bestPrompt');
+  const promptSummary = running && state.active_summary?.profile ? state.active_summary : (state.latest_main_summary?.profile ? state.latest_main_summary : (state.latest_summary?.profile ? state.latest_summary : state.best_summary || {}));
+  const profile = promptSummary.profile || {};
+  const production = promptSummary.production_cat || {};
+  const promptSource = running && state.active_summary?.profile ? 'active run' : (state.latest_main_summary?.profile ? 'latest main run' : (state.latest_summary?.profile ? 'latest run' : (state.best_summary?.profile ? 'best run' : '--')));
+  const currentPrompt = document.getElementById('currentPrompt');
   const promptRows = [
+    ['Source', promptSource],
+    ['Run', promptSummary.run_id || '--'],
     ['Profile', profile.name || '--'],
+    ['Prompt Version', production.cat_prompt_version || '--'],
+    ['Validation Version', production.cat_validation_version || '--'],
     ['Prompt', profile.prompt_template || '--'],
     ['Retry', profile.retry_prompt_template || '--'],
     ['System', profile.system_prompt || '--'],
     ['Settings', `num_predict=${profile.num_predict ?? '--'}, temp=${profile.temperature ?? '--'}, top_p=${profile.top_p ?? '--'}, top_k=${profile.top_k ?? '--'}`],
   ];
-  bestPrompt.innerHTML = promptRows.map(([k, v]) => `<b>${esc(k)}</b><code>${esc(v)}</code>`).join('');
+  currentPrompt.innerHTML = promptRows.map(([k, v]) => `<b>${esc(k)}</b><code>${esc(v)}</code>`).join('');
 
-  const categories = state.latest_summary?.metrics?.category_metrics || {};
+  const categorySummary = running && state.active_summary?.metrics ? state.active_summary : (state.latest_main_summary?.metrics ? state.latest_main_summary : state.latest_summary || {});
+  const categories = categorySummary?.metrics?.category_metrics || {};
   const categoryRows = document.getElementById('categoryRows');
   const entries = Object.entries(categories).sort((a, b) => Number(a[1].approval_rate) - Number(b[1].approval_rate));
   categoryRows.innerHTML = entries.length ? entries.map(([name, data]) => {
@@ -460,13 +473,81 @@ def find_run_files(runs_dir: Path, filename: str) -> list[Path]:
     return sorted(runs_dir.glob(f"*/{filename}"), key=file_mtime)
 
 
+def row_from_summary(summary_path: Path, summary: dict[str, Any]) -> dict[str, Any]:
+    metrics = summary.get("metrics") if isinstance(summary.get("metrics"), dict) else {}
+    progress = read_json(summary_path.parent / "progress.json")
+    return {
+        "run_id": str(summary.get("run_id") or summary_path.parent.name),
+        "timestamp": str(progress.get("updated_at") or progress.get("started_at") or ""),
+        "benchmark_set": str(summary.get("benchmark_set") or ""),
+        "cat_response_score": str(summary.get("cat_response_score", metrics.get("cat_response_score", ""))),
+        "cat_quality_score": str(summary.get("cat_quality_score", metrics.get("cat_quality_score", ""))),
+        "cat_latency_score": str(summary.get("cat_latency_score", metrics.get("cat_latency_score", ""))),
+        "cat_approval_rate": str(summary.get("cat_approval_rate", metrics.get("cat_approval_rate", ""))),
+        "cases_total": str(metrics.get("cases_total", "")),
+        "repeat_count": str(metrics.get("repeat_count", "")),
+        "evaluations_total": str(metrics.get("evaluations_total", "")),
+        "retried_count": str(metrics.get("retried_count", "")),
+        "retry_rate": str(metrics.get("retry_rate", "")),
+        "primary_rejected_count": str(metrics.get("primary_rejected_count", "")),
+        "primary_rejected_rate": str(metrics.get("primary_rejected_rate", "")),
+        "low_categories": str(metrics.get("low_categories", "")),
+        "hard_failure": str(summary.get("hard_failure", metrics.get("hard_failure", ""))),
+        "kept": "False",
+        "notes": f"profile={summary.get('profile', {}).get('name', '')} hash={summary.get('profile_hash', '')}",
+    }
+
+
+def merge_summary_rows(rows: list[dict[str, Any]], summary_files: list[Path]) -> list[dict[str, Any]]:
+    merged = list(rows)
+    known_run_ids = {row.get("run_id") for row in rows}
+    for summary_path in summary_files:
+        summary = read_json(summary_path)
+        run_id = str(summary.get("run_id") or summary_path.parent.name)
+        if not run_id or run_id in known_run_ids:
+            continue
+        merged.append(row_from_summary(summary_path, summary))
+        known_run_ids.add(run_id)
+    return merged
+
+
+def latest_row_for_benchmark(rows: list[dict[str, Any]], benchmark_set: str) -> dict[str, Any]:
+    for row in reversed(rows):
+        if row.get("benchmark_set") == benchmark_set:
+            return row
+    return {}
+
+
+def latest_holdout_row(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    for row in reversed(rows):
+        if "holdout" in str(row.get("benchmark_set", "")):
+            return row
+    return {}
+
+
+def summary_for_row(runs_dir: Path, row: dict[str, Any]) -> dict[str, Any]:
+    run_id = row.get("run_id")
+    if not run_id:
+        return {}
+    return read_json(runs_dir / str(run_id) / "summary.json")
+
+
 def dashboard_state(results_path: Path, best_path: Path, runs_dir: Path) -> dict[str, Any]:
-    rows = read_results(results_path)
-    latest_result = rows[-1] if rows else {}
-    best = read_json(best_path)
+    base_rows = read_results(results_path)
     summary_files = find_run_files(runs_dir, "summary.json")
+    rows = merge_summary_rows(base_rows, summary_files)
+    latest_result = rows[-1] if rows else {}
+    latest_main_result = latest_row_for_benchmark(rows, "real_mined")
+    latest_synthetic_result = latest_row_for_benchmark(rows, "synthetic")
+    latest_holdout_result = latest_holdout_row(rows)
+    best = read_json(best_path)
     progress_files = find_run_files(runs_dir, "progress.json")
-    _, latest_summary = newest_json(summary_files)
+    latest_summary = summary_for_row(runs_dir, latest_result)
+    latest_main_summary = summary_for_row(runs_dir, latest_main_result)
+    latest_synthetic_summary = summary_for_row(runs_dir, latest_synthetic_result)
+    latest_holdout_summary = summary_for_row(runs_dir, latest_holdout_result)
+    if not latest_summary:
+        _, latest_summary = newest_json(summary_files)
     _, active_progress = newest_json(progress_files)
     if active_progress.get("status") != "running" and progress_files:
         # Keep the most recent completed progress visible, but the badge stays idle.
@@ -476,6 +557,10 @@ def dashboard_state(results_path: Path, best_path: Path, runs_dir: Path) -> dict
     best_run_id = best.get("best_run_id")
     if best_run_id:
         best_summary = read_json(runs_dir / str(best_run_id) / "summary.json")
+    active_summary: dict[str, Any] = {}
+    active_run_id = active_progress.get("run_id")
+    if active_run_id:
+        active_summary = read_json(runs_dir / str(active_run_id) / "summary.json")
 
     last_updated = ""
     latest_times = [file_mtime(path) for path in [results_path, best_path, *(summary_files[-1:] or []), *(progress_files[-1:] or [])]]
@@ -490,8 +575,15 @@ def dashboard_state(results_path: Path, best_path: Path, runs_dir: Path) -> dict
         "best": best,
         "results": rows,
         "latest_result": latest_result,
+        "latest_main_result": latest_main_result,
+        "latest_synthetic_result": latest_synthetic_result,
+        "latest_holdout_result": latest_holdout_result,
         "latest_summary": latest_summary,
+        "latest_main_summary": latest_main_summary,
+        "latest_synthetic_summary": latest_synthetic_summary,
+        "latest_holdout_summary": latest_holdout_summary,
         "best_summary": best_summary,
+        "active_summary": active_summary,
         "active_progress": active_progress,
     }
 

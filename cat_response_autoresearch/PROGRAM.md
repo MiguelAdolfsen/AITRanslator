@@ -4,7 +4,9 @@ Objective: maximize `cat_approval_rate` and minimize `cat_quality_score`.
 
 Target: `cat_approval_rate >= 0.90` with zero hard failures.
 
-Scope: CAT prompt profiles, deterministic CAT generation settings, output cleanup, output validation, and retry prompt policy only.
+Scope: deterministic CAT generation settings, output cleanup, output validation, retry acceptance, and generic source-shape safeguards only.
+
+Prompt freeze rule: the CAT production prompt is frozen to the strict fragment prompt used by the saved strict benchmark. The normal retry prompt is the source-only `Japanese:\n...\n\nEnglish:` form; the incomplete-fragment prompt is only for production second retry. Do not edit `build_cat_prompt`, `CAT_PROMPT_VERSION`, retry prompt constants, built-in prompt templates, system prompt text, or profile prompt JSON to improve benchmark results. Prompt changes require explicit user approval outside this autoresearch loop.
 
 Frozen benchmark rule: do not modify benchmark cases, references, scoring, result schema, templates, or historical result rows during optimization.
 
@@ -55,9 +57,44 @@ Synthetic regression check:
 
 Synthetic is a regression guard and harness smoke benchmark. It is not the main keep gate because it is cleaner than real OCR output and can make overfit prompt/validation changes look better than they are.
 
-Use `--profile production` when checking whether the harness matches current production CAT behavior. It calls production prompt construction and token-cap settings directly.
+Use `--profile production` when checking whether the harness matches current production CAT behavior. It calls production prompt construction and token-cap settings directly. The dashboard may display the production prompt text, but agents must not modify it.
 
 The evaluator resolves the CAT GGUF from the project root `.models/CAT-Translate` directory, even if the command is launched from inside `cat_response_autoresearch`. Do not work around model lookup by copying model files into benchmark folders.
+
+Blind reporting mode:
+
+```powershell
+.\.venv\Scripts\python.exe cat_response_autoresearch\scripts\eval_cat_responses.py `
+  --benchmark cat_response_autoresearch\benchmarks\real_mined `
+  --output cat_response_autoresearch\runs\real_mined_blind_current `
+  --results cat_response_autoresearch\results\results.tsv `
+  --run-id real_mined_blind_current `
+  --profile production `
+  --blind-report
+```
+
+Use blind reporting when an optimization agent should receive benchmark feedback without seeing the frozen source phrases or CAT outputs. Blind artifacts may include case IDs, source category, source shape, risk labels, violation labels, retry status, and aggregate metrics. They must not include `source_text`, raw CAT output, final CAT output, exact references, required meaning terms, forbidden meaning terms, chapter titles, or page-specific text. Owner-only unredacted artifacts may be written with `--private-output`, but that path should be outside the agent workspace.
+
+Private blind benchmark wrapper:
+
+```powershell
+$env:CAT_PRIVATE_BENCHMARK = "C:\Users\migue\Desktop\private_manga_benchmarks\cat_real_mined_blind"
+.\cat_response_autoresearch\scripts\run_private_blind_benchmark.ps1 `
+  -RunId private_blind_current `
+  -Profile production `
+  -NoUpdateBest
+```
+
+Use this wrapper when the benchmark JSONL should remain hidden from an optimization agent. It refuses benchmark paths inside the repo, checks for `cases.jsonl` and `references.jsonl`, validates fixtures, and always runs the evaluator with `--blind-report`. If `$env:CAT_PRIVATE_OUTPUT` is set, it must also point outside the repo; otherwise the wrapper refuses to run.
+
+Security model:
+
+```text
+- .gitignore is not access control.
+- Soft blind means private files are outside the repo and only sanitized artifacts are written into the repo.
+- Hard blind requires an OS/account/process boundary where the agent cannot read the private files at all.
+- Do not give an agent direct benchmark paths or unredacted private output folders.
+```
 
 Noise guardrails:
 
@@ -102,12 +139,22 @@ manga_local_translator/hf_translators.py
 manga_local_translator/translation_rules.py
 ```
 
+When editing `manga_local_translator/hf_translators.py`, only cleanup, validation, retry acceptance, and source-shape guard code is in scope. Prompt builders and prompt constants are frozen.
+
+Phrasebook rule:
+
+```text
+manga_local_translator/translation_phrasebook.py is not part of CAT response optimization.
+Do not edit it from autoresearch. Phrasebook additions require separate manual review and must be broad manga expressions/SFX, not mined benchmark lines, names, or plot terms.
+```
+
 Forbidden edits during optimization:
 
 ```text
 cat_response_autoresearch/benchmarks/**
 cat_response_autoresearch/scripts/eval_cat_responses.py
 cat_response_autoresearch/scripts/score.py
+cat_response_autoresearch/scripts/io_adapters.py prompt/profile definitions
 cat_response_autoresearch/scripts/validate_fixtures.py
 cat_response_autoresearch/results/results.tsv
 translation_routing_autoresearch/**
@@ -119,6 +166,7 @@ manga_local_translator/detect_ocr.py
 manga_local_translator/grouping.py
 manga_local_translator/qwen_translator.py
 manga_local_translator/qwen_validation.py
+manga_local_translator/translation_phrasebook.py
 .testing/tests/**
 ```
 

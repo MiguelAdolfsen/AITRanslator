@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import unittest
 
-import cv2
 import numpy as np
 
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.erase import erase_text, uses_dark_background
 
+try:
+    import cv2
+except ModuleNotFoundError:
+    cv2 = None
 
+
+@unittest.skipIf(cv2 is None, "opencv-python is not installed")
 class EraseTests(unittest.TestCase):
     def test_white_erase_removes_text_ink_without_wiping_bubble_outline(self) -> None:
         image = np.full((120, 160, 3), 255, dtype=np.uint8)

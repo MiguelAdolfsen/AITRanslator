@@ -32,7 +32,7 @@ CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
 CAT_RETRY_PROMPT_VERSION = "cat-retry-v1-source-only"
 CAT_SECOND_RETRY_PROMPT_VERSION = "cat-retry-v2-incomplete-fragment"
-CAT_VALIDATION_VERSION = "cat-validation-v15-assistant-translation-chatter"
+CAT_VALIDATION_VERSION = "cat-validation-v19-honorific-cleanup-first"
 CAT_BYPASS_VERSION = "cat-bypass-v1"
 CAT_DEFAULT_NUM_PREDICT = 48
 
@@ -354,18 +354,19 @@ class CatTranslator(Translator):
 
 
 def build_cat_prompt(prepared_text: str, *, retry: bool = False, retry_variant: str = "source_only") -> str:
+    # Frozen production prompt. CAT autoresearch may tune validation/retry rules,
+    # but prompt wording changes need explicit user approval.
     if retry:
         if retry_variant == "incomplete_fragment":
             return (
-                "Translate exactly. If the source is incomplete, translate the incomplete fragment. "
-                "Never ask for clarification.\n"
+                "Translate exactly. If the source is incomplete, translate the incomplete fragment. Never ask for clarification.\n"
                 f"Japanese: \"{prepared_text}\"\n"
                 "English:"
             )
         return f"Japanese:\n{prepared_text}\n\nEnglish:"
     return (
-        "Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, "
-        "or continue the scene. If the source is incomplete, translate the fragment as a fragment.\n"
+        "Translate exactly. Return only concise English. Do not explain, apologize, ask for clarification, or continue the scene. "
+        "If the source is incomplete, translate the fragment as a fragment.\n"
         f"Japanese: \"{prepared_text}\"\n"
         "English:"
     )
@@ -413,6 +414,8 @@ def has_noisy_credit_markers(text: str) -> bool:
     if any(marker in text for marker in ("▽", "▼", "■", "□", "◆", "◇", "※", "©", "＠", "@", "http")):
         return True
     normalized = unicodedata.normalize("NFKC", str(text))
+    if is_date_like_metadata_fragment(normalized):
+        return True
     if is_numbered_metadata_header(normalized):
         return True
     if "『" in text and "』" not in text:
@@ -428,6 +431,20 @@ def has_noisy_credit_markers(text: str) -> bool:
     ):
         return True
     return False
+
+
+def is_date_like_metadata_fragment(text: str) -> bool:
+    normalized = unicodedata.normalize("NFKC", str(text)).strip()
+    if not normalized:
+        return False
+    if len(normalized) > 16:
+        return False
+    return bool(
+        re.fullmatch(
+            r"\d{2,4}(?:\s*年\s*\d{1,2}(?:\s*月\s*\d{0,2}(?:\s*日)?)?|\s*[/-]\s*\d{1,2}(?:\s*[/-]\s*\d{1,2})?)",
+            normalized,
+        )
+    )
 
 
 def is_numbered_metadata_header(text: str) -> bool:
@@ -483,6 +500,11 @@ def finalize_cat_translation(source_text: str, prepared_text: str, raw_text: str
             return phrase, result, None
     reject_reason = cat_reject_reason(source_text, cleaned, raw_text)
     if reject_reason is not None:
+        if reject_reason == "cat_missing_honorific":
+            result = postprocess_translation(source_text, prepared_text, cleaned, glossary)
+            final_reject_reason = cat_reject_reason(source_text, result, raw_text)
+            if final_reject_reason is None:
+                return cleaned, result, None
         salvaged = salvage_cat_translation(raw_text, source_text=source_text)
         if salvaged:
             salvage_reject_reason = cat_reject_reason(source_text, salvaged, salvaged)
@@ -505,7 +527,10 @@ def short_source_phrase_override(source_text: str, prepared_text: str, glossary)
         return None
     if not is_short_symbolic_source(normalized):
         return None
-    return translate_known_phrase(normalized, glossary) or translate_known_phrase(prepared_text, glossary)
+    phrase = translate_known_phrase(normalized, glossary) or translate_known_phrase(prepared_text, glossary)
+    if phrase is not None:
+        return phrase
+    return translate_kana_honorific_name_fragment(normalized)
 
 
 def is_short_symbolic_source(text: str) -> bool:
@@ -515,6 +540,154 @@ def is_short_symbolic_source(text: str) -> bool:
     if len(compact) <= 12:
         return True
     return bool(re.fullmatch(r"[\u3040-\u30ff\u31f0-\u31ff\u2026.!?\-ー〜～]+", compact)) and len(compact) <= 16
+
+
+def translate_kana_honorific_name_fragment(source_text: str) -> str | None:
+    compact = normalize_japanese_for_translation(source_text)
+    compact = compact.strip("\u300c\u300d\u300e\u300f\"'")
+    trailing = ""
+    punctuation_match = re.search(r"(?P<trailing>(?:\u2026|[.!?\uff01\uff1f\uff0e]){1,4})$", compact)
+    if punctuation_match:
+        trailing = normalize_fragment_punctuation(punctuation_match.group("trailing"))
+        compact = compact[: punctuation_match.start()].strip()
+    suffixes = {
+        "\u3055\u3093": "san",
+        "\u30b5\u30f3": "san",
+        "\u3055\u307e": "sama",
+        "\u30b5\u30de": "sama",
+        "\u69d8": "sama",
+        "\u3061\u3083\u3093": "chan",
+        "\u30c1\u30e3\u30f3": "chan",
+        "\u304f\u3093": "kun",
+        "\u30af\u30f3": "kun",
+        "\u541b": "kun",
+        "\u5148\u8f29": "senpai",
+        "\u305b\u3093\u3071\u3044": "senpai",
+        "\u30bb\u30f3\u30d1\u30a4": "senpai",
+        "\u5148\u751f": "sensei",
+        "\u305b\u3093\u305b\u3044": "sensei",
+        "\u30bb\u30f3\u30bb\u30a4": "sensei",
+    }
+    family_bases = {"\u304a\u3058", "\u304a\u3070", "\u3058\u3044", "\u3070\u3042", "\u3068\u3046", "\u304b\u3042", "\u306b\u3044", "\u306d\u3048"}
+    for suffix, honorific in sorted(suffixes.items(), key=lambda item: len(item[0]), reverse=True):
+        if not compact.endswith(suffix):
+            continue
+        name = compact[: -len(suffix)]
+        if not name or name in family_bases:
+            return None
+        if honorific == "san" and is_short_hiragana_family_like_base(name):
+            return None
+        romanized = romanize_kana_name(name)
+        if romanized is None:
+            return None
+        return f"{romanized} {honorific}{trailing}"
+    return None
+
+
+def normalize_fragment_punctuation(text: str) -> str:
+    result = str(text)
+    result = result.replace("\uff01", "!").replace("\uff1f", "?").replace("\uff0e", ".")
+    result = result.replace("\u2026", "...")
+    return result
+
+
+def is_short_hiragana_family_like_base(text: str) -> bool:
+    return len(text) <= 2 and bool(re.fullmatch(r"[\u3040-\u309f]+", text))
+
+
+def romanize_kana_name(text: str) -> str | None:
+    kana = unicodedata.normalize("NFKC", text).replace("\u30fb", "")
+    if "\u30fc" in kana:
+        return None
+    if not kana or not re.fullmatch(r"[\u3040-\u30ff\u31f0-\u31ff\u30fc]+", kana):
+        return None
+    hiragana = "".join(katakana_to_hiragana(char) for char in kana)
+    romanized = romanize_hiragana(hiragana)
+    if not romanized or len(romanized) > 40:
+        return None
+    return romanized[:1].upper() + romanized[1:]
+
+
+def katakana_to_hiragana(char: str) -> str:
+    code = ord(char)
+    if 0x30A1 <= code <= 0x30F6:
+        return chr(code - 0x60)
+    return char
+
+
+def romanize_hiragana(text: str) -> str:
+    digraphs = {
+        "\u304d\u3083": "kya", "\u304d\u3085": "kyu", "\u304d\u3087": "kyo",
+        "\u304e\u3083": "gya", "\u304e\u3085": "gyu", "\u304e\u3087": "gyo",
+        "\u3057\u3083": "sha", "\u3057\u3085": "shu", "\u3057\u3087": "sho",
+        "\u3058\u3083": "ja", "\u3058\u3085": "ju", "\u3058\u3087": "jo",
+        "\u3061\u3083": "cha", "\u3061\u3085": "chu", "\u3061\u3087": "cho",
+        "\u306b\u3083": "nya", "\u306b\u3085": "nyu", "\u306b\u3087": "nyo",
+        "\u3072\u3083": "hya", "\u3072\u3085": "hyu", "\u3072\u3087": "hyo",
+        "\u3073\u3083": "bya", "\u3073\u3085": "byu", "\u3073\u3087": "byo",
+        "\u3074\u3083": "pya", "\u3074\u3085": "pyu", "\u3074\u3087": "pyo",
+        "\u307f\u3083": "mya", "\u307f\u3085": "myu", "\u307f\u3087": "myo",
+        "\u308a\u3083": "rya", "\u308a\u3085": "ryu", "\u308a\u3087": "ryo",
+    }
+    singles = {
+        "\u3042": "a", "\u3044": "i", "\u3046": "u", "\u3048": "e", "\u304a": "o",
+        "\u304b": "ka", "\u304d": "ki", "\u304f": "ku", "\u3051": "ke", "\u3053": "ko",
+        "\u304c": "ga", "\u304e": "gi", "\u3050": "gu", "\u3052": "ge", "\u3054": "go",
+        "\u3055": "sa", "\u3057": "shi", "\u3059": "su", "\u305b": "se", "\u305d": "so",
+        "\u3056": "za", "\u3058": "ji", "\u305a": "zu", "\u305c": "ze", "\u305e": "zo",
+        "\u305f": "ta", "\u3061": "chi", "\u3064": "tsu", "\u3066": "te", "\u3068": "to",
+        "\u3060": "da", "\u3062": "ji", "\u3065": "zu", "\u3067": "de", "\u3069": "do",
+        "\u306a": "na", "\u306b": "ni", "\u306c": "nu", "\u306d": "ne", "\u306e": "no",
+        "\u306f": "ha", "\u3072": "hi", "\u3075": "fu", "\u3078": "he", "\u307b": "ho",
+        "\u3070": "ba", "\u3073": "bi", "\u3076": "bu", "\u3079": "be", "\u307c": "bo",
+        "\u3071": "pa", "\u3074": "pi", "\u3077": "pu", "\u307a": "pe", "\u307d": "po",
+        "\u307e": "ma", "\u307f": "mi", "\u3080": "mu", "\u3081": "me", "\u3082": "mo",
+        "\u3084": "ya", "\u3086": "yu", "\u3088": "yo",
+        "\u3089": "ra", "\u308a": "ri", "\u308b": "ru", "\u308c": "re", "\u308d": "ro",
+        "\u308f": "wa", "\u3092": "o", "\u3093": "n",
+        "\u3041": "a", "\u3043": "i", "\u3045": "u", "\u3047": "e", "\u3049": "o",
+        "\u3083": "ya", "\u3085": "yu", "\u3087": "yo", "\u3094": "vu",
+    }
+    result: list[str] = []
+    double_next = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\u3063":
+            double_next = True
+            index += 1
+            continue
+        if char == "\u30fc":
+            extend_last_vowel(result)
+            index += 1
+            continue
+        unit = text[index : index + 2]
+        if unit in digraphs:
+            roma = digraphs[unit]
+            index += 2
+        elif char in singles:
+            roma = singles[char]
+            index += 1
+        else:
+            return ""
+        if double_next and roma:
+            result.append(first_roman_consonant(roma))
+            double_next = False
+        result.append(roma)
+    return "".join(result)
+
+
+def first_roman_consonant(text: str) -> str:
+    first = text[:1]
+    return first if first and first not in "aeiou" else ""
+
+
+def extend_last_vowel(parts: list[str]) -> None:
+    for part in reversed(parts):
+        for char in reversed(part):
+            if char in "aeiou":
+                parts.append(char)
+                return
 
 
 def salvage_cat_translation(raw_text: str, *, source_text: str = "") -> str:
@@ -683,6 +856,8 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
         return "cat_source_metadata_or_noise"
     if count_japanese_chars_local(text) > 0:
         return "cat_untranslated_japanese"
+    if source_has_nonfamily_honorific(source_text) and not has_romanized_honorific(text):
+        return "cat_missing_honorific"
     if looks_repetitive_or_verbose(source_text, text):
         return "cat_verbose_or_repetitive"
     if re.search(r"\b[A-Za-z]+(?:-[A-Za-z]+){4,}\b", text):
@@ -690,6 +865,80 @@ def cat_reject_reason(source_text: str, cleaned_text: str, raw_text: str = "") -
     if source_text.strip() and text.strip() == source_text.strip():
         return "cat_unchanged_source"
     return None
+
+
+def source_has_nonfamily_honorific(source_text: str) -> bool:
+    compact = normalize_japanese_for_translation(source_text)
+    compact = compact.strip("\u300c\u300d\u300e\u300f\"'")
+    shape_compact = re.sub(r"[\s\u3000\u300c\u300d\u300e\u300f\"'\u2026.!?\uff01\uff1f\uff0e\u3002\u3001,，、\-]+", "", compact)
+    if len(shape_compact) > 10:
+        return False
+    suffixes = (
+        "\u3055\u3093",
+        "\u30b5\u30f3",
+        "\u3055\u307e",
+        "\u30b5\u30de",
+        "\u69d8",
+        "\u3061\u3083\u3093",
+        "\u30c1\u30e3\u30f3",
+        "\u304f\u3093",
+        "\u30af\u30f3",
+        "\u541b",
+        "\u5148\u8f29",
+        "\u305b\u3093\u3071\u3044",
+        "\u30bb\u30f3\u30d1\u30a4",
+        "\u5148\u751f",
+        "\u305b\u3093\u305b\u3044",
+        "\u30bb\u30f3\u30bb\u30a4",
+        "\u6bbf",
+        "\u3069\u306e",
+        "\u30c9\u30ce",
+        "\u6c0f",
+    )
+    family_bases = {
+        "\u7236",
+        "\u6bcd",
+        "\u5144",
+        "\u59c9",
+        "\u5f1f",
+        "\u59b9",
+        "\u304a\u7236",
+        "\u304a\u6bcd",
+        "\u304a\u5144",
+        "\u304a\u59c9",
+        "\u304a\u3058",
+        "\u304a\u3070",
+        "\u3058\u3044",
+        "\u3070\u3042",
+        "\u3068\u3046",
+        "\u304b\u3042",
+        "\u306b\u3044",
+        "\u306d\u3048",
+        "\u7686",
+        "\u7686\u69d8",
+        "\u307f\u306a",
+        "\u307f\u3093\u306a",
+        "\u5ba2",
+        "\u304a\u5ba2",
+        "\u795e",
+        "\u4ecf",
+    }
+    for suffix in sorted(suffixes, key=len, reverse=True):
+        pattern = re.compile(
+            rf"(?P<name>[\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9fffA-Za-z][\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9fffA-Za-z0-9_-]{{0,24}}){re.escape(suffix)}"
+        )
+        for match in pattern.finditer(compact):
+            name = match.group("name")
+            if name in family_bases:
+                continue
+            if name.endswith(("\u5c4b", "\u5e97", "\u4f1a\u793e", "\u5b66\u6821", "\u5bb6")):
+                continue
+            return True
+    return False
+
+
+def has_romanized_honorific(text: str) -> bool:
+    return bool(re.search(r"\b(?:san|sama|kun|chan|senpai|sensei|dono|shi)\b", str(text), flags=re.IGNORECASE))
 
 
 def looks_like_cat_chatter(text: str) -> bool:

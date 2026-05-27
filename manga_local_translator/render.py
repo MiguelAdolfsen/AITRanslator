@@ -7,9 +7,13 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+try:
+    import cv2
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal CAT-only environments
+    cv2 = None
 
 from .detect_ocr import TextBlock
 from .line_identity import lookup_translation
@@ -21,6 +25,11 @@ logger = logging.getLogger(__name__)
 _FONT_REGISTRY: dict[tuple[str, int], ImageFont.ImageFont] = {}
 _TEXT_FIT_CACHE: dict[tuple[str, tuple[int, int, int, int], str | None, int, tuple[int, int, int, int] | None], TextFit] = {}
 _WRAP_TEXT_CACHE: dict[tuple[tuple[str, int], str, int], tuple[str, ...]] = {}
+
+
+def _require_cv2() -> None:
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required for image rendering. Install opencv-python.")
 
 
 @dataclass(frozen=True)
@@ -240,6 +249,7 @@ def plan_text_fits(
     render_expand: float,
     render_layouts: list[RenderLayout] | None = None,
 ) -> list[TextFit]:
+    _require_cv2()
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(image_rgb)
     draw = ImageDraw.Draw(pil_image)
@@ -270,6 +280,7 @@ def render_translations(
     render_expand: float,
     render_layouts: list[RenderLayout] | None = None,
 ) -> np.ndarray:
+    _require_cv2()
     logger.info("Rendering %d translated text block(s)", len(blocks))
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(image_rgb)
@@ -626,6 +637,7 @@ def find_white_region_box(
     source_box: tuple[int, int, int, int],
     expanded_box: tuple[int, int, int, int],
 ) -> tuple[int, int, int, int] | None:
+    _require_cv2()
     height, width = image_bgr.shape[:2]
     search_box = pad_box(expanded_box, width, height, 24)
     sx1, sy1, sx2, sy2 = search_box
@@ -678,6 +690,7 @@ def find_dark_outline_bubble_box(
     source_box: tuple[int, int, int, int],
     expanded_box: tuple[int, int, int, int],
 ) -> tuple[int, int, int, int] | None:
+    _require_cv2()
     source_width = max(1, source_box[2] - source_box[0])
     source_height = max(1, source_box[3] - source_box[1])
     if source_width < source_height * 0.8:

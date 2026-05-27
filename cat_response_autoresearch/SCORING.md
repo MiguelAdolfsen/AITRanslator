@@ -18,6 +18,8 @@ Lower is better.
 
 The primary optimization benchmark is `benchmarks/real_mined`, because it is seeded from real CAT failures and OCR text shapes. `benchmarks/synthetic` is a regression check and harness smoke benchmark. Synthetic-only improvements should not replace the kept best profile.
 
+The CAT prompt is not part of scoring optimization. Runs that improve by changing prompt text, prompt constants, system prompt text, or profile templates are considered out of scope unless the user explicitly asked for prompt work before the run.
+
 The kept run score is the average of 4 complete benchmark passes by default. Per-pass metrics are stored in `summary.json` as `repeat_metrics`, and the result row stores averaged counts/rates so random one-off CAT behavior does not become the recorded best.
 
 `cat_response_score` is still reported, but it includes latency. Best-run replacement prioritizes `cat_quality_score`. If approval does not improve, quality score must improve by at least 0.2% before a run replaces best. If approval and quality are tied, lower retry dependence can replace best. If approval, quality, and retry rate all tie, lower response score can replace best as an operational improvement.
@@ -90,3 +92,7 @@ forbidden_meaning_terms = accepted outputs must not include any forbidden meanin
 ```
 
 Use these only for generic, obvious preservation checks such as honorific names, family terms, crude nouns, and metadata/date traps. Do not encode exact page-specific translations.
+
+Blind reporting:
+
+`--blind-report` does not change scoring. It changes only the artifacts exposed in the run output: exact source text, CAT raw output, final output, references, and required/forbidden term strings are replaced by source shape, category, retry status, violation labels, and aggregate counts. Use this mode when an agent should improve generic behavior without seeing frozen benchmark phrases.
