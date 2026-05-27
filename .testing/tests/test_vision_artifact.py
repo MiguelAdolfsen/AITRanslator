@@ -4,14 +4,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import cv2
 import numpy as np
 
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.vision_artifact import create_vision_artifact, label_plan
 
+try:
+    import cv2
+except ModuleNotFoundError:
+    cv2 = None
+
 
 class VisionArtifactTests(unittest.TestCase):
+    @unittest.skipIf(cv2 is None, "opencv-python is not installed")
     def test_numbered_artifact_preserves_dimensions_and_maps_blocks(self) -> None:
         image = np.full((120, 90, 3), 255, dtype=np.uint8)
         blocks = [

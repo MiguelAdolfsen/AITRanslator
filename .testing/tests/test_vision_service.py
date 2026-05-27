@@ -14,6 +14,11 @@ from manga_local_translator.vision_artifact import create_vision_artifact
 from manga_local_translator import vision_service
 from manga_local_translator.vision_service import apply_vision_facts, apply_vision_repair, build_vision_requests, get_qwen_vision_client
 
+try:
+    import cv2  # noqa: F401
+except ModuleNotFoundError:
+    cv2 = None
+
 
 class FakeVisionClient:
     model_name = "fake-vision"
@@ -40,6 +45,7 @@ class FakeVisionClient:
         return self.json_repair_response
 
 
+@unittest.skipIf(cv2 is None, "opencv-python is not installed")
 class VisionServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         self.image = np.full((120, 120, 3), 255, dtype=np.uint8)

@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import logging
 
-import cv2
 import numpy as np
 
 from .detect_ocr import TextBlock
 
+try:
+    import cv2
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal CAT-only environments
+    cv2 = None
+
 logger = logging.getLogger(__name__)
+
+
+def _require_cv2() -> None:
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required for erasing text. Install opencv-python.")
 
 
 def erase_text(
@@ -17,6 +26,7 @@ def erase_text(
     mode: str,
     padding: int,
 ) -> np.ndarray:
+    _require_cv2()
     if not blocks:
         logger.info("No text blocks to erase")
         return image_bgr.copy()
@@ -51,6 +61,7 @@ def erase_dark_ink(
     source_box: tuple[int, int, int, int],
     erase_box: tuple[int, int, int, int],
 ) -> None:
+    _require_cv2()
     x1, y1, x2, y2 = erase_box
     if x2 <= x1 or y2 <= y1:
         return
@@ -87,6 +98,7 @@ def erase_dark_ink(
 
 
 def uses_dark_background(image_bgr: np.ndarray, source_box: tuple[int, int, int, int]) -> bool:
+    _require_cv2()
     height, width = image_bgr.shape[:2]
     x1, y1, x2, y2 = pad_box(source_box, width, height, 1)
     if x2 <= x1 or y2 <= y1:

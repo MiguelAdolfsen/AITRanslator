@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import cv2
 import numpy as np
 
 from .detect_types import TextBlock
@@ -11,7 +10,17 @@ from .grouping import page_order_for_block
 from .line_identity import block_id_for_block, line_id_for_block, lookup_translation, source_hash, translation_key_for_block
 from .vision_types import VisionArtifact, VisionNumberMapEntry
 
+try:
+    import cv2
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal CAT-only environments
+    cv2 = None
+
 logger = logging.getLogger(__name__)
+
+
+def _require_cv2() -> None:
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required for vision artifacts. Install opencv-python.")
 
 
 def create_vision_artifact(
@@ -24,6 +33,7 @@ def create_vision_artifact(
     mode: str,
     artifact_label: str = "vision",
 ) -> VisionArtifact:
+    _require_cv2()
     number_map = build_number_map(blocks, translations, page_order_report, output_path)
     artifact_path = output_path.with_name(f"{output_path.stem}.{artifact_label}.png")
     warnings: list[str] = []

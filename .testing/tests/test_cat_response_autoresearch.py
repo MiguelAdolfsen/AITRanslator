@@ -844,6 +844,46 @@ class CatResponseAutoresearchTests(unittest.TestCase):
         self.assertEqual(state["active_progress"]["status"], "running")
         self.assertEqual(state["best_summary"]["profile"]["name"], "official")
 
+    def test_dashboard_state_includes_summary_only_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            results = root / "results.tsv"
+            best = root / "best.json"
+            runs = root / "runs"
+            run_dir = runs / "summary-only-main"
+            run_dir.mkdir(parents=True)
+            results.write_text(
+                "\t".join(["run_id", "benchmark_set", "cat_approval_rate", "hard_failure", "kept"])
+                + "\n"
+                + "\t".join(["old-main", "real_mined", "0.5", "True", "False"])
+                + "\n",
+                encoding="utf-8",
+            )
+            best.write_text("{}", encoding="utf-8")
+            (run_dir / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "summary-only-main",
+                        "benchmark_set": "real_mined",
+                        "cat_approval_rate": 0.75,
+                        "cat_quality_score": 123.0,
+                        "hard_failure": True,
+                        "metrics": {"repeat_count": 4, "low_categories": "honorific_name"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_dir / "progress.json").write_text(
+                json.dumps({"run_id": "summary-only-main", "status": "complete", "updated_at": "2026-05-27T04:14:27+00:00"}),
+                encoding="utf-8",
+            )
+
+            state = dashboard_state(results, best, runs)
+
+        self.assertEqual(state["latest_result"]["run_id"], "summary-only-main")
+        self.assertEqual(state["latest_main_result"]["run_id"], "summary-only-main")
+        self.assertEqual(state["latest_main_summary"]["cat_approval_rate"], 0.75)
+
 
 if __name__ == "__main__":
     unittest.main()
