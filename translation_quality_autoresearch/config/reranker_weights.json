@@ -1,7 +1,0 @@
-{
-  "selection_tolerance": 0.001,
-  "prefer_baseline_agent": "baseline",
-  "cost_tiebreak_weight": 0.001,
-  "latency_tiebreak_weight": 0.000001,
-  "natural_length_target_words": 12
-}

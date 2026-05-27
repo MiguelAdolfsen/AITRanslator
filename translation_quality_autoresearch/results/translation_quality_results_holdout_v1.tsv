@@ -1,1 +1,0 @@
-timestamp	run_id	benchmark_id	reference_policy	experiment_name	translation_quality_score	case_count	candidate_count	hard_reject	hard_failure_rate	critical_mqm_errors	japanese_leakage_count	assistant_chatter_count	glossary_violation_count	notes
