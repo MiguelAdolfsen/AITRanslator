@@ -23,6 +23,7 @@ class PipelineConfig:
     qwen_fallback_model_path: Path | None = None
     qwen_critic_model_path: Path | None = None
     cat_model_name: str | None = None
+    hy_mt2_model_name: str | None = None
     vision_enabled: bool = False
     vision_facts_enabled: bool = False
     vision_mode: str = "numbered_page"

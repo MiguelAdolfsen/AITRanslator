@@ -10,7 +10,7 @@
 |---|---:|---|
 | `detector` | `ctd` | Text region detector: `ctd`, `tesseract`, or `visual`. |
 | `ocr_engine` | `manga-ocr` | OCR backend: `manga-ocr` or `tesseract`. |
-| `translator` | `opus` | Translation backend: `opus`, `cat`, `qwen`, `madlad`, `argos`, or `none`. |
+| `translator` | `opus` | Translation backend: `opus`, `cat`, `hy-mt2`, `qwen`, `madlad`, `argos`, or `none`. |
 | `qwen_mode` | `block` | Qwen strategy: `block` or `page`. |
 | `erase_mode` | `white` | Original text removal mode: `white` or `inpaint`. |
 | `tesseract_cmd` | `None` | Optional path to `tesseract.exe`. |
@@ -25,6 +25,7 @@
 | `qwen_fallback_model_path` | `None` | Qwen fallback model for rejected/suspicious blocks. |
 | `qwen_critic_model_path` | `None` | Qwen critic/verifier model. |
 | `cat_model_name` | `None` | CAT GGUF path or Hugging Face model id. |
+| `hy_mt2_model_name` | `None` | Tencent Hy-MT2 Hugging Face model id or local model folder. |
 | `vision_enabled` | `False` | Enable Qwen vision repair. |
 | `vision_facts_enabled` | `False` | Enable pre-translation visual facts. |
 | `vision_mode` | `numbered_page` | Vision artifact mode: `numbered_page` or `page_image`. |
@@ -53,7 +54,7 @@ Current long options:
 | Category | Flags |
 |---|---|
 | Detection/OCR | `--detector`, `--ocr-engine`, `--tesseract-cmd`, `--tesseract-lang`, `--psm`, `--min-confidence` |
-| Translation | `--translator`, `--glossary`, `--cat-model`, `--qwen-model`, `--qwen-fallback-model`, `--qwen-critic-model`, `--qwen-mode` |
+| Translation | `--translator`, `--glossary`, `--cat-model`, `--hy-mt2-model`, `--qwen-model`, `--qwen-fallback-model`, `--qwen-critic-model`, `--qwen-mode` |
 | Vision | `--vision`, `--vision-facts`, `--vision-mode`, `--vision-trigger`, `--vision-model`, `--vision-projector` |
 | Rendering | `--erase-mode`, `--padding`, `--render-expand`, `--font`, `--font-size`, `--skip-render`, `--render-only` |
 | Run control | `--recursive`, `--no-recursive`, `--overwrite`, `--debug`, `--resume`, `--work-dir` |
@@ -72,6 +73,7 @@ When adding a CLI option:
 |---|---|---|
 | CTD | installed assets managed by `ctd_setup.py` | `python -m manga_local_translator.install_ctd` |
 | OPUS | Hugging Face cache | `python -m manga_local_translator.install_opus` |
+| Tencent Hy-MT2 | Hugging Face cache, default `tencent/Hy-MT2-1.8B` | `python -m manga_local_translator.install_hy_mt2`, `--hy-mt2-model` |
 | MADLAD | Hugging Face cache | `python -m manga_local_translator.install_madlad` |
 | Argos | Argos package data | `python -m manga_local_translator.install_argos ja en` |
 | CAT | `.models/CAT-Translate/*.gguf`, then default model id | `--cat-model` |

@@ -14,7 +14,7 @@ Read this file first, then use [docs/agent-wiki/README.md](docs/agent-wiki/READM
 | GUI behavior | `manga_local_translator/gui.py` | [runtime flows](docs/agent-wiki/runtime-flows.md) | `python -m manga_local_translator.gui` |
 | Pipeline flow | `manga_local_translator/pipeline.py` | [architecture](docs/agent-wiki/architecture.md) | targeted unit tests plus CLI smoke |
 | Detection/OCR | `detect_ocr.py`, `ctd_detector.py`, `source_extraction.py` | [data contracts](docs/agent-wiki/data-contracts.md) | `test_detect_ocr_heuristics.py`, source extraction tests |
-| Translation | `translate.py`, `hf_translators.py`, `qwen_translator.py`, `translation_rules.py` | [configuration](docs/agent-wiki/configuration.md) | translation, Qwen, CAT, and routing tests |
+| Translation | `translate.py`, `hf_translators.py`, `qwen_translator.py`, `translation_rules.py` | [configuration](docs/agent-wiki/configuration.md) | translation, Qwen, CAT, Hy-MT2, and routing tests |
 | Qwen/vision | `qwen_*`, `vision_*` | [runtime flows](docs/agent-wiki/runtime-flows.md) | Qwen and vision unit tests |
 | Rendering | `render.py`, `erase.py`, `debug_report.py` | [debugging](docs/agent-wiki/debugging.md) | `python -m unittest discover -s .testing/tests -p test_render.py` |
 | Quality eval | `quality_eval.py`, `review_report.py` | [testing](docs/agent-wiki/testing.md) | `python -m manga_local_translator.quality_eval --help` |
@@ -37,4 +37,3 @@ For data shape changes, read [data contracts](docs/agent-wiki/data-contracts.md)
 - Do not assume model files are present. Runtime supports local paths and first-time downloads for some backends.
 - Keep CLI flags, `PipelineConfig`, README examples, and this wiki in sync when behavior changes.
 - Prefer narrow tests for focused changes, then use `.testing/run_tests.ps1` for broader confidence.
-

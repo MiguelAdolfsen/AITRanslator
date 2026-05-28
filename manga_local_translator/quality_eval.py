@@ -60,9 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--translator",
-        choices=["qwen", "cat"],
+        choices=["qwen", "cat", "hy-mt2"],
         default="qwen",
-        help="Primary translator to benchmark. Qwen critic/fallback can still be used with CAT primary.",
+        help="Primary translator to benchmark. Qwen critic/fallback can still be used with CAT or Hy-MT2 primary.",
     )
     parser.add_argument(
         "--qwen-model",
@@ -86,6 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--cat-model",
         default=None,
         help="Optional CAT GGUF path or Hugging Face model id. Defaults to local .models/CAT-Translate/*.gguf, then cyberagent/CAT-Translate-7b.",
+    )
+    parser.add_argument(
+        "--hy-mt2-model",
+        default=None,
+        help="Optional Tencent Hy-MT2 Hugging Face model id or local model path. Defaults to tencent/Hy-MT2-1.8B.",
     )
     parser.add_argument(
         "--qwen-mode",
@@ -165,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
                 qwen_critic_model=args.qwen_critic_model,
                 translator=args.translator,
                 cat_model=args.cat_model,
+                hy_mt2_model=args.hy_mt2_model,
                 qwen_mode=args.qwen_mode,
                 vision=vision_enabled,
                 vision_facts=args.vision_facts,
@@ -232,6 +238,7 @@ def run_profile(
     qwen_critic_model: Path | None,
     translator: str,
     cat_model: str | None,
+    hy_mt2_model: str | None,
     qwen_mode: str,
     vision: bool,
     vision_facts: bool,
@@ -272,6 +279,8 @@ def run_profile(
         command.extend(["--qwen-critic-model", str(qwen_critic_model)])
     if cat_model is not None:
         command.extend(["--cat-model", str(cat_model)])
+    if hy_mt2_model is not None:
+        command.extend(["--hy-mt2-model", str(hy_mt2_model)])
     if vision:
         command.extend(["--vision", "--vision-trigger", vision_trigger])
     if vision_facts:
@@ -314,6 +323,8 @@ def summarize_debug_reports(output_dir: Path, *, profile: str) -> list[dict[str,
                 "cat_suspect_second_pass_reject_reasons": json.dumps(count_values(block.get("cat_suspect_second_pass_reject_reason") for block in kept_blocks if block.get("cat_suspect_second_pass_attempted") is True and block.get("cat_suspect_second_pass_accepted") is not True), ensure_ascii=False, sort_keys=True),
                 "cat_q8_fallback_attempted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_attempted") is True),
                 "cat_q8_fallback_accepted": count_blocks(kept_blocks, lambda block: block.get("cat_q8_fallback_accepted") is True),
+                "hy_mt2_used": count_blocks(kept_blocks, lambda block: block.get("hy_mt2_used") is True),
+                "hy_mt2_context_used": count_blocks(kept_blocks, lambda block: block.get("hy_mt2_context_used") is True),
                 "qwen_used": count_blocks(kept_blocks, lambda block: block.get("qwen_used") is True),
                 "qwen_rejected": count_blocks(kept_blocks, lambda block: block.get("qwen_rejected") is True),
                 "qwen_repairs_attempted": count_blocks(kept_blocks, lambda block: block.get("qwen_repair_used") is True),
@@ -421,6 +432,8 @@ def build_total_row(rows: list[dict[str, Any]], *, profile: str, output_dir: Pat
         "cat_suspect_second_pass_rejected",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
+        "hy_mt2_used",
+        "hy_mt2_context_used",
         "qwen_used",
         "qwen_rejected",
         "qwen_repairs_attempted",
@@ -518,6 +531,8 @@ def write_summary_files(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         "cat_suspect_second_pass_reject_reasons",
         "cat_q8_fallback_attempted",
         "cat_q8_fallback_accepted",
+        "hy_mt2_used",
+        "hy_mt2_context_used",
         "qwen_used",
         "qwen_rejected",
         "qwen_repairs_attempted",

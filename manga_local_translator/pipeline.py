@@ -20,10 +20,14 @@ except ImportError:  # pragma: no cover - used before dependencies are installed
 from .config import PipelineConfig
 from .debug_report import write_debug_image, write_debug_report
 from .grouping import (
+    build_page_order_report,
     context_for_block,
+    group_text_blocks_for_translation,
 )
 from .image_io import iter_images, resolve_output_path, write_image_with_fallback
 from .line_identity import (
+    assign_ocr_block_ids,
+    assign_render_line_ids,
     enrich_grouping_report,
     enrich_page_order_report,
     lookup_context,
@@ -47,6 +51,7 @@ from .text_filter import (
     block_to_debug_dict,
     count_japanese_chars,
     fallback_translation,
+    filter_text_blocks,
     is_box_like,
     suspected_bad_translation,
     unusable_translation_reason,
@@ -94,10 +99,13 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             render_cached_pages_only(input_path, output_path, image_paths, config)
             return
 
-        if config.translator == "cat" or config.translator == "qwen" and (
-            config.qwen_fallback_model_path is not None
-            or config.qwen_critic_model_path is not None
-            or (config.translator == "qwen" and config.vision_facts_enabled)
+        if config.translator == "cat" or (
+            config.translator in {"qwen", "hy-mt2"}
+            and (
+                config.qwen_fallback_model_path is not None
+                or config.qwen_critic_model_path is not None
+                or config.vision_facts_enabled
+            )
         ):
             process_folder_qwen_hybrid_batch(input_path, output_path, image_paths, config)
             return
@@ -107,6 +115,7 @@ def process_folder(input_path: Path, output_path: Path, config: PipelineConfig) 
             glossary_path=config.glossary_path,
             qwen_model_path=config.qwen_model_path,
             cat_model_name=config.cat_model_name,
+            hy_mt2_model_name=config.hy_mt2_model_name,
         )
 
         processed = 0
@@ -231,7 +240,11 @@ def process_folder_qwen_hybrid_batch(
     logger.info(
         "Starting batched hybrid flow: translator=%s primary=%s critic=%s fallback=%s",
         config.translator,
-        config.qwen_model_path if config.translator == "qwen" else config.cat_model_name,
+        config.qwen_model_path
+        if config.translator == "qwen"
+        else config.hy_mt2_model_name
+        if config.translator == "hy-mt2"
+        else config.cat_model_name,
         config.qwen_critic_model_path,
         config.qwen_fallback_model_path,
     )
@@ -303,6 +316,7 @@ def process_folder_qwen_hybrid_batch(
             glossary_path=config.glossary_path,
             qwen_model_path=config.qwen_model_path,
             cat_model_name=config.cat_model_name,
+            hy_mt2_model_name=config.hy_mt2_model_name,
         )
         for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{config.translator.upper()} primary pass", unit="page"):
             translate_prepared_page(page, primary_translator, config)
@@ -481,6 +495,14 @@ def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
         bypass_token = "bypass" if cat_bypass_enabled() else "nobypass"
         second_retry_token = "secondretry" if cat_second_retry_enabled() else "nosecondretry"
         suffix = f"{stage}-cat-{identity}-{backend_identity}-{CAT_PROMPT_VERSION}-{CAT_RETRY_PROMPT_VERSION}-{CAT_SECOND_RETRY_PROMPT_VERSION}-{CAT_VALIDATION_VERSION}-{CAT_BYPASS_VERSION}-{bypass_token}-{second_retry_token}-np{cat_num_predict()}"
+    elif config.translator == "hy-mt2":
+        from .hf_translators import HY_MT2_MODEL_NAME, HY_MT2_PROMPT_VERSION, hy_mt2_num_predict, resolve_hy_mt2_model_name
+
+        model_identity = resolve_hy_mt2_model_name(config.hy_mt2_model_name or HY_MT2_MODEL_NAME)
+        identity = cache_identity_token(
+            f"{model_identity}|{HY_MT2_PROMPT_VERSION}|num_predict={hy_mt2_num_predict()}"
+        )
+        suffix = f"{stage}-hy-mt2-{identity}-{HY_MT2_PROMPT_VERSION}-np{hy_mt2_num_predict()}"
     else:
         return stage
     if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
@@ -717,7 +739,7 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
             }
             if hasattr(translator, "debug_info_for"):
                 context.update(translator_debug_info_for(translator, block))
-        elif config.translator == "qwen":
+        elif config.translator in {"qwen", "hy-mt2"}:
             translated = translate_with_line_context(
                 translator,
                 block,
@@ -731,7 +753,7 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
             context = {
                 **context,
                 "context_used": bool(context.get("context_available")),
-                "translation_mode": "qwen_context",
+                "translation_mode": "qwen_context" if config.translator == "qwen" else "hy_mt2_context",
             }
             if hasattr(translator, "debug_info_for"):
                 context.update(translator_debug_info_for(translator, block))
@@ -1108,7 +1130,7 @@ def process_image(
             }
             if hasattr(translator, "debug_info_for"):
                 context.update(translator_debug_info_for(translator, block))
-        elif config.translator == "qwen":
+        elif config.translator in {"qwen", "hy-mt2"}:
             translated = translate_with_line_context(
                 translator,
                 block,
@@ -1122,7 +1144,7 @@ def process_image(
             context = {
                 **context,
                 "context_used": bool(context.get("context_available")),
-                "translation_mode": "qwen_context",
+                "translation_mode": "qwen_context" if config.translator == "qwen" else "hy_mt2_context",
             }
             if hasattr(translator, "debug_info_for"):
                 context.update(translator_debug_info_for(translator, block))

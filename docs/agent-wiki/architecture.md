@@ -19,7 +19,7 @@ Use this page to find the right subsystem before editing. The orchestration cent
 | Erase/render | Remove original text and typeset English translation. | `erase.py`, `render.py` |
 | Debug/review | Write overlays, JSON reports, review CSV/HTML/Markdown. | `debug_report.py`, `review_report.py`, `quality_eval.py` |
 | Cache/resume | Save prepared pages and translation stages for resume/render-only flows. | `page_cache.py`, `page_types.py` |
-| Model installers | Download or prepare optional model assets. | `install_ctd.py`, `install_opus.py`, `install_madlad.py`, `install_argos.py`, `install_cat.py` |
+| Model installers | Download or prepare optional model assets. | `install_ctd.py`, `install_opus.py`, `install_hy_mt2.py`, `install_madlad.py`, `install_argos.py`, `install_cat.py` |
 
 ## Main Runtime Ownership
 
@@ -50,4 +50,3 @@ Per-page state is represented as `PreparedPage`. Individual source or render reg
 | Vision repair/facts | `vision_*`, `qwen_vision.py` | vision tests and debug report fields |
 | Render fitting | `render.py` | `render_autoresearch/PROGRAM.md` before benchmarking |
 | Debug schema | `debug_report.py` | `review_report.py`, `quality_eval.py`, [data contracts](data-contracts.md) |
-

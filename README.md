@@ -53,6 +53,7 @@ Supported image extensions include:
   - Tesseract
 - Translation with:
   - OPUS-MT Japanese to English
+  - Tencent Hy-MT2
   - MADLAD-400
   - Argos Translate
   - local Qwen GGUF models
@@ -120,6 +121,7 @@ The project works best when text is clear, dark, and inside white or lightly col
 - `llama-cpp-python` for local GGUF inference without Ollama
 - Qwen GGUF model files
 - Qwen multimodal projector file for vision features
+- Tencent Hy-MT2 Hugging Face cache files if using Hy-MT2
 - Argos Translate package if using Argos
 
 ---
@@ -319,6 +321,33 @@ CAT runs locally through Ollama for GGUF files. Runtime does not download models
 ```powershell
 python -m manga_local_translator.install_cat
 ```
+
+---
+
+### Tencent Hy-MT2 translator
+
+Install the default Tencent Hy-MT2 model:
+
+```powershell
+python -m manga_local_translator.install_hy_mt2
+```
+
+Use it with:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator hy-mt2
+```
+
+The default model is `tencent/Hy-MT2-1.8B`. You can point at another cached Hy-MT2 model id or local model folder:
+
+```powershell
+python -m manga_local_translator input output `
+  --translator hy-mt2 `
+  --hy-mt2-model "tencent/Hy-MT2-7B"
+```
+
+Hy-MT2 runs through Hugging Face Transformers using local cache files at runtime. It does not download during translation; run the install command first.
 
 ---
 
@@ -574,9 +603,10 @@ python -m manga_local_translator.quality_eval ".\raw_pages" `
 
 | Option | Values | Default |
 |---|---|---|
-| `--translator` | `opus`, `cat`, `qwen`, `madlad`, `argos`, `none` | `opus` |
+| `--translator` | `opus`, `cat`, `hy-mt2`, `qwen`, `madlad`, `argos`, `none` | `opus` |
 | `--glossary` | JSON glossary path | unset |
 | `--cat-model` | CAT GGUF path or Hugging Face model id | unset |
+| `--hy-mt2-model` | Hy-MT2 Hugging Face model id or local model folder | unset |
 
 ### Qwen
 
@@ -838,6 +868,7 @@ AITRanslator/
     quality_eval.py
     install_ctd.py
     install_opus.py
+    install_hy_mt2.py
     install_madlad.py
     install_argos.py
 
@@ -941,6 +972,16 @@ Install OPUS:
 
 ```powershell
 python -m manga_local_translator.install_opus
+```
+
+---
+
+### Hy-MT2 model is missing
+
+Install Hy-MT2:
+
+```powershell
+python -m manga_local_translator.install_hy_mt2
 ```
 
 ---
