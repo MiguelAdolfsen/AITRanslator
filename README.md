@@ -74,7 +74,6 @@ Supported image extensions include:
 - HTML/CSV/Markdown review reports from debug JSON.
 - Repeatable quality-evaluation runner.
 - Render-only benchmark reruns from cache.
-- Isolated autoresearch benchmark harnesses for render/layout and translation routing.
 
 ---
 
@@ -807,47 +806,6 @@ By default, `quality_eval` skips final image rendering so translation/model expe
 
 ---
 
-## Autoresearch harnesses
-
-The repo includes isolated benchmark loops for improving one subsystem at a time. Read the relevant `PROGRAM.md` before changing benchmark-owned code, fixtures, scoring, or result history.
-
-| Folder | Benchmarks | Does not run |
-|---|---|---|
-| `render_autoresearch/` | render layout and text fitting from frozen render fixtures | OCR, detection, translation, Qwen/CAT, vision, GUI |
-| `translation_routing_autoresearch/` | routing/validation choices over frozen OCR text and candidate outputs | OCR, detection, rendering, live model inference |
-
-Common render check:
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s .testing\tests -p test_render.py
-```
-
-Run the synthetic render benchmark:
-
-```powershell
-.\.venv\Scripts\python.exe render_autoresearch\scripts\render_eval.py `
-  --benchmark render_autoresearch\benchmarks\synthetic `
-  --output render_autoresearch\runs\baseline `
-  --results render_autoresearch\results\results.tsv `
-  --run-id baseline `
-  --overwrite-output
-```
-
-Run the synthetic translation-routing benchmark:
-
-```powershell
-.\.venv\Scripts\python.exe translation_routing_autoresearch\scripts\eval_translation_routing.py `
-  --benchmark translation_routing_autoresearch\benchmarks\synthetic `
-  --output translation_routing_autoresearch\runs\baseline `
-  --results translation_routing_autoresearch\results\results.tsv `
-  --run-id baseline `
-  --tests-ok
-```
-
-Harnesses write per-run outputs under their own `runs/` folders and append scores to their own `results/results.tsv` files. See [docs/agent-wiki/autoresearch.md](docs/agent-wiki/autoresearch.md) for the harness map and guardrails.
-
----
-
 ## Tests
 
 The repository includes a PowerShell test runner under `.testing`.
@@ -932,22 +890,6 @@ AITRanslator/
     README.md
     run_tests.ps1
     tests/
-
-  render_autoresearch/
-    README.md
-    PROGRAM.md
-    benchmarks/
-    results/
-    runs/
-    scripts/
-
-  translation_routing_autoresearch/
-    README.md
-    PROGRAM.md
-    benchmarks/
-    results/
-    runs/
-    scripts/
 
   quality-runs/
     previous quality/evaluation run outputs
