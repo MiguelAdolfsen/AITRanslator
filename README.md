@@ -4,9 +4,9 @@ A local-first Japanese manga image translator.
 
 The project takes manga page images, detects Japanese text regions, OCRs the text, translates it to English, removes or covers the original text, and renders the translated text back into the image.
 
-It is designed for local experimentation and personal translation workflows. It includes both a GUI and a CLI, plus optional Qwen-based translation, verification, and vision-assisted repair.
+It is designed for local experimentation and personal translation workflows. It includes both a GUI and a CLI, plus optional Qwen-based translation, verification, visual-facts enrichment, and vision-assisted repair.
 
-Agents should start with [`AGENTS.md`](AGENTS.md) and the deeper [`docs/agent-wiki/README.md`](docs/agent-wiki/README.md) project wiki.
+Agents should start with [`CODEX.md`](CODEX.md), then use the deeper [`docs/agent-wiki/README.md`](docs/agent-wiki/README.md) project wiki. Skill, issue-tracker, label, and domain conventions live under [`docs/agents/`](docs/agents/).
 
 ---
 
@@ -20,10 +20,11 @@ For each input image, the translator can:
 4. Filter bad OCR fragments and non-Japanese noise.
 5. Group text regions into render blocks.
 6. Translate text with the selected translator.
-7. Optionally use Qwen page context, verification, repair, or vision.
-8. Erase or cover the original text.
-9. Typeset the English translation back into the page.
-10. Write the translated image and optional debug reports.
+7. Optionally review and repair translations with CAT retry, Qwen critic checks, Qwen fallback, or cached translation stages.
+8. Optionally use Qwen visual facts and numbered page artifacts for page-aware repair.
+9. Erase or cover the original text.
+10. Typeset the English translation back into the page.
+11. Write the translated image, cache artifacts, and optional debug reports.
 
 Supported image extensions include:
 
@@ -708,7 +709,7 @@ Common debug files include:
 | `*.debug.png` | Page image with detected boxes/layout diagnostics |
 | `*.ocr.json` | OCR blocks, skipped blocks, translations, render warnings, and metadata |
 | `*.vision.png` | Numbered or page-image artifact sent to the vision model |
-| `.manga-work/` | Cached prepared pages and translation artifacts |
+| `.manga-work/` | Cached prepared pages and translation stages for resume and render-only runs |
 
 Debug reports are useful for checking:
 
@@ -721,6 +722,19 @@ Debug reports are useful for checking:
 - render fitting warnings
 - Qwen page summaries
 - vision repair/facts summaries
+
+---
+
+## Architecture notes
+
+The pipeline is split into small passes so resume, review, vision repair, and render-only benchmark runs can reuse the same page state:
+
+- `pipeline.py` orchestrates input discovery, page loading, pass sequencing, and final reporting.
+- `cache_policy.py` defines prepared-page and translation-stage cache plans, including resume and render-only lookup order.
+- `page_cache.py` serializes prepared pages and translated cache stages in `.manga-work/`.
+- `translation_review_pass.py` coordinates primary translation, cache hits, critic review, CAT retry, and fallback behavior.
+- `translated_state.py` keeps translated line state centralized while review and vision passes update blocks.
+- `rendered_page_pass.py` handles erase, layout fitting, optional vision repair, debug metadata, and output image writing.
 
 ---
 
@@ -854,14 +868,20 @@ AITRanslator/
     gui.py
     pipeline.py
     config.py
+    cache_policy.py
+    page_cache.py
     detect_ocr.py
     ctd_detector.py
     hf_translators.py
     qwen_translator.py
     qwen_vision.py
     qwen_validation.py
+    translation_review.py
+    translation_review_pass.py
+    translated_state.py
     vision_service.py
     vision_artifact.py
+    rendered_page_pass.py
     render.py
     erase.py
     grouping.py
@@ -871,6 +891,11 @@ AITRanslator/
     install_hy_mt2.py
     install_madlad.py
     install_argos.py
+    install_cat.py
+
+  docs/
+    agent-wiki/
+    agents/
 
   .testing/
     README.md
