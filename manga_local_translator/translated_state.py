@@ -4,7 +4,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from .detect_types import TextBlock
-from .line_identity import lookup_context, set_context, set_translation, translation_key_for_block
+from .line_identity import (
+    lookup_context,
+    lookup_translation,
+    migrate_state_to_line_ids,
+    set_context,
+    set_translation,
+    translation_key_for_block,
+    translations_by_source_for_compat,
+)
 from .page_types import PreparedPage
 from .text_filter import block_to_debug_dict, fallback_translation
 
@@ -22,6 +30,32 @@ class TranslationReviewState:
             translation_contexts=page.translation_contexts,
             fallback_blocks=page.translation_fallback_blocks,
         )
+
+    def translation_for(self, block: TextBlock, default: str = "") -> str:
+        return lookup_translation(self.translations, block, default)
+
+    def context_for(self, block: TextBlock) -> dict[str, object]:
+        return lookup_context(self.translation_contexts, block)
+
+    def state_key_for(self, block: TextBlock) -> str:
+        return translation_key_for_block(block)
+
+    def source_compat_translations(self, blocks: list[TextBlock]) -> dict[str, str]:
+        return translations_by_source_for_compat(blocks, self.translations)
+
+    def translations_by_id(self) -> dict[str, str]:
+        return self.translations
+
+    def contexts_by_id(self) -> dict[str, dict[str, object]]:
+        return self.translation_contexts
+
+    @staticmethod
+    def migrate_to_line_ids(
+        blocks: list[TextBlock],
+        translations: dict[str, str],
+        translation_contexts: dict[str, dict[str, object]],
+    ) -> tuple[dict[str, str], dict[str, dict[str, object]]]:
+        return migrate_state_to_line_ids(blocks, translations, translation_contexts)
 
     def update_line(
         self,

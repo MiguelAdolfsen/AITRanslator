@@ -7,10 +7,10 @@ from typing import Protocol
 from .config import PipelineConfig
 from .debug_report import render_layout_warnings
 from .detect_types import TextBlock
-from .line_identity import lookup_context, lookup_translation, translation_key_for_block
+from .line_identity import translation_key_for_block
 from .qwen_vision import QwenVisionClient
 from .text_filter import count_japanese_chars, normalize_for_filter, suspected_bad_translation
-from .translated_state import text_block_for_translation_state, update_translated_line_state
+from .translated_state import TranslationReviewState, text_block_for_translation_state
 from .vision_artifact import create_vision_artifact
 from .vision_prompt import (
     build_vision_facts_json_repair_prompt,
@@ -57,6 +57,7 @@ def apply_vision_repair(
 ) -> VisionArtifact | None:
     if not config.vision_enabled:
         return None
+    state = TranslationReviewState(translations, translation_contexts)
     artifact = create_vision_artifact(
         image_bgr,
         blocks,
@@ -155,9 +156,7 @@ def apply_vision_repair(
             "vision_raw_json_repair_prompt": json_repair_prompt,
             "vision_raw_json_repair_response": raw_json_repair_response,
         }
-        update_translated_line_state(
-            translations,
-            translation_contexts,
+        state.update_line(
             state_block,
             translated_text=result.translation if reject_reason is None and result is not None else None,
             context_updates=context_updates,
@@ -181,6 +180,7 @@ def apply_vision_facts(
 ) -> VisionArtifact | None:
     if not config.vision_facts_enabled or not blocks:
         return None
+    state = TranslationReviewState({}, translation_contexts)
     artifact = create_vision_artifact(
         image_bgr,
         blocks,
@@ -281,9 +281,7 @@ def apply_vision_facts(
                         "vision_facts_raw_json_repair_response": raw_json_repair_response,
                     }
                 )
-            update_translated_line_state(
-                None,
-                translation_contexts,
+            state.update_line(
                 state_block,
                 context_updates=context_updates,
             )
@@ -339,6 +337,7 @@ def build_vision_requests(
     image_height: int,
     trigger: str,
 ) -> list[VisionRepairRequest]:
+    state = TranslationReviewState(translations, translation_contexts)
     entry_by_key = {entry.state_key or entry.source_text: entry for entry in artifact.number_map}
     entry_by_text = {entry.source_text: entry for entry in artifact.number_map}
     requests: list[VisionRepairRequest] = []
@@ -347,12 +346,14 @@ def build_vision_requests(
         entry = entry_by_key.get(state_key) or entry_by_text.get(block.text)
         if entry is None:
             continue
-        if lookup_context(translation_contexts, block).get("vision_attempted") is True:
+        context = state.context_for(block)
+        translated = state.translation_for(block, "")
+        if context.get("vision_attempted") is True:
             continue
         issue = vision_issue_for_block(
             block,
-            lookup_translation(translations, block, ""),
-            lookup_context(translation_contexts, block),
+            translated,
+            context,
             layout,
             fit,
             image_width=image_width,
@@ -366,7 +367,7 @@ def build_vision_requests(
                 line_id=entry.line_id,
                 number=entry.number,
                 source_text=block.text,
-                current_translation=lookup_translation(translations, block, ""),
+                current_translation=translated,
                 issue=issue,
                 box=entry.box,
             )

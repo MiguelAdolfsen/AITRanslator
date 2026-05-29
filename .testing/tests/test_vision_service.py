@@ -12,6 +12,7 @@ from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.render import TextFit, RenderLayout
 from manga_local_translator.vision_artifact import create_vision_artifact
 from manga_local_translator import vision_service
+from manga_local_translator.translated_state import TranslationReviewState
 from manga_local_translator.vision_service import apply_vision_facts, apply_vision_repair, build_vision_requests, get_qwen_vision_client
 
 try:
@@ -203,6 +204,52 @@ class VisionServiceTests(unittest.TestCase):
         self.assertTrue(contexts["line-001"]["vision_accepted"])
         self.assertEqual(contexts["line-001"]["translator"], "qwen")
         self.assertEqual(contexts[block.text]["translator"], "legacy")
+
+    def test_vision_repair_isolates_duplicate_source_lines_by_line_id(self) -> None:
+        first = TextBlock("source", (10, 10, 40, 50), 0.9, "ctd", {"line_id": "line-001"})
+        second = TextBlock("source", (60, 10, 90, 50), 0.9, "ctd", {"line_id": "line-002"})
+        page_order = [
+            {"page_order": 1, "box": first.box, "source_text": first.text, "line_id": "line-001"},
+            {"page_order": 2, "box": second.box, "source_text": second.text, "line_id": "line-002"},
+        ]
+        second_layout = RenderLayout(source_box=second.box, render_box=(60, 10, 110, 60), bubble_box=(55, 5, 115, 70))
+        response = (
+            '{"lines":[{"line_id":"line-002","number":2,"action":"replace","translation":"Mom",'
+            '"speaker":"woman in panel","situation":"speaking softly",'
+            '"visual_evidence":"speaker appears to be the mother","confidence":"high","warnings":[]}]}'
+        )
+        translations = {
+            "line-001": "Already fine.",
+            "line-002": "...",
+            first.text: "legacy shared value",
+        }
+        contexts = {
+            "line-001": {"qwen_used": True},
+            "line-002": {},
+            first.text: {"translator": "legacy"},
+        }
+
+        with tempfile.TemporaryDirectory() as temp:
+            apply_vision_repair(
+                image_bgr=self.image,
+                blocks=[first, second],
+                translations=translations,
+                translation_contexts=contexts,
+                page_order_report=page_order,
+                render_layouts=[self.layout, second_layout],
+                render_fits=[self.fit, self.fit],
+                output_path=Path(temp) / "out.png",
+                config=PipelineConfig(vision_enabled=True, vision_trigger="suspicious"),
+                client=FakeVisionClient(response),
+            )
+
+        state = TranslationReviewState(translations, contexts)
+        self.assertEqual(state.translation_for(first), "Already fine.")
+        self.assertEqual(state.translation_for(second), "Mom")
+        self.assertNotIn("vision_accepted", state.context_for(first))
+        self.assertTrue(state.context_for(second)["vision_accepted"])
+        self.assertEqual(translations[first.text], "legacy shared value")
+        self.assertEqual(contexts[first.text], {"translator": "legacy"})
 
     def test_valid_vision_facts_update_context_without_translation(self) -> None:
         response = json.dumps(

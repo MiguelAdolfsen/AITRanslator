@@ -55,7 +55,7 @@ class TranslationReviewPassTests(unittest.TestCase):
             saved: list[Path] = []
             released: list[object] = []
             translated: list[str] = []
-            loaded: list[str] = []
+            loaded: list[Path] = []
             translators = {
                 "primary": object(),
                 "critic-model": object(),
@@ -81,12 +81,19 @@ class TranslationReviewPassTests(unittest.TestCase):
                     translator_factory=build_translator,
                     primary_page_translator=lambda page, translator, _config: translated.append(page.image_path.name),
                     cache_writer=lambda _page, path: saved.append(path),
-                    cache_loader=lambda page, _path: loaded.append(page.image_path.name),
+                    cache_loader=lambda _page, path: loaded.append(path),
                     release_translator=lambda translator: released.append(translator),
                 ).run(pages)
 
             self.assertEqual(translated, ["page4.png"])
-            self.assertEqual(loaded, ["page1.png", "page2.png", "page3.png"])
+            self.assertEqual(
+                loaded,
+                [
+                    cache_plan.translation_cache_path(work_dir, 1, pages[0].image_path, "hybrid"),
+                    cache_plan.translation_cache_path(work_dir, 2, pages[1].image_path, "critic"),
+                    cache_plan.translation_cache_path(work_dir, 3, pages[2].image_path, "primary"),
+                ],
+            )
             self.assertEqual(summary.critic_attempted, 2)
             self.assertEqual(summary.critic_flagged, 1)
             self.assertEqual(summary.fallback_attempted, 3)

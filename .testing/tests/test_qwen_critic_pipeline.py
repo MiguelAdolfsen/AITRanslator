@@ -14,6 +14,7 @@ from manga_local_translator.translation_review import (
 from manga_local_translator.config import PipelineConfig
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.qwen_types import QwenCriticDecision
+from manga_local_translator.translated_state import TranslationReviewState
 from manga_local_translator.translation_evidence import build_consistency_memory
 
 
@@ -190,6 +191,35 @@ class QwenCriticPipelineTests(unittest.TestCase):
         self.assertIn("source_features", contexts[block.text])
         self.assertIn("translation_evidence", contexts[block.text])
         self.assertIn("consistency_conflict", contexts[block.text]["evidence_repair_reasons"])
+
+    def test_translation_evidence_isolates_duplicate_source_lines_by_line_id(self) -> None:
+        first = TextBlock("\u30de\u30ad\u3055\u3093", (0, 0, 10, 10), 90, metadata={"line_id": "line-001"})
+        second = TextBlock("\u30de\u30ad\u3055\u3093", (20, 0, 30, 10), 90, metadata={"line_id": "line-002"})
+        translations = {
+            "line-001": "Maki-san.",
+            "line-002": "Macha-san.",
+            first.text: "legacy shared value",
+        }
+        contexts = {
+            "line-001": {"qwen_used": True},
+            "line-002": {"qwen_used": True},
+            first.text: {"legacy": True},
+        }
+        memory = build_consistency_memory(
+            [
+                ("\u30de\u30ad\u3055\u3093", "Maki-san."),
+                ("\u30de\u30ad\u3055\u3093", "Maki-san."),
+            ]
+        )
+
+        apply_translation_evidence([first, second], translations, contexts, memory)
+
+        state = TranslationReviewState(translations, contexts)
+        first_context = state.context_for(first)
+        second_context = state.context_for(second)
+        self.assertEqual(first_context["evidence_repair_reasons"], [])
+        self.assertEqual(second_context["evidence_repair_reasons"], ["consistency_conflict"])
+        self.assertEqual(contexts[first.text], {"legacy": True})
 
     def test_fallback_uses_guided_repair_when_critic_flagged(self) -> None:
         class FakeFallback:

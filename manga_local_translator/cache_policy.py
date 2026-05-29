@@ -78,6 +78,49 @@ class TranslationCachePlan:
         resume: bool,
         load_translation_cache: TranslationCacheLoader | None = None,
     ) -> HybridResumeCacheJobs:
+        return TranslationCacheWorkspace(work_dir=work_dir, plan=self).select_hybrid_resume_cache_jobs(
+            pages,
+            resume=resume,
+            load_translation_cache=load_translation_cache,
+        )
+
+
+@dataclass(frozen=True)
+class TranslationCacheWorkspace:
+    work_dir: Path
+    plan: TranslationCachePlan
+
+    def prepared_page_path(self, page_index: int, image_path: Path) -> Path:
+        return self.plan.prepared_cache_path(self.work_dir, page_index, image_path)
+
+    def translation_path(self, page_index: int, image_path: Path, stage: str) -> Path:
+        return self.plan.translation_cache_path(self.work_dir, page_index, image_path, stage)
+
+    def render_only_translation_paths(self, page_index: int, image_path: Path) -> list[Path]:
+        return self.plan.render_only_cache_paths(self.work_dir, page_index, image_path)
+
+    def find_render_only_translation_cache(self, page_index: int, image_path: Path) -> Path | None:
+        for cache_path in self.render_only_translation_paths(page_index, image_path):
+            if cache_path.exists():
+                return cache_path
+        return None
+
+    def render_only_translation_stage_names(self) -> tuple[str, ...]:
+        return self.plan.render_only_lookup_order
+
+    def resume_translation_paths(self, page_index: int, image_path: Path) -> list[Path]:
+        return self.plan.resume_cache_paths(self.work_dir, page_index, image_path)
+
+    def final_translation_path(self, page_index: int, image_path: Path) -> Path:
+        return self.translation_path(page_index, image_path, self.plan.final_stage)
+
+    def select_hybrid_resume_cache_jobs(
+        self,
+        pages: Sequence[object],
+        *,
+        resume: bool,
+        load_translation_cache: TranslationCacheLoader | None = None,
+    ) -> HybridResumeCacheJobs:
         if load_translation_cache is None:
             from .page_cache import load_translation_cache as cache_loader
         else:
@@ -88,12 +131,12 @@ class TranslationCachePlan:
         critic_cached_pages: set[int] = set()
         for page_index, page in enumerate(pages, start=1):
             image_path = Path(getattr(page, "image_path"))
-            hybrid_cache = self.translation_cache_path(work_dir, page_index, image_path, "hybrid")
-            critic_cache = self.translation_cache_path(work_dir, page_index, image_path, "critic")
-            primary_cache = self.translation_cache_path(work_dir, page_index, image_path, "primary")
+            hybrid_cache = self.translation_path(page_index, image_path, "hybrid")
+            critic_cache = self.translation_path(page_index, image_path, "critic")
+            primary_cache = self.translation_path(page_index, image_path, "primary")
             loaded_cache = None
             if resume:
-                for cache_path in self.resume_cache_paths(work_dir, page_index, image_path):
+                for cache_path in self.resume_translation_paths(page_index, image_path):
                     if cache_path.exists():
                         cache_loader(page, cache_path)
                         loaded_cache = cache_path

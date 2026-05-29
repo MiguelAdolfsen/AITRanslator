@@ -143,6 +143,83 @@ class RenderedPagePassTests(unittest.TestCase):
         self.assertEqual(fit_calls, ["fit", "fit", "fit", "fit"])
         self.assertEqual(compact_calls, ["compact", "compact"])
 
+    def test_debug_report_uses_final_fits_after_vision_repair_replans(self) -> None:
+        page = make_page()
+        page.translations["line-001"] = "Original wording"
+        layout = object()
+        stale_fit = object()
+        final_fit = object()
+
+        def plan_text_fits(_image, _blocks, translations, **_kwargs):
+            if translations["line-001"] == "Vision repaired wording":
+                return [final_fit]
+            return [stale_fit]
+
+        def apply_vision_repair(**kwargs):
+            kwargs["translation_contexts"]["line-001"]["vision_accepted"] = True
+            kwargs["translations"]["line-001"] = "Vision repaired wording"
+            return object()
+
+        with (
+            patch("manga_local_translator.rendered_page_pass.plan_render_layouts", return_value=[layout]),
+            patch("manga_local_translator.rendered_page_pass.plan_text_fits", side_effect=plan_text_fits),
+            patch("manga_local_translator.rendered_page_pass.compact_translations_for_render", return_value=0),
+            patch("manga_local_translator.rendered_page_pass.apply_vision_repair", side_effect=apply_vision_repair),
+            patch("manga_local_translator.rendered_page_pass.erase_text", return_value="cleaned"),
+            patch("manga_local_translator.rendered_page_pass.render_translations", return_value="rendered"),
+            patch("manga_local_translator.rendered_page_pass.write_image_with_fallback", return_value=page.output_path),
+            patch("manga_local_translator.rendered_page_pass.write_debug_report") as write_debug_report,
+            patch("manga_local_translator.rendered_page_pass.write_debug_image"),
+        ):
+            render_prepared_page(page, PipelineConfig(debug=True))
+
+        debug_render_fits = write_debug_report.call_args.args[10]
+        self.assertEqual(debug_render_fits, [final_fit])
+        self.assertNotEqual(debug_render_fits, [stale_fit])
+
+    def test_debug_report_render_and_overlay_use_same_final_lifecycle_state(self) -> None:
+        page = make_page()
+        page.translations["line-001"] = "First wording"
+        final_layouts = [object()]
+        stale_fit = object()
+        final_fit = object()
+        actual_output_path = Path("actual-output.png")
+
+        def plan_text_fits(_image, _blocks, translations, **_kwargs):
+            if translations["line-001"] == "Final wording":
+                return [final_fit]
+            return [stale_fit]
+
+        def compact_translations_for_render(_image, _blocks, translations, **_kwargs):
+            if translations["line-001"] == "First wording":
+                translations["line-001"] = "Final wording"
+                return 1
+            return 0
+
+        with (
+            patch("manga_local_translator.rendered_page_pass.plan_render_layouts", return_value=final_layouts),
+            patch("manga_local_translator.rendered_page_pass.plan_text_fits", side_effect=plan_text_fits),
+            patch("manga_local_translator.rendered_page_pass.compact_translations_for_render", side_effect=compact_translations_for_render),
+            patch("manga_local_translator.rendered_page_pass.apply_vision_repair", return_value=None),
+            patch("manga_local_translator.rendered_page_pass.blocks_for_erasing", return_value=page.render_blocks),
+            patch("manga_local_translator.rendered_page_pass.erase_text", return_value="cleaned"),
+            patch("manga_local_translator.rendered_page_pass.render_translations", return_value="rendered") as render_translations,
+            patch("manga_local_translator.rendered_page_pass.write_image_with_fallback", return_value=actual_output_path),
+            patch("manga_local_translator.rendered_page_pass.write_debug_report") as write_debug_report,
+            patch("manga_local_translator.rendered_page_pass.write_debug_image") as write_debug_image,
+        ):
+            returned_output_path = render_prepared_page(page, PipelineConfig(debug=True))
+
+        self.assertEqual(returned_output_path, actual_output_path)
+        self.assertIs(write_debug_report.call_args.args[9], final_layouts)
+        self.assertEqual(write_debug_report.call_args.args[10], [final_fit])
+        self.assertEqual(write_debug_report.call_args.args[5]["line-001"], "Final wording")
+        self.assertIs(render_translations.call_args.kwargs["render_layouts"], final_layouts)
+        self.assertIs(render_translations.call_args.args[2], page.translations)
+        self.assertEqual(render_translations.call_args.args[2]["line-001"], "Final wording")
+        self.assertIs(write_debug_image.call_args.args[4], final_layouts)
+        self.assertEqual(write_debug_image.call_args.args[5], actual_output_path)
+
     def test_skip_render_writes_translation_only_debug_report_when_debug_enabled(self) -> None:
         page = make_page()
 

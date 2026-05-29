@@ -7,7 +7,8 @@ import numpy as np
 
 from .detect_types import TextBlock
 from .grouping import page_order_for_block
-from .line_identity import block_id_for_block, line_id_for_block, lookup_translation, source_hash, translation_key_for_block
+from .line_identity import block_id_for_block, line_id_for_block, source_hash
+from .translated_state import TranslationReviewState
 from .vision_types import VisionArtifact, VisionNumberMapEntry
 
 try:
@@ -60,6 +61,7 @@ def build_number_map(
     output_path: Path,
 ) -> list[VisionNumberMapEntry]:
     entries: list[VisionNumberMapEntry] = []
+    state = TranslationReviewState(translations, {})
     for fallback_index, block in enumerate(blocks, start=1):
         order_index = page_order_for_block(block, page_order_report) or fallback_index
         entries.append(
@@ -68,9 +70,9 @@ def build_number_map(
                 line_id=line_id_for_block(block) or f"{output_path.stem}_{order_index:03d}",
                 order_index=order_index,
                 source_text=block.text,
-                translated_text=lookup_translation(translations, block, ""),
+                translated_text=state.translation_for(block, ""),
                 box=tuple(int(value) for value in block.box),
-                state_key=translation_key_for_block(block),
+                state_key=state.state_key_for(block),
                 block_id=block_id_for_block(block),
                 source_hash=source_hash(block.text),
             )

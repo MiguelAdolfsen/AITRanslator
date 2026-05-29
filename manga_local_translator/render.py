@@ -16,8 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - exercised in minimal CAT-only 
     cv2 = None
 
 from .detect_ocr import TextBlock
-from .line_identity import lookup_translation
 from .logging_utils import shorten
+from .translated_state import TranslationReviewState
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +250,7 @@ def plan_text_fits(
     render_layouts: list[RenderLayout] | None = None,
 ) -> list[TextFit]:
     _require_cv2()
+    state = TranslationReviewState(translations, {})
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(image_rgb)
     draw = ImageDraw.Draw(pil_image)
@@ -258,7 +259,7 @@ def plan_text_fits(
     fits = [
         measure_fitted_text(
             draw,
-            lookup_translation(translations, block, block.text).strip(),
+            state.translation_for(block, block.text).strip(),
             layout.render_box,
             font_path=font_path,
             base_font_size=base_font_size,
@@ -281,6 +282,7 @@ def render_translations(
     render_layouts: list[RenderLayout] | None = None,
 ) -> np.ndarray:
     _require_cv2()
+    state = TranslationReviewState(translations, {})
     logger.info("Rendering %d translated text block(s)", len(blocks))
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(image_rgb)
@@ -290,7 +292,7 @@ def render_translations(
         render_layouts = plan_render_layouts(image_bgr, blocks, render_expand=render_expand)
 
     for block, layout in zip(blocks, render_layouts):
-        translated = lookup_translation(translations, block, block.text).strip()
+        translated = state.translation_for(block, block.text).strip()
         if not translated:
             logger.debug("Skipping empty translation for source=%s", shorten(block.text))
             continue

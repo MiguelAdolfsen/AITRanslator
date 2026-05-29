@@ -11,11 +11,11 @@ from .debug_report import write_debug_image, write_debug_report
 from .detect_types import TextBlock
 from .erase import erase_text
 from .image_io import write_image_with_fallback
-from .line_identity import lookup_context, lookup_translation, set_context, set_translation
 from .logging_utils import shorten
 from .page_types import PreparedPage
 from .render import plan_render_layouts, plan_text_fits, render_translations
 from .text_filter import is_box_like
+from .translated_state import TranslationReviewState
 from .vision_service import apply_vision_repair
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,17 @@ class RenderedPageLifecycle:
     def __init__(self, page: PreparedPage, config: PipelineConfig) -> None:
         self.page = page
         self.config = config
+
+    def render(self) -> Path:
+        plan = self.plan()
+        if self.config.debug:
+            self._write_debug_report(plan)
+        rendered = self._render_image(plan)
+        actual_output_path = write_image_with_fallback(rendered, self.page.output_path)
+        logger.info("Translated image written: %s", actual_output_path)
+        if self.config.debug:
+            self._write_debug_image(plan, actual_output_path)
+        return actual_output_path
 
     def plan(self) -> RenderedPagePlan:
         render_layouts = plan_render_layouts(
@@ -104,6 +115,57 @@ class RenderedPageLifecycle:
             return True
         return bool(accepted_after) and self.page.translations != translations_before
 
+    def _write_debug_report(self, plan: RenderedPagePlan) -> None:
+        write_debug_report(
+            self.page.image_path,
+            self.page.output_path,
+            self.config,
+            self.page.raw_blocks,
+            self.page.render_blocks,
+            self.page.translations,
+            self.page.skipped_blocks,
+            self.page.translation_fallback_blocks,
+            self.page.grouping_report,
+            plan.render_layouts,
+            plan.render_fits,
+            self.page.width,
+            self.page.height,
+            self.config.padding,
+            self.page.page_order_report,
+            self.page.translation_contexts,
+            vision_artifact=self.page.vision_artifact,
+            vision_facts_artifact=self.page.vision_facts_artifact,
+        )
+
+    def _render_image(self, plan: RenderedPagePlan):
+        erase_blocks = blocks_for_erasing(self.page.render_blocks)
+        cleaned = erase_text(
+            self.page.image_bgr,
+            erase_blocks,
+            mode=self.config.erase_mode,
+            padding=self.config.padding,
+        )
+        return render_translations(
+            cleaned,
+            self.page.render_blocks,
+            self.page.translations,
+            font_path=self.config.font_path,
+            base_font_size=self.config.base_font_size,
+            render_expand=self.config.render_expand,
+            render_layouts=plan.render_layouts,
+        )
+
+    def _write_debug_image(self, plan: RenderedPagePlan, actual_output_path: Path) -> None:
+        logger.info("Writing debug OCR box image")
+        write_debug_image(
+            self.page.image_bgr,
+            self.page.render_blocks,
+            self.page.skipped_blocks,
+            self.page.translation_fallback_blocks,
+            plan.render_layouts,
+            actual_output_path,
+        )
+
 
 def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
     if config.skip_render:
@@ -111,59 +173,7 @@ def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
         logger.info("Skipped translated image rendering for benchmark: %s", page.output_path)
         return page.output_path
 
-    plan = RenderedPageLifecycle(page, config).plan()
-    render_layouts = plan.render_layouts
-    render_fits = plan.render_fits
-    if config.debug:
-        write_debug_report(
-            page.image_path,
-            page.output_path,
-            config,
-            page.raw_blocks,
-            page.render_blocks,
-            page.translations,
-            page.skipped_blocks,
-            page.translation_fallback_blocks,
-            page.grouping_report,
-            render_layouts,
-            render_fits,
-            page.width,
-            page.height,
-            config.padding,
-            page.page_order_report,
-            page.translation_contexts,
-            vision_artifact=page.vision_artifact,
-            vision_facts_artifact=page.vision_facts_artifact,
-        )
-    erase_blocks = blocks_for_erasing(page.render_blocks)
-    cleaned = erase_text(
-        page.image_bgr,
-        erase_blocks,
-        mode=config.erase_mode,
-        padding=config.padding,
-    )
-    rendered = render_translations(
-        cleaned,
-        page.render_blocks,
-        page.translations,
-        font_path=config.font_path,
-        base_font_size=config.base_font_size,
-        render_expand=config.render_expand,
-        render_layouts=render_layouts,
-    )
-    actual_output_path = write_image_with_fallback(rendered, page.output_path)
-    logger.info("Translated image written: %s", actual_output_path)
-    if config.debug:
-        logger.info("Writing debug OCR box image")
-        write_debug_image(
-            page.image_bgr,
-            page.render_blocks,
-            page.skipped_blocks,
-            page.translation_fallback_blocks,
-            render_layouts,
-            actual_output_path,
-        )
-    return actual_output_path
+    return RenderedPageLifecycle(page, config).render()
 
 
 class TranslationOnlyLayout:
@@ -240,8 +250,9 @@ def compact_translations_for_render(
 ) -> int:
     _ = image_bgr, render_layouts, font_path, base_font_size, render_expand
     compacted = 0
+    state = TranslationReviewState(translations, translation_contexts or {})
     for block, fit in zip(blocks, render_fits):
-        text = lookup_translation(translations, block, "")
+        text = state.translation_for(block, "")
         if not text:
             continue
         if getattr(fit, "font_size", 99) > 7 and not getattr(fit, "clipped", False):
@@ -249,11 +260,8 @@ def compact_translations_for_render(
         shortened = compact_english_for_bubble(text)
         if shortened == text:
             continue
-        set_translation(translations, block, shortened)
-        if translation_contexts is not None:
-            context = lookup_context(translation_contexts, block)
-            context["compacted_for_render"] = True
-            set_context(translation_contexts, block, context)
+        context_updates = {"compacted_for_render": True} if translation_contexts is not None else None
+        state.update_line(block, translated_text=shortened, context_updates=context_updates)
         compacted += 1
         logger.info(
             "Compacted translation for small render box: box=%s font_size=%s before=%s after=%s",

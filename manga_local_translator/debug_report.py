@@ -7,8 +7,8 @@ from collections import Counter
 
 from .config import PipelineConfig
 from .grouping import page_order_for_block
-from .line_identity import lookup_context, lookup_translation
 from .text_filter import block_to_debug_dict, suspected_bad_translation
+from .translated_state import TranslationReviewState
 from .vision_artifact import vision_artifact_to_debug_dict
 
 logger = logging.getLogger(__name__)
@@ -207,6 +207,7 @@ def write_debug_report(
     vision_facts_artifact=None,
 ) -> None:
     report_path = output_path.with_name(f"{output_path.stem}.ocr.json")
+    state = TranslationReviewState(translations, translation_contexts)
     kept_blocks = [
         block_to_render_debug_dict(
             block,
@@ -215,9 +216,9 @@ def write_debug_report(
             image_width=image_width,
             image_height=image_height,
             erase_padding=erase_padding,
-            translated_text=lookup_translation(translations, block, ""),
+            translated_text=state.translation_for(block, ""),
             page_order=page_order_for_block(block, page_order_report),
-            translation_context=lookup_context(translation_contexts, block),
+            translation_context=state.context_for(block),
         )
         for block, layout, fit in zip(blocks, render_layouts, render_fits)
     ]
@@ -273,12 +274,13 @@ def build_page_debug_summary(
     fallback_blocks: list[dict[str, object]],
     translation_contexts: dict[str, dict[str, object]],
 ) -> dict[str, object]:
-    contexts = [lookup_context(translation_contexts, block) for block in blocks]
+    state = TranslationReviewState(translations, translation_contexts)
+    contexts = [state.context_for(block) for block in blocks]
     return {
         "kept_blocks": len(blocks),
         "skipped_blocks": len(skipped_blocks),
         "fallback_blocks": len(fallback_blocks),
-        "ellipsis_outputs": sum(1 for block in blocks if lookup_translation(translations, block, "").strip() == "..."),
+        "ellipsis_outputs": sum(1 for block in blocks if state.translation_for(block, "").strip() == "..."),
         "cat_used": sum(1 for context in contexts if context.get("cat_used") is True),
         "cat_bypassed": sum(1 for context in contexts if context.get("cat_bypassed") is True),
         "cat_bypass_reasons": dict(count_values(context.get("cat_bypass_reason") for context in contexts if context.get("cat_bypassed") is True)),
@@ -313,7 +315,7 @@ def build_page_debug_summary(
         "suspected_bad_translations": sum(
             1
             for block in blocks
-            if suspected_bad_translation(lookup_translation(translations, block, ""))
+            if suspected_bad_translation(state.translation_for(block, ""))
         ),
     }
 

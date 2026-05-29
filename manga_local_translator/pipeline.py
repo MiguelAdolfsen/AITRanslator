@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .cache_policy import translation_cache_plan
+from .cache_policy import TranslationCacheWorkspace, translation_cache_plan
 from .detect_types import TextBlock
 
 try:
@@ -20,8 +20,6 @@ from .grouping import context_for_block
 from .image_io import iter_images, resolve_output_path
 from .line_identity import (
     lookup_translation,
-    set_context,
-    set_translation,
     translation_key_for_block,
 )
 from .logging_utils import shorten
@@ -36,7 +34,7 @@ from .page_cache import (
 from .page_types import PreparedPage
 from .rendered_page_pass import render_prepared_page
 from .text_filter import unusable_translation_reason
-from .translated_state import apply_fallback_translation_state
+from .translated_state import TranslationReviewState, apply_fallback_translation_state
 from .translation_review import (
     visual_facts_for_context,
 )
@@ -133,7 +131,10 @@ def render_cached_pages_only(
     if not work_dir.exists():
         raise RuntimeError(f"Render-only cache folder does not exist: {work_dir}")
     render_config = replace(config, skip_render=False, vision_enabled=False)
-    cache_plan = translation_cache_plan(config)
+    cache_workspace = TranslationCacheWorkspace(
+        work_dir=work_dir,
+        plan=translation_cache_plan(config),
+    )
     processed = 0
     skipped = 0
     missing: list[str] = []
@@ -145,13 +146,13 @@ def render_cached_pages_only(
             skipped += 1
             logger.info("Skipping existing output because overwrite is off: %s", target_path)
             continue
-        prepared_cache = cache_plan.prepared_cache_path(work_dir, index, image_path)
+        prepared_cache = cache_workspace.prepared_page_path(index, image_path)
         if not prepared_cache.exists():
             missing.append(str(prepared_cache))
             continue
-        translation_cache = cache_plan.find_render_only_translation_cache(work_dir, index, image_path)
+        translation_cache = cache_workspace.find_render_only_translation_cache(index, image_path)
         if translation_cache is None:
-            expected = ", ".join(cache_plan.render_only_lookup_order)
+            expected = ", ".join(cache_workspace.render_only_translation_stage_names())
             missing.append(f"{cache_page_path(work_dir, index, image_path, '<translation-stage>')} expected one of: {expected}")
             continue
         logger.info("Loaded render-only translation cache: %s", translation_cache)
@@ -193,6 +194,7 @@ def process_folder_qwen_hybrid_batch(
     )
     work_dir = resolve_work_dir(output_path, config)
     cache_plan = translation_cache_plan(config)
+    cache_workspace = TranslationCacheWorkspace(work_dir=work_dir, plan=cache_plan)
     work_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Batched hybrid work directory: %s resume=%s", work_dir, config.resume)
     prepared_pages: list[PreparedPage] = []
@@ -207,7 +209,7 @@ def process_folder_qwen_hybrid_batch(
             logger.info("Skipping existing output because overwrite is off: %s", target_path)
             continue
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        prepared_cache = cache_plan.prepared_cache_path(work_dir, index, image_path)
+        prepared_cache = cache_workspace.prepared_page_path(index, image_path)
         if config.resume and prepared_cache.exists():
             page = load_prepared_page_cache(prepared_cache, output_path=target_path)
             logger.info("Loaded prepared page cache: %s", prepared_cache)
@@ -245,7 +247,7 @@ def process_folder_qwen_hybrid_batch(
         if config.vision_enabled:
             save_translation_cache(
                 page,
-                cache_page_path(work_dir, page_index, page.image_path, cache_plan.final_stage),
+                cache_workspace.final_translation_path(page_index, page.image_path),
             )
 
     logger.info(
@@ -315,6 +317,7 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
     page.translations.clear()
     page.translation_contexts.clear()
     page.translation_fallback_blocks.clear()
+    state = TranslationReviewState.for_page(page)
     page_translations_by_order: dict[int, str] | None = None
     if should_use_qwen_page_mode(translator, config):
         page_translations_by_order = translator.translate_page(
@@ -322,7 +325,7 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
             previous_page_context=previous_page_context(page.page_order_report),
         )
     for block in page.render_blocks:
-        state_key = translation_key_for_block(block)
+        state_key = state.state_key_for(block)
         context = {
             **context_for_block(block, page.page_order_report),
             **pre_translation_contexts.get(state_key, pre_translation_contexts.get(block.text, {})),
@@ -359,11 +362,14 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
             translated = translator.translate(block.text)
             if hasattr(translator, "debug_info_for"):
                 context.update(translator_debug_info_for(translator, block))
-        set_translation(page.translations, block, translated)
-        set_context(page.translation_contexts, block, {
-            **context,
-            **translation_debug_info(block.text, translated, glossary_path=config.glossary_path),
-        })
+        state.update_line(
+            block,
+            translated_text=translated,
+            context_updates={
+                **context,
+                **translation_debug_info(block.text, translated, glossary_path=config.glossary_path),
+            },
+        )
         reason = unusable_translation_reason(block.text, translated, translator_name=config.translator)
         if reason:
             logger.info(
@@ -373,8 +379,7 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
                 shorten(block.text),
                 shorten(translated),
             )
-            translated = apply_fallback_translation_state(
-                page,
+            translated = state.apply_fallback(
                 block,
                 reason=reason,
                 source_translation=translated,

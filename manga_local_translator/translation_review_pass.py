@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
 
-from .cache_policy import TranslationCachePlan
+from .cache_policy import TranslationCachePlan, TranslationCacheWorkspace
 from .config import PipelineConfig
 from .logging_utils import shorten
 from .page_cache import save_translation_cache
@@ -56,8 +56,11 @@ class TranslationReviewPass:
     cache_writer: TranslationCacheWriter = save_translation_cache
     cache_loader: TranslationCacheLoader | None = None
     release_translator: TranslatorReleaser | None = None
+    cache_workspace: TranslationCacheWorkspace | None = None
 
     def __post_init__(self) -> None:
+        if self.cache_workspace is None:
+            self.cache_workspace = TranslationCacheWorkspace(work_dir=self.work_dir, plan=self.cache_plan)
         if self.release_translator is None:
             self.release_translator = release_qwen_translator
         if self.cache_loader is None:
@@ -110,8 +113,7 @@ class TranslationReviewPass:
         self,
         pages: Sequence[PreparedPage],
     ):
-        resume_jobs = self.cache_plan.select_hybrid_resume_cache_jobs(
-            self.work_dir,
+        resume_jobs = self.cache_workspace.select_hybrid_resume_cache_jobs(
             pages,
             resume=self.config.resume,
             load_translation_cache=self.cache_loader,
@@ -180,7 +182,7 @@ class TranslationReviewPass:
                 (
                     page_index,
                     page,
-                    self.cache_plan.translation_cache_path(self.work_dir, page_index, page.image_path, "critic"),
+                    self.cache_workspace.translation_path(page_index, page.image_path, "critic"),
                 )
                 for page_index, page in enumerate(pages, start=1)
                 if page_index not in hybrid_cached_pages and page_index not in critic_cached_pages
@@ -236,7 +238,7 @@ class TranslationReviewPass:
                 (
                     page_index,
                     page,
-                    self.cache_plan.translation_cache_path(self.work_dir, page_index, page.image_path, "hybrid"),
+                    self.cache_workspace.translation_path(page_index, page.image_path, "hybrid"),
                 )
                 for page_index, page in enumerate(pages, start=1)
                 if page_index not in hybrid_cached_pages

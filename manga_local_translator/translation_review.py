@@ -7,8 +7,6 @@ from .config import PipelineConfig
 from .detect_types import TextBlock
 from .grouping import context_for_block
 from .line_identity import (
-    lookup_context,
-    lookup_translation,
     translation_for_page_order_item,
     translation_key_for_block,
 )
@@ -29,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def apply_translation_evidence_to_pages(pages: list[PreparedPage]) -> ConsistencyMemory:
     memory = build_consistency_memory(
-        (block.text, lookup_translation(page.translations, block, ""))
+        (block.text, TranslationReviewState.for_page(page).translation_for(block, ""))
         for page in pages
         for block in page.render_blocks
     )
@@ -62,8 +60,8 @@ def apply_translation_evidence(
 ) -> None:
     state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
-        translated = lookup_translation(translations, block, "")
-        context = lookup_context(translation_contexts, block)
+        translated = state.translation_for(block, "")
+        context = state.context_for(block)
         context.update(build_evidence_context(block.text, translated, memory))
         state.update_line(block, context_updates=context)
 
@@ -79,8 +77,8 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
     suspect_accepted = 0
     state = TranslationReviewState.for_page(page)
     for block in page.render_blocks:
-        context = lookup_context(page.translation_contexts, block)
-        previous_translation = lookup_translation(page.translations, block, "")
+        context = state.context_for(block)
+        previous_translation = state.translation_for(block, "")
         if context.get("cat_rejected") is not True and not should_retry_suspected_cat_translation(
             block.text,
             previous_translation,
@@ -187,8 +185,8 @@ def apply_qwen_fallback_translations(
     accepted = 0
     state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
-        primary_translation = lookup_translation(translations, block, "")
-        primary_context = lookup_context(translation_contexts, block)
+        primary_translation = state.translation_for(block, "")
+        primary_context = state.context_for(block)
         if not should_try_qwen_fallback(block.text, primary_translation, primary_context):
             continue
 
@@ -345,8 +343,8 @@ def apply_qwen_critic_reviews(
     flagged = 0
     state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
-        current_translation = lookup_translation(translations, block, "")
-        primary_context = lookup_context(translation_contexts, block)
+        current_translation = state.translation_for(block, "")
+        primary_context = state.context_for(block)
         if "source_features" not in primary_context or "translation_evidence" not in primary_context:
             primary_context.update(build_evidence_context(block.text, current_translation, evidence_memory))
             state.update_line(block, context_updates=primary_context)

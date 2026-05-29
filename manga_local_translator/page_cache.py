@@ -13,12 +13,9 @@ from .line_identity import (
     enrich_grouping_report,
     enrich_page_order_report,
     line_id_for_block,
-    lookup_translation,
-    migrate_state_to_line_ids,
-    translations_by_source_for_compat,
 )
 from .page_types import PreparedPage
-from .translated_state import apply_fallback_translation_state
+from .translated_state import TranslationReviewState, apply_fallback_translation_state
 
 logger = logging.getLogger(__name__)
 
@@ -105,15 +102,16 @@ def load_prepared_page_cache(cache_path: Path, *, output_path: Path | None = Non
 
 
 def save_translation_cache(page: PreparedPage, cache_path: Path) -> None:
+    state = TranslationReviewState.for_page(page)
     payload = {
         "version": 3,
         "cache_kind": "translation",
         "image_path": str(page.image_path),
         "output_path": str(page.output_path),
-        "translations_by_id": page.translations_by_id,
-        "translation_contexts_by_id": page.translation_contexts_by_id,
-        "translations": translations_by_source_for_compat(page.render_blocks, page.translations_by_id),
-        "translation_contexts": page.translation_contexts_by_id,
+        "translations_by_id": state.translations_by_id(),
+        "translation_contexts_by_id": state.contexts_by_id(),
+        "translations": state.source_compat_translations(page.render_blocks),
+        "translation_contexts": state.contexts_by_id(),
         "translation_fallback_blocks": page.translation_fallback_blocks,
     }
     cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -131,7 +129,7 @@ def load_translation_cache(page: PreparedPage, cache_path: Path) -> None:
         str(key): dict(value) if isinstance(value, dict) else {}
         for key, value in dict(payload.get("translation_contexts_by_id") or payload.get("translation_contexts", {})).items()
     }
-    page.translations, page.translation_contexts = migrate_state_to_line_ids(
+    page.translations, page.translation_contexts = TranslationReviewState.migrate_to_line_ids(
         page.render_blocks,
         raw_translations,
         raw_contexts,
@@ -154,7 +152,7 @@ def hydrate_cached_fallback_translation_state(page: PreparedPage) -> None:
             page,
             block,
             reason=reason,
-            source_translation=lookup_translation(page.translations, block, ""),
+            source_translation=TranslationReviewState.for_page(page).translation_for(block, ""),
             append_report=False,
         )
 

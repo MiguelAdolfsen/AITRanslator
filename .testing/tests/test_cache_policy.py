@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from manga_local_translator.cache_policy import (
+    TranslationCacheWorkspace,
     render_only_translation_stages,
     translation_cache_plan,
     translation_cache_stage,
@@ -116,6 +117,41 @@ class CachePolicyTests(unittest.TestCase):
             Path("work") / "0002-page_one.primary-line.json",
         )
 
+    def test_translation_cache_workspace_preserves_existing_cache_path_contract(self) -> None:
+        config = PipelineConfig(
+            translator="qwen",
+            qwen_mode="line",
+            qwen_critic_model_path=Path("critic-model"),
+            qwen_fallback_model_path=Path("fallback-model"),
+        )
+        plan = translation_cache_plan(config)
+        work_dir = Path("work")
+        workspace = TranslationCacheWorkspace(work_dir=work_dir, plan=plan)
+        page_index = 2
+        image_path = Path("page one.png")
+
+        self.assertEqual(
+            workspace.prepared_page_path(page_index, image_path),
+            plan.prepared_cache_path(work_dir, page_index, image_path),
+        )
+        for stage in ("primary", "critic", "hybrid"):
+            self.assertEqual(
+                workspace.translation_path(page_index, image_path, stage),
+                plan.translation_cache_path(work_dir, page_index, image_path, stage),
+            )
+        self.assertEqual(
+            workspace.render_only_translation_paths(page_index, image_path),
+            plan.render_only_cache_paths(work_dir, page_index, image_path),
+        )
+        self.assertEqual(
+            workspace.resume_translation_paths(page_index, image_path),
+            plan.resume_cache_paths(work_dir, page_index, image_path),
+        )
+        self.assertEqual(
+            workspace.final_translation_path(page_index, image_path),
+            plan.translation_cache_path(work_dir, page_index, image_path, plan.final_stage),
+        )
+
     def test_cache_plan_finds_first_existing_render_only_translation_cache(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             plan = translation_cache_plan(
@@ -144,7 +180,7 @@ class CachePolicyTests(unittest.TestCase):
                 plan.find_render_only_translation_cache(Path(tmp), 2, Path("page one.png"))
             )
 
-    def test_cache_plan_selects_hybrid_resume_jobs_from_mixed_cache_state(self) -> None:
+    def test_cache_workspace_selects_hybrid_resume_jobs_from_mixed_cache_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             plan = translation_cache_plan(
                 PipelineConfig(
@@ -163,8 +199,9 @@ class CachePolicyTests(unittest.TestCase):
             plan.translation_cache_path(work_dir, 2, pages[1].image_path, "critic").write_text("{}", encoding="utf-8")
             plan.translation_cache_path(work_dir, 3, pages[2].image_path, "primary").write_text("{}", encoding="utf-8")
 
-            jobs = plan.select_hybrid_resume_cache_jobs(
-                work_dir,
+            workspace = TranslationCacheWorkspace(work_dir=work_dir, plan=plan)
+
+            jobs = workspace.select_hybrid_resume_cache_jobs(
                 pages,
                 resume=True,
                 load_translation_cache=lambda page, path: loaded.append((page.image_path.name, path)),
