@@ -155,6 +155,7 @@ class QualityEvalTests(unittest.TestCase):
                     qwen_critic_model=None,
                     translator="cat",
                     cat_model=".models/CAT-Translate/CAT-Translate-7b.Q8_0.gguf",
+                    hy_mt2_model=None,
                     qwen_mode="block",
                     vision=False,
                     vision_facts=False,

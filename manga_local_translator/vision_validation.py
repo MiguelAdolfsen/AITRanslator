@@ -52,6 +52,11 @@ def vision_facts_from_payload(payload: dict[str, object]) -> VisionFactsResult |
         facts = [facts]
     if not isinstance(facts, list):
         facts = []
+    context_hints = payload.get("context_hints", [])
+    if isinstance(context_hints, str):
+        context_hints = [context_hints]
+    if not isinstance(context_hints, list):
+        context_hints = []
     warnings = payload.get("warnings", [])
     if not isinstance(warnings, list):
         warnings = []
@@ -63,11 +68,15 @@ def vision_facts_from_payload(payload: dict[str, object]) -> VisionFactsResult |
         number=number,
         source_text=clean_qwen_output(str(payload.get("source_text", "") or "")),
         bubble_type=enum_string(payload.get("bubble_type"), {"speech", "thought", "narration", "sound_effect", "sign", "unknown"}, "unknown"),
+        line_role=enum_string(payload.get("line_role"), {"speech", "thought", "narration", "sound_effect", "sign", "metadata", "unknown"}, "unknown"),
         speaker_position=clean_qwen_output(str(payload.get("speaker_position", "") or "unknown")),
+        speaker_anchor=clean_qwen_output(str(payload.get("speaker_anchor", "") or "unknown")),
         visible_emotion=clean_qwen_output(str(payload.get("visible_emotion", "") or "unknown")),
+        tone_hint=clean_qwen_output(str(payload.get("tone_hint", "") or "unknown")),
         observable_action=clean_qwen_output(str(payload.get("observable_action", "") or "unknown")),
         mapping_confidence=enum_string(payload.get("mapping_confidence"), {"low", "medium", "high"}, "medium"),
         facts=tuple(clean_qwen_output(str(value)) for value in facts if str(value).strip()),
+        context_hints=tuple(clean_qwen_output(str(value)) for value in context_hints if str(value).strip()),
         needs_review=bool(payload.get("needs_review", False)),
         risk_flags=tuple(clean_qwen_output(str(value)) for value in risk_flags if str(value).strip()),
         warnings=tuple(clean_qwen_output(str(value)) for value in warnings if str(value).strip()),
@@ -200,16 +209,25 @@ def vision_facts_acceptance_reason(
         return "contains_translation_field"
     fact_values = [
         result.speaker_position,
+        result.speaker_anchor,
         result.visible_emotion,
+        result.tone_hint,
         result.observable_action,
         *result.facts,
+        *result.context_hints,
     ]
     if any(visual_fact_looks_invalid(value) for value in fact_values):
         return "invalid_visual_fact"
     if any(visual_fact_looks_like_translation(value) for value in fact_values):
         return "contains_translation"
-    if specific_speaker_is_ungrounded(request.source_text, result.speaker_position, result.mapping_confidence):
+    if visual_speaker_identity_is_ungrounded(result.speaker_position):
         return "ungrounded_speaker"
+    if visual_speaker_identity_is_ungrounded(result.speaker_anchor):
+        return "ungrounded_speaker_anchor"
+    if any(visual_fact_too_long(value) for value in fact_values):
+        return "invalid_visual_fact"
+    if len(result.facts) > 2 or len(result.context_hints) > 2:
+        return "invalid_visual_fact"
     return None
 
 
@@ -232,6 +250,8 @@ def visual_fact_looks_invalid(text: str) -> bool:
         return True
     if re.search(r"\b(thinks|knows|wants|intends|decides|remembers|because)\b", normalized):
         return True
+    if re.search(r"\b(use|prefer|choose)\s+(he|she|him|her|his|hers)\b", normalized):
+        return True
     return False
 
 
@@ -246,6 +266,59 @@ def visual_fact_looks_like_translation(text: str) -> bool:
     if re.search(r"[.!?]$", text.strip()) and len(content_words(text)) >= 3:
         return True
     return False
+
+
+def visual_speaker_identity_is_ungrounded(text: str) -> bool:
+    normalized = text.strip().lower()
+    if not normalized or normalized in {"unknown", "narrator", "speaker", "character"}:
+        return False
+    anchor_words = {
+        "Above",
+        "Below",
+        "Bottom",
+        "Bubble",
+        "Center",
+        "Character",
+        "Left",
+        "Lower",
+        "Middle",
+        "Narrator",
+        "Right",
+        "Side",
+        "Speaker",
+        "Speech",
+        "Thought",
+        "Top",
+        "Upper",
+    }
+    if proper_noun_tokens(text) - anchor_words:
+        return True
+    has_visual_anchor = bool(
+        re.search(
+            r"\b("
+            r"above|below|bottom|bubble|center|left|lower|middle|near|right|side|"
+            r"speech|thought|top|upper"
+            r")\b",
+            normalized,
+        )
+        or re.search(r"\b(next to|beside|behind|in front of|close to)\b", normalized)
+    )
+    return bool(
+        re.search(
+            r"\b("
+            r"male|female|man|woman|boy|girl|father|mother|brother|sister|"
+            r"husband|wife|son|daughter|child|adult|elderly|young"
+            r")\b",
+            normalized,
+        )
+    ) and not has_visual_anchor
+
+
+def visual_fact_too_long(text: str) -> bool:
+    normalized = text.strip()
+    if not normalized or normalized.lower() in {"unknown", "none", "n/a"}:
+        return False
+    return len(content_words(normalized)) > 12
 
 
 def vision_acceptance_reason(

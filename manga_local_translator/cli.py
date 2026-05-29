@@ -31,9 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--translator",
-        choices=["opus", "cat", "qwen", "madlad", "argos", "none"],
+        choices=["opus", "cat", "hy-mt2", "qwen", "madlad", "argos", "none"],
         default="opus",
-        help="Translation backend. opus is the default; cat uses a local Hugging Face CAT-Translate model.",
+        help="Translation backend. opus is the default; hy-mt2 uses Tencent Hy-MT2 through local Hugging Face cache.",
     )
     parser.add_argument(
         "--erase-mode",
@@ -115,6 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--cat-model",
         default=None,
         help="Optional CAT GGUF path or Hugging Face model id. Defaults to local .models/CAT-Translate/*.gguf, then cyberagent/CAT-Translate-7b.",
+    )
+    parser.add_argument(
+        "--hy-mt2-model",
+        default=None,
+        help="Optional Tencent Hy-MT2 Hugging Face model id or local model path. Defaults to tencent/Hy-MT2-1.8B.",
     )
     parser.add_argument(
         "--vision",
@@ -220,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         qwen_fallback_model_path=args.qwen_fallback_model,
         qwen_critic_model_path=args.qwen_critic_model,
         cat_model_name=args.cat_model,
+        hy_mt2_model_name=args.hy_mt2_model,
         qwen_mode=args.qwen_mode,
         vision_enabled=args.vision,
         vision_facts_enabled=args.vision_facts,

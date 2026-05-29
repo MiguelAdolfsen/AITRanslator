@@ -6,9 +6,11 @@ from pathlib import Path
 from .argos_translator import ArgosTranslator, translate_argos_subprocess
 from .hf_translators import (
     CAT_MODEL_NAME,
+    HY_MT2_MODEL_NAME,
     MADLAD_MODEL_NAME,
     OPUS_MODEL_NAME,
     CatTranslator,
+    HyMt2Translator,
     MadladTranslator,
     OpusTranslator,
     local_hf_cache_only,
@@ -107,6 +109,7 @@ def build_translator(
     glossary_path: Path | None = None,
     qwen_model_path: Path | None = None,
     cat_model_name: str | None = None,
+    hy_mt2_model_name: str | None = None,
 ) -> Translator:
     logger.info("Building translator backend: %s", name)
     if name == "none":
@@ -117,6 +120,8 @@ def build_translator(
         return QwenTranslator(model_path=qwen_model_path, glossary_path=glossary_path)
     if name == "cat":
         return CatTranslator(model_name=cat_model_name or CAT_MODEL_NAME, glossary_path=glossary_path)
+    if name == "hy-mt2":
+        return HyMt2Translator(model_name=hy_mt2_model_name or HY_MT2_MODEL_NAME, glossary_path=glossary_path)
     if name == "madlad":
         return MadladTranslator(glossary_path=glossary_path)
     if name == "argos":

@@ -1,6 +1,6 @@
 import unittest
 
-from manga_local_translator.pipeline import (
+from manga_local_translator.translation_review import (
     apply_translation_evidence,
     apply_qwen_fallback_translations,
     english_context_for_block,

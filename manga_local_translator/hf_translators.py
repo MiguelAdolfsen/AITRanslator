@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 MADLAD_MODEL_NAME = "google/madlad400-3b-mt"
 OPUS_MODEL_NAME = "Helsinki-NLP/opus-mt-ja-en"
+HY_MT2_MODEL_NAME = "tencent/Hy-MT2-1.8B"
+HY_MT2_MODEL_DIR = Path(".models") / "Tencent-MT2"
+HY_MT2_PROMPT_VERSION = "hy-mt2-v1-official-ja-en-concise"
+HY_MT2_DEFAULT_NUM_PREDICT = 128
 CAT_MODEL_NAME = "cyberagent/CAT-Translate-7b"
 CAT_MODEL_DIR = Path(".models") / "CAT-Translate"
 CAT_PROMPT_VERSION = "cat-translate-v6-fragment-strict-primary"
@@ -351,6 +355,254 @@ class CatTranslator(Translator):
             "cat_reject_reason": reject_reason or "",
             "cat_chatter_rejected": reject_reason in {"cat_chatter", "cat_prompt_fragment", "cat_schema_fragment"},
         }
+
+
+class HyMt2Translator(Translator):
+    def __init__(self, model_name: str | Path = HY_MT2_MODEL_NAME, glossary_path: Path | None = None) -> None:
+        super().__init__(glossary_path)
+        model_name = resolve_hy_mt2_model_name(model_name)
+        logger.info("Initializing Tencent Hy-MT2 translator: model=%s", model_name)
+        os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:
+            logger.exception("Hy-MT2 dependencies are missing")
+            raise RuntimeError(
+                "Hy-MT2 translator dependencies are missing. Run: pip install -r requirements.txt"
+            ) from exc
+
+        self._cache: dict[str, str] = {}
+        self._debug: dict[str, dict[str, object]] = {}
+        self._model_name = str(model_name)
+        self._torch = torch
+        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        with local_hf_cache_only():
+            try:
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    str(model_name),
+                    local_files_only=True,
+                    trust_remote_code=True,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    "Tencent Hy-MT2 translator model is not installed locally. "
+                    "Run: python -m manga_local_translator.install_hy_mt2"
+                ) from exc
+
+        model_kwargs = {"low_cpu_mem_usage": True, "trust_remote_code": True}
+        if self._device.type == "cuda":
+            model_kwargs["dtype"] = (
+                torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            )
+        with local_hf_cache_only():
+            try:
+                self._model = AutoModelForCausalLM.from_pretrained(
+                    str(model_name),
+                    local_files_only=True,
+                    **model_kwargs,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    "Tencent Hy-MT2 translator model is not installed locally or the installed "
+                    "transformers version cannot load it. Run: python -m manga_local_translator.install_hy_mt2"
+                ) from exc
+        self._model.to(self._device)
+        self._model.eval()
+        if self._tokenizer.pad_token_id is None and self._tokenizer.eos_token_id is not None:
+            self._tokenizer.pad_token = self._tokenizer.eos_token
+        logger.info("Tencent Hy-MT2 translator ready on %s", self._device)
+
+    def translate(self, text: str) -> str:
+        if text not in self._cache:
+            logger.debug("Hy-MT2 translating text=%s", shorten(text))
+            translated, debug = self._translate_normalized(text)
+            self._cache[text] = translated
+            self._debug[text] = debug
+            logger.debug("Hy-MT2 translated result=%s", shorten(translated))
+        else:
+            logger.debug("Hy-MT2 translation cache hit for text=%s", shorten(text))
+        return self._cache[text]
+
+    def translate_with_context(
+        self,
+        text: str,
+        *,
+        before: str | None = None,
+        after: str | None = None,
+        before_contexts: tuple[str, ...] = (),
+        after_contexts: tuple[str, ...] = (),
+        visual_facts: tuple[str, ...] = (),
+    ) -> str:
+        normalized = normalize_japanese_for_translation(text)
+        if not should_use_context_translation(normalized, before=before, after=after) and not visual_facts:
+            return self.translate(text)
+        raw_context_lines = [*before_contexts]
+        if before:
+            raw_context_lines.append(before)
+        if after:
+            raw_context_lines.append(after)
+        raw_context_lines.extend(after_contexts)
+        context_lines = [
+            normalize_japanese_for_translation(value)
+            for value in raw_context_lines
+            if value
+        ]
+        visual_lines = [str(value).strip() for value in visual_facts if str(value).strip()]
+        translated, debug = self._translate_normalized(
+            text,
+            context_lines=tuple(context_lines),
+            visual_facts=tuple(visual_lines),
+        )
+        self._debug[text] = debug
+        return translated
+
+    def debug_info_for(self, text: str, debug_id: str | None = None) -> dict[str, object]:
+        _ = debug_id
+        return dict(self._debug.get(text, {}))
+
+    def _translate_normalized(
+        self,
+        text: str,
+        *,
+        context_lines: tuple[str, ...] = (),
+        visual_facts: tuple[str, ...] = (),
+    ) -> tuple[str, dict[str, object]]:
+        normalized = normalize_japanese_for_translation(text)
+        prepared, _replacements = prepare_source_for_translation(normalized, self._glossary)
+        phrase = translate_known_phrase(normalized, self._glossary) or translate_known_phrase(prepared, self._glossary)
+        if phrase is not None:
+            logger.debug("Phrasebook translation: source=%s result=%s", shorten(normalized), shorten(phrase))
+            return phrase, {
+                "primary_translator": "hy-mt2",
+                "hy_mt2_used": False,
+                "hy_mt2_reason": "phrasebook",
+                "hy_mt2_model": self._model_name,
+                "hy_mt2_prompt_version": HY_MT2_PROMPT_VERSION,
+                "hy_mt2_source_text": normalized,
+                "hy_mt2_prompt_source_text": prepared,
+                "hy_mt2_final": phrase,
+            }
+
+        prompt = build_hy_mt2_prompt(prepared, context_lines=context_lines, visual_facts=visual_facts)
+        raw = self._run_prompt(prompt)
+        translated = clean_hy_mt2_output(raw)
+        final = postprocess_translation(normalized, prepared, translated, self._glossary)
+        return final, {
+            "primary_translator": "hy-mt2",
+            "hy_mt2_used": True,
+            "hy_mt2_model": self._model_name,
+            "hy_mt2_model_path": str(model_path_for_debug(self._model_name)),
+            "hy_mt2_device": str(self._device),
+            "hy_mt2_prompt_version": HY_MT2_PROMPT_VERSION,
+            "hy_mt2_num_predict": hy_mt2_num_predict(),
+            "hy_mt2_context_used": bool(context_lines or visual_facts),
+            "hy_mt2_source_text": normalized,
+            "hy_mt2_prompt_source_text": prepared,
+            "hy_mt2_prompt": prompt,
+            "hy_mt2_raw_translation": raw,
+            "hy_mt2_cleaned_translation": translated,
+            "hy_mt2_final": final,
+        }
+
+    def _run_prompt(self, prompt: str) -> str:
+        messages = [{"role": "user", "content": prompt}]
+        with local_hf_cache_only():
+            encoded = self._tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                return_tensors="pt",
+                return_dict=True,
+            )
+            encoded = {key: value.to(self._device) for key, value in encoded.items()}
+            input_length = int(encoded["input_ids"].shape[-1])
+            with self._torch.inference_mode():
+                outputs = self._model.generate(
+                    **encoded,
+                    max_new_tokens=hy_mt2_num_predict(),
+                    do_sample=False,
+                    pad_token_id=self._tokenizer.pad_token_id,
+                    eos_token_id=self._tokenizer.eos_token_id,
+                )
+        generated = outputs[0][input_length:]
+        return self._tokenizer.decode(generated, skip_special_tokens=True).strip()
+
+
+def build_hy_mt2_prompt(
+    prepared_text: str,
+    *,
+    context_lines: tuple[str, ...] = (),
+    visual_facts: tuple[str, ...] = (),
+) -> str:
+    context_parts: list[str] = []
+    if context_lines:
+        context_parts.append("[Background Information]")
+        context_parts.extend(context_lines)
+    if visual_facts:
+        if not context_parts:
+            context_parts.append("[Background Information]")
+        context_parts.extend(f"Visual fact: {fact}" for fact in visual_facts)
+    if context_parts:
+        return (
+            "\n".join(context_parts)
+            + "\n\nPlease translate the following text into English, taking the provided background information into consideration. "
+            "Note that you should only output the translated result without any additional explanation:\n\n"
+            "[Source Text]\n"
+            f"{prepared_text}"
+        )
+    return (
+        "Translate the following text into English. Note that you should only output the translated result "
+        "without any additional explanation:\n\n"
+        f"{prepared_text}"
+    )
+
+
+def clean_hy_mt2_output(text: str) -> str:
+    cleaned = str(text).strip()
+    cleaned = re.sub(r"^\s*(?:English|Translation)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip().strip('"').strip("'").strip()
+
+
+def hy_mt2_num_predict() -> int:
+    raw = os.environ.get("MANGA_HY_MT2_NUM_PREDICT", "").strip()
+    if not raw:
+        return HY_MT2_DEFAULT_NUM_PREDICT
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Ignoring invalid MANGA_HY_MT2_NUM_PREDICT=%s", raw)
+        return HY_MT2_DEFAULT_NUM_PREDICT
+    return max(16, min(1024, value))
+
+
+def resolve_hy_mt2_model_name(model_name: str | Path = HY_MT2_MODEL_NAME) -> str | Path:
+    if str(model_name) == HY_MT2_MODEL_NAME and HY_MT2_MODEL_DIR.exists():
+        ensure_hy_mt2_weight_alias(HY_MT2_MODEL_DIR)
+        return HY_MT2_MODEL_DIR
+    path = Path(model_name)
+    if path.exists() and path.is_dir():
+        ensure_hy_mt2_weight_alias(path)
+        return path
+    return model_name
+
+
+def ensure_hy_mt2_weight_alias(model_dir: Path) -> None:
+    expected = model_dir / "model.safetensors"
+    if expected.exists():
+        return
+    safetensors = sorted(path for path in model_dir.glob("*.safetensors") if path.name != expected.name)
+    if len(safetensors) != 1:
+        return
+    source = safetensors[0]
+    try:
+        os.link(source, expected)
+        logger.info("Created Hy-MT2 model.safetensors hardlink: %s -> %s", expected, source)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Hy-MT2 local model folder needs a model.safetensors file. "
+            f"Create a hardlink from {source} to {expected}."
+        ) from exc
 
 
 def build_cat_prompt(prepared_text: str, *, retry: bool = False, retry_variant: str = "source_only") -> str:

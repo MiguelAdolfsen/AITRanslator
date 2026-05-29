@@ -1,0 +1,63 @@
+{
+  "title": "Agent-Readable Project Wiki",
+  "entrypoints": [
+    "AGENTS.md",
+    "docs/agent-wiki/README.md"
+  ],
+  "pages": [
+    {
+      "path": "docs/agent-wiki/README.md",
+      "title": "Agent Wiki",
+      "purpose": "Index, project overview, runtime flow summary, and common task routing.",
+      "source_areas": ["README.md", "manga_local_translator"]
+    },
+    {
+      "path": "docs/agent-wiki/architecture.md",
+      "title": "Architecture",
+      "purpose": "Subsystem map and source anchors for core application behavior.",
+      "source_areas": ["manga_local_translator/cli.py", "manga_local_translator/gui.py", "manga_local_translator/pipeline.py"]
+    },
+    {
+      "path": "docs/agent-wiki/runtime-flows.md",
+      "title": "Runtime Flows",
+      "purpose": "CLI, GUI, hybrid batch, render-only, resume/cache, and output flows.",
+      "source_areas": ["manga_local_translator/pipeline.py", "manga_local_translator/page_cache.py", "manga_local_translator/gui.py"]
+    },
+    {
+      "path": "docs/agent-wiki/configuration.md",
+      "title": "Configuration",
+      "purpose": "PipelineConfig, CLI options, model paths, environment variables, and glossary behavior.",
+      "source_areas": ["manga_local_translator/config.py", "manga_local_translator/cli.py", "manga_local_translator/translation_rules.py"]
+    },
+    {
+      "path": "docs/agent-wiki/data-contracts.md",
+      "title": "Data Contracts",
+      "purpose": "Core dataclasses, cache stages, debug reports, review outputs, and vision artifacts.",
+      "source_areas": ["manga_local_translator/detect_types.py", "manga_local_translator/page_types.py", "manga_local_translator/page_cache.py", "manga_local_translator/debug_report.py"]
+    },
+    {
+      "path": "docs/agent-wiki/testing.md",
+      "title": "Testing",
+      "purpose": "Test commands, unit test categories, quality eval, and render checks.",
+      "source_areas": [".testing", "manga_local_translator/quality_eval.py", "render_autoresearch"]
+    },
+    {
+      "path": "docs/agent-wiki/debugging.md",
+      "title": "Debugging",
+      "purpose": "Diagnostic artifacts, common failure paths, and debug commands.",
+      "source_areas": ["manga_local_translator/debug_report.py", "manga_local_translator/review_report.py", "manga_local_translator/logging_utils.py"]
+    },
+    {
+      "path": "docs/agent-wiki/autoresearch.md",
+      "title": "Autoresearch",
+      "purpose": "Harness purposes, generated output boundaries, and benchmark guardrails.",
+      "source_areas": ["render_autoresearch", "source_extraction_autoresearch", "translation_routing_autoresearch", "cat_response_autoresearch", "autoresearch_docs"]
+    },
+    {
+      "path": "docs/agent-wiki/maintenance.md",
+      "title": "Wiki Maintenance",
+      "purpose": "Rules for keeping the wiki synchronized with future code and workflow changes.",
+      "source_areas": ["AGENTS.md", "docs/agent-wiki", "README.md"]
+    }
+  ]
+}

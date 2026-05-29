@@ -10,6 +10,7 @@ from .detect_types import TextBlock
 from .line_identity import lookup_context, lookup_translation, translation_key_for_block
 from .qwen_vision import QwenVisionClient
 from .text_filter import count_japanese_chars, normalize_for_filter, suspected_bad_translation
+from .translated_state import text_block_for_translation_state, update_translated_line_state
 from .vision_artifact import create_vision_artifact
 from .vision_prompt import (
     build_vision_facts_json_repair_prompt,
@@ -116,46 +117,53 @@ def apply_vision_repair(
             result,
             malformed_reason=structural_errors.get(request.line_id),
         )
-        context = lookup_context(translation_contexts, TextBlock(entry.source_text, entry.box, 0.0, metadata={"line_id": entry.state_key if entry.state_key != entry.source_text else ""}))
-        context.update(
-            {
-                "vision_attempted": True,
-                "line_id": entry.line_id,
-                "block_id": entry.block_id,
-                "source_hash": entry.source_hash,
-                "vision_model": getattr(client, "model_name", "qwen_vision"),
-                "vision_mode": config.vision_mode,
-                "vision_trigger": config.vision_trigger,
-                "vision_line_id": request.line_id,
-                "vision_number": request.number,
-                "vision_issue": request.issue,
-                "vision_trigger_reason": request.issue,
-                "vision_structural_error": structural_errors.get(request.line_id),
-                "vision_translation": result.translation if result else "",
-                "vision_source_text": result.source_text if result else "",
-                "vision_accepted": reject_reason is None,
-                "vision_reject_reason": reject_reason,
-                "vision_final_source": "vision" if reject_reason is None else "text",
-                "speaker": result.speaker if result else None,
-                "speaker_confidence": result.speaker_confidence if result else None,
-                "situation": result.situation if result else None,
-                "visual_evidence_type": result.visual_evidence_type if result else "",
-                "visual_evidence": result.visual_evidence if result else "",
-                "needs_review": result.needs_review if result else False,
-                "risk_flags": list(result.risk_flags) if result else [],
-                "vision_warnings": list(result.warnings) if result else [],
-                "vision_raw_prompt": prompt,
-                "vision_raw_response": raw_response,
-                "vision_json_repair_attempted": json_repair_attempted,
-                "vision_json_repair_used": json_repair_used,
-                "vision_raw_json_repair_prompt": json_repair_prompt,
-                "vision_raw_json_repair_response": raw_json_repair_response,
-            }
+        state_block = text_block_for_translation_state(
+            source_text=entry.source_text,
+            box=entry.box,
+            state_key=entry.state_key or entry.source_text,
         )
-        translation_contexts[entry.state_key or entry.source_text] = context
+        context_updates = {
+            "vision_attempted": True,
+            "line_id": entry.line_id,
+            "block_id": entry.block_id,
+            "source_hash": entry.source_hash,
+            "vision_model": getattr(client, "model_name", "qwen_vision"),
+            "vision_mode": config.vision_mode,
+            "vision_trigger": config.vision_trigger,
+            "vision_line_id": request.line_id,
+            "vision_number": request.number,
+            "vision_issue": request.issue,
+            "vision_trigger_reason": request.issue,
+            "vision_structural_error": structural_errors.get(request.line_id),
+            "vision_translation": result.translation if result else "",
+            "vision_source_text": result.source_text if result else "",
+            "vision_accepted": reject_reason is None,
+            "vision_reject_reason": reject_reason,
+            "vision_final_source": "vision" if reject_reason is None else "text",
+            "speaker": result.speaker if result else None,
+            "speaker_confidence": result.speaker_confidence if result else None,
+            "situation": result.situation if result else None,
+            "visual_evidence_type": result.visual_evidence_type if result else "",
+            "visual_evidence": result.visual_evidence if result else "",
+            "needs_review": result.needs_review if result else False,
+            "risk_flags": list(result.risk_flags) if result else [],
+            "vision_warnings": list(result.warnings) if result else [],
+            "vision_raw_prompt": prompt,
+            "vision_raw_response": raw_response,
+            "vision_json_repair_attempted": json_repair_attempted,
+            "vision_json_repair_used": json_repair_used,
+            "vision_raw_json_repair_prompt": json_repair_prompt,
+            "vision_raw_json_repair_response": raw_json_repair_response,
+        }
+        update_translated_line_state(
+            translations,
+            translation_contexts,
+            state_block,
+            translated_text=result.translation if reject_reason is None and result is not None else None,
+            context_updates=context_updates,
+        )
         if reject_reason is not None or result is None:
             continue
-        translations[entry.state_key or entry.source_text] = result.translation
         accepted_count += 1
     logger.info("Vision repair finished: attempted=%d accepted=%d", len(requests), accepted_count)
     return artifact
@@ -230,35 +238,42 @@ def apply_vision_facts(
                 result,
                 malformed_reason=structural_errors.get(request.line_id),
             )
-            context = lookup_context(translation_contexts, TextBlock(entry.source_text, entry.box, 0.0, metadata={"line_id": entry.state_key if entry.state_key != entry.source_text else ""}))
-            visual_facts = list(result.facts) if result and reject_reason is None else []
-            context.update(
-                {
-                    "vision_facts_attempted": True,
-                    "line_id": entry.line_id,
-                    "block_id": entry.block_id,
-                    "source_hash": entry.source_hash,
-                    "vision_facts_model": getattr(client, "model_name", "qwen_vision"),
-                    "vision_facts_line_id": request.line_id,
-                    "vision_facts_number": request.number,
-                    "vision_facts_accepted": reject_reason is None,
-                    "vision_facts_reject_reason": reject_reason,
-                    "vision_facts_structural_error": structural_errors.get(request.line_id),
-                    "bubble_type": result.bubble_type if result else "unknown",
-                    "speaker_position": result.speaker_position if result else "unknown",
-                    "visible_emotion": result.visible_emotion if result else "unknown",
-                    "observable_action": result.observable_action if result else "unknown",
-                    "mapping_confidence": result.mapping_confidence if result else "unknown",
-                    "visual_facts": visual_facts,
-                    "vision_facts_needs_review": result.needs_review if result else False,
-                    "vision_facts_risk_flags": list(result.risk_flags) if result else [],
-                    "vision_facts_warnings": list(result.warnings) if result else [],
-                    "vision_facts_json_repair_attempted": json_repair_attempted,
-                    "vision_facts_json_repair_used": json_repair_used,
-                }
+            state_block = text_block_for_translation_state(
+                source_text=entry.source_text,
+                box=entry.box,
+                state_key=entry.state_key or entry.source_text,
             )
+            visual_facts = list(result.facts) if result and reject_reason is None else []
+            context_hints = list(result.context_hints) if result and reject_reason is None else []
+            context_updates = {
+                "vision_facts_attempted": True,
+                "line_id": entry.line_id,
+                "block_id": entry.block_id,
+                "source_hash": entry.source_hash,
+                "vision_facts_model": getattr(client, "model_name", "qwen_vision"),
+                "vision_facts_line_id": request.line_id,
+                "vision_facts_number": request.number,
+                "vision_facts_accepted": reject_reason is None,
+                "vision_facts_reject_reason": reject_reason,
+                "vision_facts_structural_error": structural_errors.get(request.line_id),
+                "bubble_type": result.bubble_type if result else "unknown",
+                "line_role": result.line_role if result else "unknown",
+                "speaker_position": result.speaker_position if result else "unknown",
+                "speaker_anchor": result.speaker_anchor if result else "unknown",
+                "visible_emotion": result.visible_emotion if result else "unknown",
+                "tone_hint": result.tone_hint if result else "unknown",
+                "observable_action": result.observable_action if result else "unknown",
+                "mapping_confidence": result.mapping_confidence if result else "unknown",
+                "visual_facts": visual_facts,
+                "context_hints": context_hints,
+                "vision_facts_needs_review": result.needs_review if result else False,
+                "vision_facts_risk_flags": list(result.risk_flags) if result else [],
+                "vision_facts_warnings": list(result.warnings) if result else [],
+                "vision_facts_json_repair_attempted": json_repair_attempted,
+                "vision_facts_json_repair_used": json_repair_used,
+            }
             if config.debug:
-                context.update(
+                context_updates.update(
                     {
                         "vision_facts_raw_prompt": prompt,
                         "vision_facts_raw_response": raw_response,
@@ -266,7 +281,12 @@ def apply_vision_facts(
                         "vision_facts_raw_json_repair_response": raw_json_repair_response,
                     }
                 )
-            translation_contexts[entry.state_key or entry.source_text] = context
+            update_translated_line_state(
+                None,
+                translation_contexts,
+                state_block,
+                context_updates=context_updates,
+            )
             if reject_reason is None:
                 accepted_count += 1
     logger.info("Vision facts finished: attempted=%d accepted=%d", len(requests), accepted_count)

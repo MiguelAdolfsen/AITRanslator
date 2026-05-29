@@ -12,10 +12,13 @@ from .line_identity import (
     assign_render_line_ids,
     enrich_grouping_report,
     enrich_page_order_report,
+    line_id_for_block,
+    lookup_translation,
     migrate_state_to_line_ids,
     translations_by_source_for_compat,
 )
 from .page_types import PreparedPage
+from .translated_state import apply_fallback_translation_state
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +137,48 @@ def load_translation_cache(page: PreparedPage, cache_path: Path) -> None:
         raw_contexts,
     )
     page.translation_fallback_blocks = list(payload.get("translation_fallback_blocks", []))
+    hydrate_cached_fallback_translation_state(page)
+
+
+def hydrate_cached_fallback_translation_state(page: PreparedPage) -> None:
+    for fallback_block in page.translation_fallback_blocks:
+        if not isinstance(fallback_block, dict):
+            continue
+        reason = str(fallback_block.get("reason") or "")
+        if not reason:
+            continue
+        block = block_for_fallback_report(page.render_blocks, fallback_block)
+        if block is None:
+            continue
+        apply_fallback_translation_state(
+            page,
+            block,
+            reason=reason,
+            source_translation=lookup_translation(page.translations, block, ""),
+            append_report=False,
+        )
+
+
+def block_for_fallback_report(
+    blocks: list[TextBlock],
+    fallback_block: dict[str, object],
+) -> TextBlock | None:
+    line_id = str(fallback_block.get("line_id") or "")
+    if line_id:
+        for block in blocks:
+            if line_id_for_block(block) == line_id:
+                return block
+    source_text = str(fallback_block.get("source_text") or "")
+    box = fallback_block.get("box")
+    if is_box_like(box):
+        fallback_box = tuple(int(value) for value in box)  # type: ignore[union-attr]
+        for block in blocks:
+            if block.text == source_text and tuple(block.box) == fallback_box:
+                return block
+    for block in blocks:
+        if block.text == source_text:
+            return block
+    return None
 
 
 def is_box_like(value: object) -> bool:

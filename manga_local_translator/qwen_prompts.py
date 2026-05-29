@@ -194,7 +194,7 @@ def build_qwen_repair_prompt(
     before_items = normalize_context_window(before_contexts, fallback=before)
     after_items = normalize_context_window(after_contexts, fallback=after)
     lines = [
-        "/think",
+        "/no_think",
         "Task: Repair one failed Japanese-to-English manga bubble translation.",
         *ANTI_HALLUCINATION_RULES,
         "Translate only TARGET. Do not translate neighboring context lines.",
@@ -276,6 +276,7 @@ def append_visual_facts(lines: list[str], visual_facts: tuple[str, ...]) -> None
     lines.append("Visual facts from the page image:")
     lines.append("- These are context only. The target/source text remains authoritative.")
     lines.append("- Use them only for pronouns, speaker continuity, tone, emotion, and visible action.")
+    lines.append("- Treat speaker anchors as visual positions, not names or identities.")
     lines.append("- Do not add facts to the translation unless the Japanese target text supports them.")
     for value in clean[:6]:
         lines.append(f"  - {value}")

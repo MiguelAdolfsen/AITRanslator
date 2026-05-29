@@ -173,6 +173,37 @@ class VisionServiceTests(unittest.TestCase):
         self.assertEqual(contexts[self.block.text]["vision_final_source"], "vision")
         self.assertIn("Do not OCR", client.prompt)
 
+    def test_valid_vision_repair_uses_line_identity_state(self) -> None:
+        block = TextBlock("source", (10, 10, 40, 50), 0.9, "ctd", {"line_id": "line-001"})
+        page_order = [{"page_order": 1, "box": block.box, "source_text": block.text, "line_id": "line-001"}]
+        response = (
+            '{"lines":[{"line_id":"line-001","number":1,"action":"replace","translation":"Mom",'
+            '"speaker":"woman in panel","situation":"speaking softly",'
+            '"visual_evidence":"speaker appears to be the mother","confidence":"high","warnings":[]}]}'
+        )
+        translations = {"line-001": "...", block.text: "legacy"}
+        contexts = {"line-001": {"translator": "qwen"}, block.text: {"translator": "legacy"}}
+
+        with tempfile.TemporaryDirectory() as temp:
+            apply_vision_repair(
+                image_bgr=self.image,
+                blocks=[block],
+                translations=translations,
+                translation_contexts=contexts,
+                page_order_report=page_order,
+                render_layouts=[self.layout],
+                render_fits=[self.fit],
+                output_path=Path(temp) / "out.png",
+                config=PipelineConfig(vision_enabled=True, vision_trigger="suspicious"),
+                client=FakeVisionClient(response),
+            )
+
+        self.assertEqual(translations["line-001"], "Mom")
+        self.assertEqual(translations[block.text], "legacy")
+        self.assertTrue(contexts["line-001"]["vision_accepted"])
+        self.assertEqual(contexts["line-001"]["translator"], "qwen")
+        self.assertEqual(contexts[block.text]["translator"], "legacy")
+
     def test_valid_vision_facts_update_context_without_translation(self) -> None:
         response = json.dumps(
             {

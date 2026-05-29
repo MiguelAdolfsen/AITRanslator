@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from manga_local_translator.config import PipelineConfig
+from manga_local_translator.cache_policy import translation_cache_stage
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator import hf_translators
 from manga_local_translator.hf_translators import (
@@ -27,11 +28,10 @@ from manga_local_translator.hf_translators import (
     translate_kana_honorific_name_fragment,
 )
 from manga_local_translator.translation_rules import apply_honorific_title_replacements
-from manga_local_translator.pipeline import (
+from manga_local_translator.translation_review import (
     apply_qwen_fallback_translations,
     retry_cat_failures,
     should_try_qwen_fallback,
-    translation_cache_stage,
 )
 from manga_local_translator.page_types import PreparedPage
 

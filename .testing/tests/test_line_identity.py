@@ -11,9 +11,9 @@ from manga_local_translator.config import PipelineConfig
 from manga_local_translator.debug_report import write_debug_report
 from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.line_identity import assign_render_line_ids, enrich_page_order_report, lookup_translation, set_translation
-from manga_local_translator.pipeline import apply_translation_evidence, english_context_for_block
 from manga_local_translator.render import RenderLayout, TextFit
 from manga_local_translator.review_report import rows_from_report
+from manga_local_translator.translation_review import apply_translation_evidence, english_context_for_block
 
 
 class LineIdentityTests(unittest.TestCase):
