@@ -48,7 +48,7 @@ prepare page cache
   -> render or write debug reports
 ```
 
-Cache stages are named by `translation_cache_stage()`. The exact stage suffix can include translator, Qwen mode, CAT prompt versions, critic/fallback state, and vision facts.
+Cache stages are named by `cache_policy.translation_cache_stage()`. The exact stage suffix can include translator, Qwen mode, CAT prompt versions, critic/fallback state, and vision facts.
 Translation review pass behavior lives in `translation_review.py`; `pipeline.py` decides when each pass runs.
 
 ## Render-Only Flow
@@ -67,6 +67,7 @@ Translation review pass behavior lives in `translation_review.py`; `pipeline.py`
 If cache behavior changes, update:
 
 - `page_cache.py`
+- `cache_policy.py`
 - `pipeline.py`
 - [data-contracts.md](data-contracts.md)
 - tests in `.testing/tests/test_page_cache.py` and any affected pipeline tests

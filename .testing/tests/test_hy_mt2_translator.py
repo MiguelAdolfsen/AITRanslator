@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from manga_local_translator.cache_policy import translation_cache_stage
 from manga_local_translator.config import PipelineConfig
 from manga_local_translator.hf_translators import (
     HY_MT2_PROMPT_VERSION,
@@ -13,7 +14,6 @@ from manga_local_translator.hf_translators import (
     hy_mt2_num_predict,
     resolve_hy_mt2_model_name,
 )
-from manga_local_translator.pipeline import translation_cache_stage
 from manga_local_translator.translate import build_translator
 
 

@@ -47,7 +47,7 @@ Use these helpers instead of direct source-text keys when touching translation s
 
 ## Cache Files
 
-`page_cache.py` serializes prepared pages and translation stages. Cache file names are built from page index, image stem, and stage.
+`page_cache.py` serializes prepared pages and translation stages. Cache file names are built from page index, image stem, and stage. `cache_policy.py` owns how translation stage names encode translator, model, prompt, critic/fallback, and vision-facts settings.
 
 Common stages:
 
