@@ -2,9 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import logging
 from pathlib import Path
+from typing import Callable, Sequence
 
 from .config import PipelineConfig
+
+logger = logging.getLogger(__name__)
+
+TranslationCacheLoader = Callable[[object, Path], None]
+
+
+@dataclass(frozen=True)
+class HybridResumeCacheJobs:
+    primary_jobs: list[tuple[int, object, Path]]
+    hybrid_cached_pages: set[int]
+    critic_cached_pages: set[int]
 
 
 @dataclass(frozen=True)
@@ -43,6 +56,12 @@ class TranslationCachePlan:
             for stage in self.render_only_lookup_order
         ]
 
+    def find_render_only_translation_cache(self, work_dir: Path, page_index: int, image_path: Path) -> Path | None:
+        for cache_path in self.render_only_cache_paths(work_dir, page_index, image_path):
+            if cache_path.exists():
+                return cache_path
+        return None
+
     def resume_cache_paths(self, work_dir: Path, page_index: int, image_path: Path) -> list[Path]:
         from .page_cache import cache_page_path
 
@@ -50,6 +69,47 @@ class TranslationCachePlan:
             cache_page_path(work_dir, page_index, image_path, stage)
             for stage in self.resume_lookup_order
         ]
+
+    def select_hybrid_resume_cache_jobs(
+        self,
+        work_dir: Path,
+        pages: Sequence[object],
+        *,
+        resume: bool,
+        load_translation_cache: TranslationCacheLoader | None = None,
+    ) -> HybridResumeCacheJobs:
+        if load_translation_cache is None:
+            from .page_cache import load_translation_cache as cache_loader
+        else:
+            cache_loader = load_translation_cache
+
+        primary_jobs: list[tuple[int, object, Path]] = []
+        hybrid_cached_pages: set[int] = set()
+        critic_cached_pages: set[int] = set()
+        for page_index, page in enumerate(pages, start=1):
+            image_path = Path(getattr(page, "image_path"))
+            hybrid_cache = self.translation_cache_path(work_dir, page_index, image_path, "hybrid")
+            critic_cache = self.translation_cache_path(work_dir, page_index, image_path, "critic")
+            primary_cache = self.translation_cache_path(work_dir, page_index, image_path, "primary")
+            loaded_cache = None
+            if resume:
+                for cache_path in self.resume_cache_paths(work_dir, page_index, image_path):
+                    if cache_path.exists():
+                        cache_loader(page, cache_path)
+                        loaded_cache = cache_path
+                        logger.info("Loaded translation cache: %s", loaded_cache)
+                        break
+            if loaded_cache == hybrid_cache:
+                hybrid_cached_pages.add(page_index)
+            elif loaded_cache == critic_cache:
+                critic_cached_pages.add(page_index)
+            elif loaded_cache is None:
+                primary_jobs.append((page_index, page, primary_cache))
+        return HybridResumeCacheJobs(
+            primary_jobs=primary_jobs,
+            hybrid_cached_pages=hybrid_cached_pages,
+            critic_cached_pages=critic_cached_pages,
+        )
 
 
 def translation_cache_plan(config: PipelineConfig) -> TranslationCachePlan:

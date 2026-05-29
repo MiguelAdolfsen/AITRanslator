@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 PrimaryTranslationJob = tuple[int, PreparedPage, Path]
 TranslatorFactory = Callable[..., object]
 TranslationCacheWriter = Callable[[PreparedPage, Path], None]
+TranslationCacheLoader = Callable[[PreparedPage, Path], None]
 TranslatorReleaser = Callable[[object], None]
+PrimaryPageTranslator = Callable[[PreparedPage, object, PipelineConfig], None]
+VisionFactsRunner = Callable[[list[PreparedPage], PipelineConfig], None]
 
 
 @dataclass(frozen=True)
@@ -48,22 +51,32 @@ class TranslationReviewPass:
     cache_plan: TranslationCachePlan
     work_dir: Path
     translator_factory: TranslatorFactory
+    primary_page_translator: PrimaryPageTranslator | None = None
+    vision_facts_runner: VisionFactsRunner | None = None
     cache_writer: TranslationCacheWriter = save_translation_cache
+    cache_loader: TranslationCacheLoader | None = None
     release_translator: TranslatorReleaser | None = None
 
     def __post_init__(self) -> None:
         if self.release_translator is None:
             self.release_translator = release_qwen_translator
+        if self.cache_loader is None:
+            from .page_cache import load_translation_cache
+
+            self.cache_loader = load_translation_cache
 
     def run(
         self,
         pages: Sequence[PreparedPage],
         *,
-        primary_jobs: Sequence[PrimaryTranslationJob],
-        hybrid_cached_pages: set[int],
-        critic_cached_pages: set[int],
+        primary_jobs: Sequence[PrimaryTranslationJob] | None = None,
+        hybrid_cached_pages: set[int] | None = None,
+        critic_cached_pages: set[int] | None = None,
         primary_translator=None,
     ) -> TranslationReviewSummary:
+        if primary_jobs is None or hybrid_cached_pages is None or critic_cached_pages is None:
+            primary_jobs, hybrid_cached_pages, critic_cached_pages, primary_translator = self._select_and_run_primary_jobs(pages)
+
         try:
             cat_retry_attempted, cat_retry_accepted = self._run_cat_retry(primary_jobs, primary_translator)
         finally:
@@ -91,6 +104,44 @@ class TranslationReviewPass:
             critic_flagged=critic_flagged,
             fallback_attempted=fallback_attempted,
             fallback_accepted=fallback_accepted,
+        )
+
+    def _select_and_run_primary_jobs(
+        self,
+        pages: Sequence[PreparedPage],
+    ):
+        resume_jobs = self.cache_plan.select_hybrid_resume_cache_jobs(
+            self.work_dir,
+            pages,
+            resume=self.config.resume,
+            load_translation_cache=self.cache_loader,
+        )
+        primary_jobs = resume_jobs.primary_jobs
+        if self.config.vision_facts_enabled and primary_jobs and self.vision_facts_runner is not None:
+            self.vision_facts_runner([page for _page_index, page, _cache in primary_jobs], self.config)
+
+        primary_translator = None
+        if primary_jobs:
+            if self.primary_page_translator is None:
+                raise RuntimeError("TranslationReviewPass needs primary_page_translator to run uncached primary jobs")
+            logger.info("Building primary %s translator for %d pending page(s)", self.config.translator, len(primary_jobs))
+            primary_translator = self.translator_factory(
+                self.config.translator,
+                glossary_path=self.config.glossary_path,
+                qwen_model_path=self.config.qwen_model_path,
+                cat_model_name=self.config.cat_model_name,
+                hy_mt2_model_name=self.config.hy_mt2_model_name,
+            )
+            for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{self.config.translator.upper()} primary pass", unit="page"):
+                self.primary_page_translator(page, primary_translator, self.config)
+                self.cache_writer(page, primary_cache)
+        else:
+            logger.info("Primary %s pass skipped; all pages loaded from cache", self.config.translator)
+        return (
+            primary_jobs,
+            resume_jobs.hybrid_cached_pages,
+            resume_jobs.critic_cached_pages,
+            primary_translator,
         )
 
     def _run_cat_retry(

@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .cache_policy import TranslationCachePlan, translation_cache_plan
+from .cache_policy import translation_cache_plan
 from .detect_types import TextBlock
 
 try:
@@ -38,11 +38,10 @@ from .page_cache import (
 )
 from .page_types import PreparedPage
 from .text_filter import (
-    block_to_debug_dict,
-    fallback_translation,
     is_box_like,
     unusable_translation_reason,
 )
+from .translated_state import apply_fallback_translation_state
 from .translation_review import (
     visual_facts_for_context,
 )
@@ -155,11 +154,12 @@ def render_cached_pages_only(
         if not prepared_cache.exists():
             missing.append(str(prepared_cache))
             continue
-        translation_cache = find_render_only_translation_cache(work_dir, index, image_path, cache_plan)
+        translation_cache = cache_plan.find_render_only_translation_cache(work_dir, index, image_path)
         if translation_cache is None:
             expected = ", ".join(cache_plan.render_only_lookup_order)
             missing.append(f"{cache_page_path(work_dir, index, image_path, '<translation-stage>')} expected one of: {expected}")
             continue
+        logger.info("Loaded render-only translation cache: %s", translation_cache)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         page = load_prepared_page_cache(prepared_cache, output_path=target_path)
         load_translation_cache(page, translation_cache)
@@ -175,19 +175,6 @@ def render_cached_pages_only(
             f"{missing_preview}{extra}"
         )
     logger.info("Render-only flow finished: processed=%d skipped=%d", processed, skipped)
-
-
-def find_render_only_translation_cache(
-    work_dir: Path,
-    page_index: int,
-    image_path: Path,
-    cache_plan: TranslationCachePlan,
-) -> Path | None:
-    for cache_path in cache_plan.render_only_cache_paths(work_dir, page_index, image_path):
-        if cache_path.exists():
-            logger.info("Loaded render-only translation cache: %s", cache_path)
-            return cache_path
-    return None
 
 
 def process_folder_qwen_hybrid_batch(
@@ -246,60 +233,14 @@ def process_folder_qwen_hybrid_batch(
         logger.info("Batched Qwen hybrid flow finished: processed=0 skipped=%d", skipped)
         return
 
-    primary_jobs: list[tuple[int, PreparedPage, Path]] = []
-    hybrid_cached_pages: set[int] = set()
-    critic_cached_pages: set[int] = set()
-    for page_index, page in enumerate(prepared_pages, start=1):
-        hybrid_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "hybrid")
-        critic_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "critic")
-        primary_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "primary")
-        loaded_cache = None
-        if config.resume:
-            for cache_path in cache_plan.resume_cache_paths(work_dir, page_index, page.image_path):
-                if cache_path.exists():
-                    loaded_cache = cache_path
-                    load_translation_cache(page, loaded_cache)
-                    logger.info("Loaded translation cache: %s", loaded_cache)
-                    break
-        if loaded_cache == hybrid_cache:
-            hybrid_cached_pages.add(page_index)
-        elif loaded_cache == critic_cache:
-            critic_cached_pages.add(page_index)
-        elif loaded_cache is None:
-            primary_jobs.append((page_index, page, primary_cache))
-
-    if config.vision_facts_enabled and primary_jobs:
-        logger.info("Running pre-translation vision facts for %d pending page(s)", len(primary_jobs))
-        apply_vision_facts_to_pages([page for _page_index, page, _cache in primary_jobs], config)
-
-    primary_translator = None
-    if primary_jobs:
-        logger.info("Building primary %s translator for %d pending page(s)", config.translator, len(primary_jobs))
-        primary_translator = build_translator(
-            config.translator,
-            glossary_path=config.glossary_path,
-            qwen_model_path=config.qwen_model_path,
-            cat_model_name=config.cat_model_name,
-            hy_mt2_model_name=config.hy_mt2_model_name,
-        )
-        for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{config.translator.upper()} primary pass", unit="page"):
-            translate_prepared_page(page, primary_translator, config)
-            save_translation_cache(page, primary_cache)
-    else:
-        logger.info("Primary %s pass skipped; all pages loaded from cache", config.translator)
-
     review_summary = TranslationReviewPass(
         config=config,
         cache_plan=cache_plan,
         work_dir=work_dir,
         translator_factory=build_translator,
-    ).run(
-        prepared_pages,
-        primary_jobs=primary_jobs,
-        hybrid_cached_pages=hybrid_cached_pages,
-        critic_cached_pages=critic_cached_pages,
-        primary_translator=primary_translator,
-    )
+        primary_page_translator=translate_prepared_page,
+        vision_facts_runner=apply_vision_facts_to_pages,
+    ).run(prepared_pages)
 
     for page in prepared_pages:
         refresh_translation_fallback_blocks(page, config)
@@ -437,10 +378,11 @@ def translate_prepared_page(page: PreparedPage, translator, config: PipelineConf
                 shorten(block.text),
                 shorten(translated),
             )
-            translated = fallback_translation(block.text, reason=reason)
-            set_translation(page.translations, block, translated)
-            page.translation_fallback_blocks.append(
-                block_to_debug_dict(block, status="fallback", reason=reason, translated_text=translated)
+            translated = apply_fallback_translation_state(
+                page,
+                block,
+                reason=reason,
+                source_translation=translated,
             )
     logger.debug("Translation map contains %d line id(s)", len(page.translations))
 
@@ -503,10 +445,11 @@ def refresh_translation_fallback_blocks(page: PreparedPage, config: PipelineConf
             shorten(block.text),
             shorten(translated),
         )
-        fallback = fallback_translation(block.text, reason=reason)
-        set_translation(page.translations, block, fallback)
-        page.translation_fallback_blocks.append(
-            block_to_debug_dict(block, status="fallback", reason=reason, translated_text=fallback)
+        apply_fallback_translation_state(
+            page,
+            block,
+            reason=reason,
+            source_translation=translated,
         )
 
 
