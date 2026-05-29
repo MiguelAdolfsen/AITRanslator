@@ -9,10 +9,9 @@ Autoresearch harnesses are isolated benchmark loops. Always read the relevant ha
 | Folder | Purpose | Durable docs |
 |---|---|---|
 | `render_autoresearch/` | Rendering/layout benchmark with frozen synthetic fixtures. | `README.md`, `PROGRAM.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
-| `source_extraction_autoresearch/` | Source extraction/OCR-region benchmark and scoring. | `README.md`, `PROGRAM.md`, `CODEX_SETUP.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
 | `translation_routing_autoresearch/` | Translation candidate routing/selection benchmark. | `README.md`, `PROGRAM.md`, `CODEX_SETUP.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
-| `cat_response_autoresearch/` | CAT response quality and schema benchmark. | `README.md`, `PROGRAM.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
-| `autoresearch_docs/` | Historical/setup briefs and research notes. | Markdown setup and summary docs |
+
+Some local/private harness folders may exist in a developer checkout, but they are ignored and not part of the GitHub repository.
 
 ## Generated Outputs
 
@@ -58,8 +57,5 @@ Typical checks:
 | Goal | Harness |
 |---|---|
 | Better rendered text placement/wrapping | `render_autoresearch/` |
-| Better detection/OCR/source region extraction | `source_extraction_autoresearch/` |
 | Better translation selection/routing among candidates | `translation_routing_autoresearch/` |
-| Better CAT response filtering and scoring | `cat_response_autoresearch/` |
 | Whole-pipeline translation quality summaries | `manga_local_translator.quality_eval` |
-

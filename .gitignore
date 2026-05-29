@@ -15,6 +15,7 @@ mangafolder/
 private_manga_benchmarks/
 render_autoresearch/
 translation_routing_autoresearch/
+cat_response_autoresearch/
 labeler/
 autoresearch_docs/
 source_extraction_autoresearch/

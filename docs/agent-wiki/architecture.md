@@ -45,7 +45,7 @@ Per-page state is represented as `PreparedPage`. Individual source or render reg
 | OCR skip rules | `text_filter.py` | `debug_report.py` so reports explain skips |
 | Reading order/grouping | `grouping.py`, `line_identity.py` | cache and debug report tests |
 | Translation cleanup | `translation_rules.py` | `translation_evidence.py`, `translation_review.py`, `translation_review_pass.py`, translator tests |
-| CAT behavior | `hf_translators.py` | `cat_response_autoresearch/`, CAT tests |
+| CAT behavior | `hf_translators.py` | CAT tests |
 | Qwen prompts/parsing | `qwen_prompts.py`, `qwen_validation.py`, `qwen_translator.py` | Qwen tests and quality eval |
 | Vision repair/facts | `vision_*`, `qwen_vision.py` | vision tests and debug report fields |
 | Render fitting | `render.py` | `render_autoresearch/PROGRAM.md` before benchmarking |

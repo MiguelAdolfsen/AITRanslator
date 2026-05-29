@@ -51,7 +51,7 @@
       "path": "docs/agent-wiki/autoresearch.md",
       "title": "Autoresearch",
       "purpose": "Harness purposes, generated output boundaries, and benchmark guardrails.",
-      "source_areas": ["render_autoresearch", "source_extraction_autoresearch", "translation_routing_autoresearch", "cat_response_autoresearch", "autoresearch_docs"]
+      "source_areas": ["render_autoresearch", "translation_routing_autoresearch"]
     },
     {
       "path": "docs/agent-wiki/maintenance.md",

@@ -71,9 +71,10 @@ Supported image extensions include:
 - Resume/cache support.
 - OCR/debug JSON reports.
 - Debug images with boxes and render diagnostics.
+- HTML/CSV/Markdown review reports from debug JSON.
 - Repeatable quality-evaluation runner.
 - Render-only benchmark reruns from cache.
-- Isolated render/layout autoresearch benchmark harness.
+- Isolated autoresearch benchmark harnesses for render/layout and translation routing.
 
 ---
 
@@ -158,7 +159,7 @@ In the GUI:
 1. Select an input image or folder.
 2. Select an output file or folder.
 3. Choose detector, OCR engine, translator, and erase mode.
-4. Install CTD / OPUS / MADLAD / Argos from the GUI if needed.
+4. Install CTD / OPUS / MADLAD / Argos / CAT / Hy-MT2 from the GUI if needed.
 5. Enable debug output while tuning settings.
 6. Click **Start**.
 
@@ -675,11 +676,11 @@ Example structure:
     }
   ],
   "exact_phrases": {
-    "ただいま": "I'm home."
+    "よろしくお願いします": "Nice to meet you."
   },
   "target_replacements": [
     {
-      "source": "Ajit",
+      "source": "Ajito",
       "target": "hideout",
       "when_source_contains": "アジト"
     }
@@ -725,6 +726,27 @@ Debug reports are useful for checking:
 
 ---
 
+## Review reports
+
+`review_report.py` converts one or more `.ocr.json` debug reports into HTML, CSV, and Markdown review tables for manual triage.
+
+```powershell
+python -m manga_local_translator.review_report ".\debug_output"
+```
+
+Useful options:
+
+| Option | Description |
+|---|---|
+| `--output PATH` | Write the HTML report to a specific path |
+| `--csv PATH` | Write the CSV report to a specific path |
+| `--markdown PATH` | Write the Markdown report to a specific path |
+| `--suspicious-only` | Include only rows with detected review issues |
+
+`quality_eval` also writes review artifacts automatically when it finds `.ocr.json` reports.
+
+---
+
 ## Architecture notes
 
 The pipeline is split into small passes so resume, review, vision repair, and render-only benchmark runs can reuse the same page state:
@@ -732,15 +754,17 @@ The pipeline is split into small passes so resume, review, vision repair, and re
 - `pipeline.py` orchestrates input discovery, page loading, pass sequencing, and final reporting.
 - `cache_policy.py` defines prepared-page and translation-stage cache plans, including resume and render-only lookup order.
 - `page_cache.py` serializes prepared pages and translated cache stages in `.manga-work/`.
+- `source_extraction.py` runs detection/OCR/filtering/grouping and returns prepared source blocks.
 - `translation_review_pass.py` coordinates primary translation, cache hits, critic review, CAT retry, and fallback behavior.
 - `translated_state.py` keeps translated line state centralized while review and vision passes update blocks.
 - `rendered_page_pass.py` handles erase, layout fitting, optional vision repair, debug metadata, and output image writing.
+- `debug_report.py` and `review_report.py` write machine-readable debug reports and human review tables.
 
 ---
 
 ## Quality evaluation
 
-The quality evaluation runner can process pages with repeatable profile settings and summarize debug OCR reports.
+The quality evaluation runner can process pages with repeatable profile settings and summarize debug OCR reports. It benchmarks Qwen, CAT, or Hy-MT2 as the primary translator, and can still add Qwen critic/fallback or vision passes where configured.
 
 Show help:
 
@@ -783,25 +807,19 @@ By default, `quality_eval` skips final image rendering so translation/model expe
 
 ---
 
-## Render autoresearch
+## Autoresearch harnesses
 
-`render_autoresearch/` is an isolated benchmark harness for improving only rendering and layout behavior. It does not run OCR, detection, translation, Qwen, CAT, vision, or the GUI. It uses frozen synthetic fixtures:
+The repo includes isolated benchmark loops for improving one subsystem at a time. Read the relevant `PROGRAM.md` before changing benchmark-owned code, fixtures, scoring, or result history.
 
-```text
-render_autoresearch/benchmarks/synthetic/
-```
+| Folder | Benchmarks | Does not run |
+|---|---|---|
+| `render_autoresearch/` | render layout and text fitting from frozen render fixtures | OCR, detection, translation, Qwen/CAT, vision, GUI |
+| `translation_routing_autoresearch/` | routing/validation choices over frozen OCR text and candidate outputs | OCR, detection, rendering, live model inference |
 
-Run render unit tests:
+Common render check:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s .testing\tests -p test_render.py
-```
-
-Regenerate deterministic synthetic cases:
-
-```powershell
-.\.venv\Scripts\python.exe render_autoresearch\scripts\generate_synthetic_cases.py `
-  --output render_autoresearch\benchmarks\synthetic
 ```
 
 Run the synthetic render benchmark:
@@ -815,7 +833,18 @@ Run the synthetic render benchmark:
   --overwrite-output
 ```
 
-The benchmark writes per-run outputs under `render_autoresearch/runs/` and appends scores to `render_autoresearch/results/results.tsv`. Lower `render_score` is better. See `render_autoresearch/PROGRAM.md` before making render experiments.
+Run the synthetic translation-routing benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe translation_routing_autoresearch\scripts\eval_translation_routing.py `
+  --benchmark translation_routing_autoresearch\benchmarks\synthetic `
+  --output translation_routing_autoresearch\runs\baseline `
+  --results translation_routing_autoresearch\results\results.tsv `
+  --run-id baseline `
+  --tests-ok
+```
+
+Harnesses write per-run outputs under their own `runs/` folders and append scores to their own `results/results.tsv` files. See [docs/agent-wiki/autoresearch.md](docs/agent-wiki/autoresearch.md) for the harness map and guardrails.
 
 ---
 
@@ -846,6 +875,7 @@ The test runner performs checks such as:
 - Python compile check
 - CLI help check
 - quality evaluator help check
+- review report help check
 - unit tests under `.testing/tests`
 - optional smoke translation
 
@@ -886,6 +916,7 @@ AITRanslator/
     erase.py
     grouping.py
     quality_eval.py
+    review_report.py
     install_ctd.py
     install_opus.py
     install_hy_mt2.py
@@ -903,6 +934,14 @@ AITRanslator/
     tests/
 
   render_autoresearch/
+    README.md
+    PROGRAM.md
+    benchmarks/
+    results/
+    runs/
+    scripts/
+
+  translation_routing_autoresearch/
     README.md
     PROGRAM.md
     benchmarks/

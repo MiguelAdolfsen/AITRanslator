@@ -3,6 +3,9 @@ import unittest
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "source_extraction_autoresearch" / "scripts"
+if not SCRIPTS_DIR.exists():
+    raise unittest.SkipTest("source_extraction_autoresearch is a local ignored harness")
+
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 

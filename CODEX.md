@@ -40,7 +40,7 @@ Use `.\.testing\run_tests.ps1 -WithSmoke` only when local smoke inputs and requi
 | Qwen/vision | `qwen_*`, `vision_*` | [runtime flows](docs/agent-wiki/runtime-flows.md) | Qwen and vision unit tests |
 | Rendering | `render.py`, `erase.py`, `debug_report.py` | [debugging](docs/agent-wiki/debugging.md) | `.\.venv\Scripts\python.exe -m unittest discover -s .testing\tests -p test_render.py` |
 | Quality eval | `quality_eval.py`, `review_report.py` | [testing](docs/agent-wiki/testing.md) | `.\.venv\Scripts\python.exe -m manga_local_translator.quality_eval --help` |
-| Autoresearch | `*_autoresearch/`, `autoresearch_docs/` | [autoresearch](docs/agent-wiki/autoresearch.md) | harness-specific `PROGRAM.md` commands |
+| Autoresearch | tracked `*_autoresearch/` folders | [autoresearch](docs/agent-wiki/autoresearch.md) | harness-specific `PROGRAM.md` commands |
 
 ## Recommended Read Order
 

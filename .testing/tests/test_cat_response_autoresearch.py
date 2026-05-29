@@ -15,6 +15,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+if not (REPO_ROOT / "cat_response_autoresearch").exists():
+    raise unittest.SkipTest("cat_response_autoresearch is a local ignored harness")
+
 from cat_response_autoresearch.scripts import eval_cat_responses  # noqa: E402
 from cat_response_autoresearch.scripts.eval_cat_responses import maybe_update_best  # noqa: E402
 from cat_response_autoresearch.scripts.serve_dashboard import dashboard_state  # noqa: E402
