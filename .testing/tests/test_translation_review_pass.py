@@ -70,9 +70,9 @@ class TranslationReviewPassTests(unittest.TestCase):
                 return translators["primary"]
 
             with (
-                patch("manga_local_translator.translation_review_pass.apply_translation_evidence_to_pages", return_value=object()),
-                patch("manga_local_translator.translation_review_pass.apply_qwen_critic_reviews", side_effect=[(1, 1), (1, 0)]),
-                patch("manga_local_translator.translation_review_pass.apply_qwen_fallback_translations", side_effect=[(1, 1), (1, 0), (1, 1)]),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.apply_translation_evidence_to_pages", return_value=object()),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_critic", side_effect=[(1, 1), (1, 0)]),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_fallback", side_effect=[(1, 1), (1, 0), (1, 1)]),
             ):
                 summary = TranslationReviewPass(
                     config=config,
@@ -124,7 +124,7 @@ class TranslationReviewPassTests(unittest.TestCase):
             pages[0].translation_contexts["page1_001"]["qwen_fallback_accepted"] = True
             loaded: list[str] = []
 
-            with patch("manga_local_translator.translation_review_pass.apply_translation_evidence_to_pages", return_value=object()):
+            with patch("manga_local_translator.translation_review_page.TranslationReviewPage.apply_translation_evidence_to_pages", return_value=object()):
                 summary = TranslationReviewPass(
                     config=config,
                     cache_plan=cache_plan,
@@ -171,9 +171,9 @@ class TranslationReviewPassTests(unittest.TestCase):
                 return translators["primary"]
 
             with (
-                patch("manga_local_translator.translation_review_pass.apply_translation_evidence_to_pages", return_value=object()),
-                patch("manga_local_translator.translation_review_pass.apply_qwen_critic_reviews", side_effect=[(1, 1), (1, 1)]),
-                patch("manga_local_translator.translation_review_pass.apply_qwen_fallback_translations", side_effect=[(1, 1), (1, 1)]),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.apply_translation_evidence_to_pages", return_value=object()),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_critic", side_effect=[(1, 1), (1, 1)]),
+                patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_fallback", side_effect=[(1, 1), (1, 1)]),
             ):
                 summary = TranslationReviewPass(
                     config=config,
@@ -224,9 +224,9 @@ class TranslationReviewPassTests(unittest.TestCase):
             return translators[str(kwargs["qwen_model_path"])]
 
         with (
-            patch("manga_local_translator.translation_review_pass.apply_translation_evidence_to_pages", return_value=object()),
-            patch("manga_local_translator.translation_review_pass.apply_qwen_critic_reviews", side_effect=[(2, 1), (1, 1)]),
-            patch("manga_local_translator.translation_review_pass.apply_qwen_fallback_translations", side_effect=[(3, 2), (1, 1)]),
+            patch("manga_local_translator.translation_review_page.TranslationReviewPage.apply_translation_evidence_to_pages", return_value=object()),
+            patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_critic", side_effect=[(2, 1), (1, 1)]),
+            patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_qwen_fallback", side_effect=[(3, 2), (1, 1)]),
         ):
             summary = TranslationReviewPass(
                 config=config,
@@ -264,7 +264,7 @@ class TranslationReviewPassTests(unittest.TestCase):
         saved: list[Path] = []
         released: list[object] = []
 
-        with patch("manga_local_translator.translation_review_pass.retry_cat_failures", side_effect=[(1, 1), (0, 0)]):
+        with patch("manga_local_translator.translation_review_page.TranslationReviewPage.run_cat_retry", side_effect=[(1, 1), (0, 0)]):
             summary = TranslationReviewPass(
                 config=PipelineConfig(translator="cat"),
                 cache_plan=TranslationCachePlan(

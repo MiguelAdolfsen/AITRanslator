@@ -11,12 +11,7 @@ from .config import PipelineConfig
 from .logging_utils import shorten
 from .page_cache import save_translation_cache
 from .page_types import PreparedPage
-from .translation_review import (
-    apply_qwen_critic_reviews,
-    apply_qwen_fallback_translations,
-    apply_translation_evidence_to_pages,
-    retry_cat_failures,
-)
+from .translation_review_page import TranslationReviewPage
 
 try:
     from tqdm import tqdm
@@ -87,7 +82,7 @@ class TranslationReviewPass:
                 self.release_translator(primary_translator)
         evidence_memory = None
         if self.config.qwen_critic_model_path is not None or self.config.qwen_fallback_model_path is not None:
-            evidence_memory = apply_translation_evidence_to_pages(list(pages))
+            evidence_memory = TranslationReviewPage.apply_translation_evidence_to_pages(list(pages))
 
         critic_attempted, critic_flagged = self._run_critic(
             pages,
@@ -156,7 +151,7 @@ class TranslationReviewPass:
         total_attempted = 0
         total_accepted = 0
         for _page_index, page, primary_cache in tqdm(primary_jobs, desc="CAT retry pass", unit="page"):
-            attempted, accepted = retry_cat_failures(page, primary_translator, self.config)
+            attempted, accepted = TranslationReviewPage.for_page(page).run_cat_retry(primary_translator, self.config)
             if attempted:
                 self.cache_writer(page, primary_cache)
             total_attempted += attempted
@@ -202,11 +197,7 @@ class TranslationReviewPass:
             )
             try:
                 for _page_index, page, critic_cache in tqdm(critic_jobs, desc="Qwen critic pass", unit="page"):
-                    attempted, flagged = apply_qwen_critic_reviews(
-                        page.render_blocks,
-                        page.translations,
-                        page.translation_contexts,
-                        page.page_order_report,
+                    attempted, flagged = TranslationReviewPage.for_page(page).run_qwen_critic(
                         critic_translator,
                         self.config,
                         evidence_memory=evidence_memory,
@@ -263,11 +254,7 @@ class TranslationReviewPass:
             )
             try:
                 for _page_index, page, hybrid_cache in tqdm(fallback_jobs, desc="Q8 fallback pass", unit="page"):
-                    attempted, accepted = apply_qwen_fallback_translations(
-                        page.render_blocks,
-                        page.translations,
-                        page.translation_contexts,
-                        page.page_order_report,
+                    attempted, accepted = TranslationReviewPage.for_page(page).run_qwen_fallback(
                         fallback_translator,
                         self.config,
                         evidence_memory=evidence_memory,

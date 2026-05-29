@@ -34,6 +34,7 @@ from manga_local_translator.translation_review import (
     should_try_qwen_fallback,
 )
 from manga_local_translator.page_types import PreparedPage
+from manga_local_translator.translation_review_page import TranslationReviewPage
 
 
 class CatTranslatorTests(unittest.TestCase):
@@ -400,6 +401,48 @@ class CatTranslatorTests(unittest.TestCase):
         self.assertTrue(page.translation_contexts["line-1"]["cat_retry_attempted"])
         self.assertTrue(page.translation_contexts["line-1"]["cat_retry_accepted"])
         self.assertFalse(page.translation_contexts["line-1"]["cat_rejected"])
+
+    def test_review_page_runs_cat_retry_from_prepared_page_interface(self) -> None:
+        class FakeCat:
+            def __init__(self) -> None:
+                self.debug = {}
+
+            def retry_translation(self, text):
+                self.debug[text] = {
+                    "cat_retry_attempted": True,
+                    "cat_retry_accepted": True,
+                    "cat_retry_final": "Mother.",
+                    "cat_rejected": False,
+                    "cat_reject_reason": "",
+                }
+                return "Mother."
+
+            def debug_info_for(self, text, debug_id=None):
+                return self.debug.get(text, {})
+
+        block = TextBlock("\u6bcd", (0, 0, 10, 10), 90, metadata={"line_id": "line-1"})
+        page = PreparedPage(
+            image_path=Path("1.png"),
+            output_path=Path("out.png"),
+            image_bgr=None,
+            width=10,
+            height=10,
+            raw_blocks=[block],
+            render_blocks=[block],
+            skipped_blocks=[],
+            grouping_report=[],
+            page_order_report=[{"line_id": "line-1", "source_text": block.text, "page_order": 1}],
+            translations={"line-1": ""},
+            translation_contexts={"line-1": {"cat_rejected": True, "cat_reject_reason": "cat_empty"}},
+        )
+
+        attempted, accepted = TranslationReviewPage.for_page(page).run_cat_retry(
+            FakeCat(),
+            PipelineConfig(translator="cat"),
+        )
+
+        self.assertEqual((attempted, accepted), (1, 1))
+        self.assertEqual(page.translations["line-1"], "Mother.")
 
     def test_cat_suspected_bad_translation_uses_strict_second_pass(self) -> None:
         class FakeCat:

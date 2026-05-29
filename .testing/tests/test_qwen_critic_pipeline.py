@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from manga_local_translator.translation_review import (
     apply_translation_evidence,
@@ -16,6 +17,8 @@ from manga_local_translator.detect_types import TextBlock
 from manga_local_translator.qwen_types import QwenCriticDecision
 from manga_local_translator.translated_state import TranslationReviewState
 from manga_local_translator.translation_evidence import build_consistency_memory
+from manga_local_translator.page_types import PreparedPage
+from manga_local_translator.translation_review_page import TranslationReviewPage
 
 
 class QwenCriticPipelineTests(unittest.TestCase):
@@ -192,6 +195,35 @@ class QwenCriticPipelineTests(unittest.TestCase):
         self.assertIn("translation_evidence", contexts[block.text])
         self.assertIn("consistency_conflict", contexts[block.text]["evidence_repair_reasons"])
 
+    def test_review_page_applies_translation_evidence_from_prepared_page_interface(self) -> None:
+        block = TextBlock("\u30de\u30ad\u306f\u8a00\u3063\u305f", (0, 0, 10, 10), 90, metadata={"line_id": "line-1"})
+        page = PreparedPage(
+            image_path=Path("1.png"),
+            output_path=Path("out.png"),
+            image_bgr=None,
+            width=10,
+            height=10,
+            raw_blocks=[block],
+            render_blocks=[block],
+            skipped_blocks=[],
+            grouping_report=[],
+            page_order_report=[{"line_id": "line-1", "source_text": block.text, "box": block.box, "page_order": 1}],
+            translations={"line-1": "Macha said it."},
+            translation_contexts={"line-1": {"qwen_used": True}},
+        )
+        memory = build_consistency_memory(
+            [
+                ("\u30de\u30ad\u306f\u6765\u305f", "Maki came."),
+                ("\u30de\u30ad\u3092\u52b1\u307e\u3057\u3066", "Encourage Maki."),
+            ]
+        )
+
+        TranslationReviewPage.for_page(page).apply_translation_evidence(memory)
+
+        self.assertIn("source_features", page.translation_contexts["line-1"])
+        self.assertIn("translation_evidence", page.translation_contexts["line-1"])
+        self.assertIn("consistency_conflict", page.translation_contexts["line-1"]["evidence_repair_reasons"])
+
     def test_translation_evidence_isolates_duplicate_source_lines_by_line_id(self) -> None:
         first = TextBlock("\u30de\u30ad\u3055\u3093", (0, 0, 10, 10), 90, metadata={"line_id": "line-001"})
         second = TextBlock("\u30de\u30ad\u3055\u3093", (20, 0, 30, 10), 90, metadata={"line_id": "line-002"})
@@ -355,6 +387,75 @@ class QwenCriticPipelineTests(unittest.TestCase):
             contexts[block.text]["qwen_fallback_translation_evidence"]["preservation_failures"],
         )
         self.assertNotIn("qwen_fallback_reject_reason", contexts[block.text])
+
+    def test_review_page_runs_fallback_from_prepared_page_interface(self) -> None:
+        class FakeFallback:
+            def __init__(self) -> None:
+                self.debug = {}
+
+            def translate_with_context(self, text, **_kwargs):
+                self.debug[text] = {"qwen_model": "fake-q8"}
+                return "Mom."
+
+            def debug_info_for(self, text):
+                return self.debug.get(text, {})
+
+        block = TextBlock("\u6bcd", (0, 0, 10, 10), 90, metadata={"line_id": "line-1"})
+        page = PreparedPage(
+            image_path=Path("1.png"),
+            output_path=Path("out.png"),
+            image_bgr=None,
+            width=10,
+            height=10,
+            raw_blocks=[block],
+            render_blocks=[block],
+            skipped_blocks=[],
+            grouping_report=[],
+            page_order_report=[{"line_id": "line-1", "source_text": block.text, "box": block.box, "page_order": 1}],
+            translations={"line-1": ""},
+            translation_contexts={"line-1": {"cat_rejected": True}},
+        )
+
+        attempted, accepted = TranslationReviewPage.for_page(page).run_qwen_fallback(
+            FakeFallback(),
+            PipelineConfig(translator="cat"),
+        )
+
+        self.assertEqual((attempted, accepted), (1, 1))
+        self.assertEqual(page.translations["line-1"], "Mom.")
+        self.assertTrue(page.translation_contexts["line-1"]["qwen_fallback_accepted"])
+
+    def test_review_page_runs_critic_from_prepared_page_interface(self) -> None:
+        class FakeCritic:
+            def critique_translation(self, *_args, **_kwargs):
+                return (
+                    QwenCriticDecision(False, "medium", ("omitted_term",), "missing bracket term"),
+                    {"qwen_critic_attempted": True},
+                )
+
+        block = TextBlock("\u3008PII2\u3009", (0, 0, 10, 10), 90, metadata={"line_id": "line-1"})
+        page = PreparedPage(
+            image_path=Path("1.png"),
+            output_path=Path("out.png"),
+            image_bgr=None,
+            width=10,
+            height=10,
+            raw_blocks=[block],
+            render_blocks=[block],
+            skipped_blocks=[],
+            grouping_report=[],
+            page_order_report=[{"line_id": "line-1", "source_text": block.text, "box": block.box, "page_order": 1}],
+            translations={"line-1": "A prank."},
+            translation_contexts={"line-1": {"qwen_used": True}},
+        )
+
+        attempted, flagged = TranslationReviewPage.for_page(page).run_qwen_critic(
+            FakeCritic(),
+            PipelineConfig(translator="qwen"),
+        )
+
+        self.assertEqual((attempted, flagged), (1, 1))
+        self.assertTrue(page.translation_contexts["line-1"]["qwen_critic_should_repair"])
 
 
 if __name__ == "__main__":
