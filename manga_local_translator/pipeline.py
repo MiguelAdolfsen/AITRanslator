@@ -3,12 +3,11 @@ from __future__ import annotations
 import logging
 import os
 import re
-import subprocess
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .cache_policy import render_only_translation_stages, translation_cache_stage
+from .cache_policy import TranslationCachePlan, translation_cache_plan
 from .detect_types import TextBlock
 
 try:
@@ -45,12 +44,9 @@ from .text_filter import (
     unusable_translation_reason,
 )
 from .translation_review import (
-    apply_qwen_critic_reviews,
-    apply_qwen_fallback_translations,
-    apply_translation_evidence_to_pages,
-    retry_cat_failures,
     visual_facts_for_context,
 )
+from .translation_review_pass import TranslationReviewPass
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +139,7 @@ def render_cached_pages_only(
     if not work_dir.exists():
         raise RuntimeError(f"Render-only cache folder does not exist: {work_dir}")
     render_config = replace(config, skip_render=False, vision_enabled=False)
+    cache_plan = translation_cache_plan(config)
     processed = 0
     skipped = 0
     missing: list[str] = []
@@ -154,13 +151,13 @@ def render_cached_pages_only(
             skipped += 1
             logger.info("Skipping existing output because overwrite is off: %s", target_path)
             continue
-        prepared_cache = cache_page_path(work_dir, index, image_path, "prepared")
+        prepared_cache = cache_plan.prepared_cache_path(work_dir, index, image_path)
         if not prepared_cache.exists():
             missing.append(str(prepared_cache))
             continue
-        translation_cache = find_render_only_translation_cache(work_dir, index, image_path, config)
+        translation_cache = find_render_only_translation_cache(work_dir, index, image_path, cache_plan)
         if translation_cache is None:
-            expected = ", ".join(render_only_translation_stages(config))
+            expected = ", ".join(cache_plan.render_only_lookup_order)
             missing.append(f"{cache_page_path(work_dir, index, image_path, '<translation-stage>')} expected one of: {expected}")
             continue
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -184,10 +181,9 @@ def find_render_only_translation_cache(
     work_dir: Path,
     page_index: int,
     image_path: Path,
-    config: PipelineConfig,
+    cache_plan: TranslationCachePlan,
 ) -> Path | None:
-    for stage in render_only_translation_stages(config):
-        cache_path = cache_page_path(work_dir, page_index, image_path, stage)
+    for cache_path in cache_plan.render_only_cache_paths(work_dir, page_index, image_path):
         if cache_path.exists():
             logger.info("Loaded render-only translation cache: %s", cache_path)
             return cache_path
@@ -214,6 +210,7 @@ def process_folder_qwen_hybrid_batch(
         config.qwen_fallback_model_path,
     )
     work_dir = resolve_work_dir(output_path, config)
+    cache_plan = translation_cache_plan(config)
     work_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Batched hybrid work directory: %s resume=%s", work_dir, config.resume)
     prepared_pages: list[PreparedPage] = []
@@ -228,7 +225,7 @@ def process_folder_qwen_hybrid_batch(
             logger.info("Skipping existing output because overwrite is off: %s", target_path)
             continue
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        prepared_cache = cache_page_path(work_dir, index, image_path, "prepared")
+        prepared_cache = cache_plan.prepared_cache_path(work_dir, index, image_path)
         if config.resume and prepared_cache.exists():
             page = load_prepared_page_cache(prepared_cache, output_path=target_path)
             logger.info("Loaded prepared page cache: %s", prepared_cache)
@@ -253,27 +250,29 @@ def process_folder_qwen_hybrid_batch(
     hybrid_cached_pages: set[int] = set()
     critic_cached_pages: set[int] = set()
     for page_index, page in enumerate(prepared_pages, start=1):
-        hybrid_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "hybrid"))
-        critic_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "critic"))
-        primary_cache = cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "primary"))
-        if config.resume and hybrid_cache.exists():
-            load_translation_cache(page, hybrid_cache)
+        hybrid_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "hybrid")
+        critic_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "critic")
+        primary_cache = cache_plan.translation_cache_path(work_dir, page_index, page.image_path, "primary")
+        loaded_cache = None
+        if config.resume:
+            for cache_path in cache_plan.resume_cache_paths(work_dir, page_index, page.image_path):
+                if cache_path.exists():
+                    loaded_cache = cache_path
+                    load_translation_cache(page, loaded_cache)
+                    logger.info("Loaded translation cache: %s", loaded_cache)
+                    break
+        if loaded_cache == hybrid_cache:
             hybrid_cached_pages.add(page_index)
-            logger.info("Loaded hybrid translation cache: %s", hybrid_cache)
-        elif config.resume and config.qwen_critic_model_path is not None and critic_cache.exists():
-            load_translation_cache(page, critic_cache)
+        elif loaded_cache == critic_cache:
             critic_cached_pages.add(page_index)
-            logger.info("Loaded critic translation cache: %s", critic_cache)
-        elif config.resume and primary_cache.exists():
-            load_translation_cache(page, primary_cache)
-            logger.info("Loaded primary translation cache: %s", primary_cache)
-        else:
+        elif loaded_cache is None:
             primary_jobs.append((page_index, page, primary_cache))
 
     if config.vision_facts_enabled and primary_jobs:
         logger.info("Running pre-translation vision facts for %d pending page(s)", len(primary_jobs))
         apply_vision_facts_to_pages([page for _page_index, page, _cache in primary_jobs], config)
 
+    primary_translator = None
     if primary_jobs:
         logger.info("Building primary %s translator for %d pending page(s)", config.translator, len(primary_jobs))
         primary_translator = build_translator(
@@ -286,122 +285,31 @@ def process_folder_qwen_hybrid_batch(
         for _page_index, page, primary_cache in tqdm(primary_jobs, desc=f"{config.translator.upper()} primary pass", unit="page"):
             translate_prepared_page(page, primary_translator, config)
             save_translation_cache(page, primary_cache)
-        if config.translator == "cat":
-            total_cat_retry_attempted = 0
-            total_cat_retry_accepted = 0
-            for _page_index, page, primary_cache in tqdm(primary_jobs, desc="CAT retry pass", unit="page"):
-                attempted, accepted = retry_cat_failures(page, primary_translator, config)
-                if attempted:
-                    save_translation_cache(page, primary_cache)
-                total_cat_retry_attempted += attempted
-                total_cat_retry_accepted += accepted
-            logger.info(
-                "CAT retry scan complete: attempted=%d accepted=%d",
-                total_cat_retry_attempted,
-                total_cat_retry_accepted,
-            )
-        release_qwen_translator(primary_translator)
-        del primary_translator
     else:
         logger.info("Primary %s pass skipped; all pages loaded from cache", config.translator)
 
-    evidence_memory = None
-    if config.qwen_critic_model_path is not None or config.qwen_fallback_model_path is not None:
-        evidence_memory = apply_translation_evidence_to_pages(prepared_pages)
-
-    critic_jobs = []
-    if config.qwen_critic_model_path is not None:
-        critic_jobs = [
-            (page_index, page, cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "critic")))
-            for page_index, page in enumerate(prepared_pages, start=1)
-            if page_index not in hybrid_cached_pages and page_index not in critic_cached_pages
-        ]
-    total_critic_attempted = 0
-    total_critic_flagged = 0
-    if critic_jobs:
-        logger.info("Primary %s pass complete; building critic Qwen translator for %d pending page(s)", config.translator, len(critic_jobs))
-        critic_translator = build_translator(
-            "qwen",
-            glossary_path=config.glossary_path,
-            qwen_model_path=config.qwen_critic_model_path,
-        )
-        for _page_index, page, critic_cache in tqdm(critic_jobs, desc="Qwen critic pass", unit="page"):
-            attempted, flagged = apply_qwen_critic_reviews(
-                page.render_blocks,
-                page.translations,
-                page.translation_contexts,
-                page.page_order_report,
-                critic_translator,
-                config,
-                evidence_memory=evidence_memory,
-            )
-            save_translation_cache(page, critic_cache)
-            total_critic_attempted += attempted
-            total_critic_flagged += flagged
-        release_qwen_translator(critic_translator)
-        del critic_translator
-    elif config.qwen_critic_model_path is not None:
-        logger.info("Critic Qwen pass skipped; all pages loaded from cache")
-    logger.info(
-        "Critic Qwen pass complete: attempted=%d flagged=%d",
-        total_critic_attempted,
-        total_critic_flagged,
-    )
-
-    fallback_jobs = []
-    if config.qwen_fallback_model_path is not None:
-        fallback_jobs = [
-            (page_index, page, cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, "hybrid")))
-            for page_index, page in enumerate(prepared_pages, start=1)
-            if page_index not in hybrid_cached_pages
-        ]
-    total_attempted = 0
-    total_accepted = 0
-    for page_index in hybrid_cached_pages:
-        page = prepared_pages[page_index - 1]
-        total_attempted += sum(1 for context in page.translation_contexts.values() if context.get("qwen_fallback_attempted") is True)
-        total_accepted += sum(1 for context in page.translation_contexts.values() if context.get("qwen_fallback_accepted") is True)
-
-    if fallback_jobs:
-        logger.info("Primary %s pass complete; building fallback Qwen translator for %d pending page(s)", config.translator, len(fallback_jobs))
-        fallback_translator = build_translator(
-            "qwen",
-            glossary_path=config.glossary_path,
-            qwen_model_path=config.qwen_fallback_model_path,
-        )
-        for _page_index, page, hybrid_cache in tqdm(fallback_jobs, desc="Q8 fallback pass", unit="page"):
-            attempted, accepted = apply_qwen_fallback_translations(
-                page.render_blocks,
-                page.translations,
-                page.translation_contexts,
-                page.page_order_report,
-                fallback_translator,
-                config,
-                evidence_memory=evidence_memory,
-            )
-            save_translation_cache(page, hybrid_cache)
-            total_attempted += attempted
-            total_accepted += accepted
-        release_qwen_translator(fallback_translator)
-        del fallback_translator
-    else:
-        logger.info("Fallback Qwen pass skipped; all pages loaded from hybrid cache")
-    logger.info(
-        "Fallback Qwen pass complete: attempted=%d accepted=%d",
-        total_attempted,
-        total_accepted,
+    review_summary = TranslationReviewPass(
+        config=config,
+        cache_plan=cache_plan,
+        work_dir=work_dir,
+        translator_factory=build_translator,
+    ).run(
+        prepared_pages,
+        primary_jobs=primary_jobs,
+        hybrid_cached_pages=hybrid_cached_pages,
+        critic_cached_pages=critic_cached_pages,
+        primary_translator=primary_translator,
     )
 
     for page in prepared_pages:
         refresh_translation_fallback_blocks(page, config)
 
-    final_stage = "hybrid" if config.qwen_fallback_model_path is not None else "primary"
     for page_index, page in enumerate(tqdm(prepared_pages, desc="Rendering pages", unit="page"), start=1):
         render_prepared_page(page, config)
         if config.vision_enabled:
             save_translation_cache(
                 page,
-                cache_page_path(work_dir, page_index, page.image_path, translation_cache_stage(config, final_stage)),
+                cache_page_path(work_dir, page_index, page.image_path, cache_plan.final_stage),
             )
 
     logger.info(
@@ -409,29 +317,9 @@ def process_folder_qwen_hybrid_batch(
         config.translator,
         processed,
         skipped,
-        total_attempted,
-        total_accepted,
+        review_summary.fallback_attempted,
+        review_summary.fallback_accepted,
     )
-
-
-def release_qwen_translator(translator) -> None:
-    ollama = getattr(translator, "_ollama", None)
-    model_name = getattr(translator, "_ollama_model_name", None)
-    if not ollama or not model_name:
-        return
-    completed = subprocess.run(
-        [ollama, "stop", str(model_name)],
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        timeout=60,
-        check=False,
-    )
-    if completed.returncode == 0:
-        logger.info("Stopped Ollama model to free VRAM: %s", model_name)
-    else:
-        logger.debug("Could not stop Ollama model %s: %s", model_name, shorten(completed.stderr))
 
 
 def apply_vision_facts_to_pages(pages: list[PreparedPage], config: PipelineConfig) -> None:

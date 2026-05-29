@@ -1,12 +1,92 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
 from pathlib import Path
 
 from .config import PipelineConfig
 
 
+@dataclass(frozen=True)
+class TranslationCachePlan:
+    primary_stage: str
+    critic_stage: str
+    hybrid_stage: str
+    resume_lookup_order: tuple[str, ...]
+    render_only_lookup_order: tuple[str, ...]
+    final_stage: str
+
+    def stage(self, stage: str) -> str:
+        if stage == "primary":
+            return self.primary_stage
+        if stage == "critic":
+            return self.critic_stage
+        if stage == "hybrid":
+            return self.hybrid_stage
+        return stage
+
+    def prepared_cache_path(self, work_dir: Path, page_index: int, image_path: Path) -> Path:
+        from .page_cache import cache_page_path
+
+        return cache_page_path(work_dir, page_index, image_path, "prepared")
+
+    def translation_cache_path(self, work_dir: Path, page_index: int, image_path: Path, stage: str) -> Path:
+        from .page_cache import cache_page_path
+
+        return cache_page_path(work_dir, page_index, image_path, self.stage(stage))
+
+    def render_only_cache_paths(self, work_dir: Path, page_index: int, image_path: Path) -> list[Path]:
+        from .page_cache import cache_page_path
+
+        return [
+            cache_page_path(work_dir, page_index, image_path, stage)
+            for stage in self.render_only_lookup_order
+        ]
+
+    def resume_cache_paths(self, work_dir: Path, page_index: int, image_path: Path) -> list[Path]:
+        from .page_cache import cache_page_path
+
+        return [
+            cache_page_path(work_dir, page_index, image_path, stage)
+            for stage in self.resume_lookup_order
+        ]
+
+
+def translation_cache_plan(config: PipelineConfig) -> TranslationCachePlan:
+    primary_stage = _translation_cache_stage_name(config, "primary")
+    critic_stage = _translation_cache_stage_name(config, "critic")
+    hybrid_stage = _translation_cache_stage_name(config, "hybrid")
+    resume_stage_names = ["hybrid"]
+    if config.qwen_critic_model_path is not None:
+        resume_stage_names.append("critic")
+    resume_stage_names.append("primary")
+
+    render_only_stage_names: list[str] = []
+    if config.qwen_fallback_model_path is not None:
+        render_only_stage_names.append("hybrid")
+    if config.qwen_critic_model_path is not None:
+        render_only_stage_names.append("critic")
+    render_only_stage_names.append("primary")
+    if config.qwen_fallback_model_path is None:
+        render_only_stage_names.append("hybrid")
+    if config.qwen_critic_model_path is None:
+        render_only_stage_names.append("critic")
+
+    return TranslationCachePlan(
+        primary_stage=primary_stage,
+        critic_stage=critic_stage,
+        hybrid_stage=hybrid_stage,
+        resume_lookup_order=_unique_stages(_stage_names(primary_stage, critic_stage, hybrid_stage, resume_stage_names)),
+        render_only_lookup_order=_unique_stages(_stage_names(primary_stage, critic_stage, hybrid_stage, render_only_stage_names)),
+        final_stage=hybrid_stage if config.qwen_fallback_model_path is not None else primary_stage,
+    )
+
+
 def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
+    return translation_cache_plan(config).stage(stage)
+
+
+def _translation_cache_stage_name(config: PipelineConfig, stage: str) -> str:
     if config.translator == "qwen":
         suffix = f"{stage}-{config.qwen_mode}"
     elif config.translator == "cat":
@@ -52,25 +132,26 @@ def translation_cache_stage(config: PipelineConfig, stage: str) -> str:
 
 
 def render_only_translation_stages(config: PipelineConfig) -> list[str]:
-    stage_names: list[str] = []
-    if config.qwen_fallback_model_path is not None:
-        stage_names.append("hybrid")
-    if config.qwen_critic_model_path is not None:
-        stage_names.append("critic")
-    stage_names.append("primary")
-    if config.qwen_fallback_model_path is None:
-        stage_names.append("hybrid")
-    if config.qwen_critic_model_path is None:
-        stage_names.append("critic")
+    return list(translation_cache_plan(config).render_only_lookup_order)
 
+
+def _stage_names(primary_stage: str, critic_stage: str, hybrid_stage: str, stages: list[str]) -> list[str]:
+    by_stage = {
+        "primary": primary_stage,
+        "critic": critic_stage,
+        "hybrid": hybrid_stage,
+    }
+    return [by_stage.get(stage, stage) for stage in stages]
+
+
+def _unique_stages(stage_names: list[str]) -> tuple[str, ...]:
     seen: set[str] = set()
     stages: list[str] = []
     for stage in stage_names:
-        cache_stage = translation_cache_stage(config, stage)
-        if cache_stage not in seen:
-            seen.add(cache_stage)
-            stages.append(cache_stage)
-    return stages
+        if stage not in seen:
+            seen.add(stage)
+            stages.append(stage)
+    return tuple(stages)
 
 
 def cache_identity_token(value: str) -> str:
