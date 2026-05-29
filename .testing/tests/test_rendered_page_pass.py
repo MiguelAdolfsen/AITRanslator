@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from manga_local_translator.config import PipelineConfig
@@ -29,6 +30,85 @@ def make_page() -> PreparedPage:
 
 
 class RenderedPagePassTests(unittest.TestCase):
+    def test_render_uses_translation_after_compaction_stabilizes(self) -> None:
+        page = make_page()
+        page.translations["line-001"] = "First wording"
+        layout = object()
+        rendered_translations: dict[str, str] | None = None
+
+        def plan_text_fits(_image, _blocks, translations, **_kwargs):
+            text = translations["line-001"]
+            return [SimpleNamespace(font_size=6 if text != "Final wording" else 14, clipped=text != "Final wording")]
+
+        def compact_translations_for_render(_image, _blocks, translations, **_kwargs):
+            if translations["line-001"] == "First wording":
+                translations["line-001"] = "Second wording"
+                return 1
+            if translations["line-001"] == "Second wording":
+                translations["line-001"] = "Final wording"
+                return 1
+            return 0
+
+        def render_translations(_image, _blocks, translations, **_kwargs):
+            nonlocal rendered_translations
+            rendered_translations = dict(translations)
+            return "rendered"
+
+        with (
+            patch("manga_local_translator.rendered_page_pass.plan_render_layouts", return_value=[layout]),
+            patch("manga_local_translator.rendered_page_pass.plan_text_fits", side_effect=plan_text_fits),
+            patch("manga_local_translator.rendered_page_pass.compact_translations_for_render", side_effect=compact_translations_for_render),
+            patch("manga_local_translator.rendered_page_pass.apply_vision_repair", return_value=None),
+            patch("manga_local_translator.rendered_page_pass.blocks_for_erasing", return_value=page.render_blocks),
+            patch("manga_local_translator.rendered_page_pass.erase_text", return_value="cleaned"),
+            patch("manga_local_translator.rendered_page_pass.render_translations", side_effect=render_translations),
+            patch("manga_local_translator.rendered_page_pass.write_image_with_fallback", return_value=page.output_path),
+        ):
+            render_prepared_page(page, PipelineConfig())
+
+        self.assertEqual(rendered_translations, {"line-001": "Final wording"})
+
+    def test_stale_vision_acceptance_context_does_not_trigger_post_vision_compaction(self) -> None:
+        page = make_page()
+        page.translations["line-001"] = "Original wording"
+        page.translation_contexts["line-001"] = {"vision_accepted": True}
+        layout = object()
+        compact_calls = 0
+        rendered_translations: dict[str, str] | None = None
+
+        def plan_text_fits(*_args, **_kwargs):
+            return [SimpleNamespace(font_size=6, clipped=True)]
+
+        def compact_translations_for_render(_image, _blocks, translations, **_kwargs):
+            nonlocal compact_calls
+            compact_calls += 1
+            if compact_calls == 1:
+                translations["line-001"] = "First compacted"
+                return 1
+            if compact_calls == 3:
+                translations["line-001"] = "Stale post vision compacted"
+                return 1
+            return 0
+
+        def render_translations(_image, _blocks, translations, **_kwargs):
+            nonlocal rendered_translations
+            rendered_translations = dict(translations)
+            return "rendered"
+
+        with (
+            patch("manga_local_translator.rendered_page_pass.plan_render_layouts", return_value=[layout]),
+            patch("manga_local_translator.rendered_page_pass.plan_text_fits", side_effect=plan_text_fits),
+            patch("manga_local_translator.rendered_page_pass.compact_translations_for_render", side_effect=compact_translations_for_render),
+            patch("manga_local_translator.rendered_page_pass.apply_vision_repair", return_value=None),
+            patch("manga_local_translator.rendered_page_pass.blocks_for_erasing", return_value=page.render_blocks),
+            patch("manga_local_translator.rendered_page_pass.erase_text", return_value="cleaned"),
+            patch("manga_local_translator.rendered_page_pass.render_translations", side_effect=render_translations),
+            patch("manga_local_translator.rendered_page_pass.write_image_with_fallback", return_value=page.output_path),
+        ):
+            render_prepared_page(page, PipelineConfig())
+
+        self.assertEqual(rendered_translations, {"line-001": "First compacted"})
+
     def test_vision_acceptance_triggers_second_fit_and_compaction_pass(self) -> None:
         page = make_page()
         layout = object()

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .config import PipelineConfig
 from .debug_report import write_debug_image, write_debug_report
@@ -19,87 +21,99 @@ from .vision_service import apply_vision_repair
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class RenderedPagePlan:
+    render_layouts: list[Any]
+    render_fits: list[Any]
+
+
+class RenderedPageLifecycle:
+    def __init__(self, page: PreparedPage, config: PipelineConfig) -> None:
+        self.page = page
+        self.config = config
+
+    def plan(self) -> RenderedPagePlan:
+        render_layouts = plan_render_layouts(
+            self.page.image_bgr,
+            self.page.render_blocks,
+            render_expand=self.config.render_expand,
+        )
+        render_fits = self._fit_and_compact_until_stable(render_layouts)
+        accepted_before = self._vision_accepted_context_keys()
+        translations_before = dict(self.page.translations)
+        self.page.vision_artifact = apply_vision_repair(
+            image_bgr=self.page.image_bgr,
+            blocks=self.page.render_blocks,
+            translations=self.page.translations,
+            translation_contexts=self.page.translation_contexts,
+            page_order_report=self.page.page_order_report,
+            render_layouts=render_layouts,
+            render_fits=render_fits,
+            output_path=self.page.output_path,
+            config=self.config,
+        )
+        if self._vision_repair_changed_state(accepted_before, translations_before):
+            render_fits = self._fit_and_compact_until_stable(render_layouts)
+        return RenderedPagePlan(render_layouts=render_layouts, render_fits=render_fits)
+
+    def _fit_and_compact_until_stable(self, render_layouts) -> list[Any]:
+        render_fits = self._plan_text_fits(render_layouts)
+        for _attempt in range(8):
+            compacted = compact_translations_for_render(
+                self.page.image_bgr,
+                self.page.render_blocks,
+                self.page.translations,
+                translation_contexts=self.page.translation_contexts,
+                render_layouts=render_layouts,
+                render_fits=render_fits,
+                font_path=self.config.font_path,
+                base_font_size=self.config.base_font_size,
+                render_expand=self.config.render_expand,
+            ) or 0
+            render_fits = self._plan_text_fits(render_layouts)
+            if not compacted:
+                return render_fits
+        logger.warning("Render compaction did not stabilize after repeated attempts: %s", self.page.output_path)
+        return render_fits
+
+    def _plan_text_fits(self, render_layouts) -> list[Any]:
+        return plan_text_fits(
+            self.page.image_bgr,
+            self.page.render_blocks,
+            self.page.translations,
+            font_path=self.config.font_path,
+            base_font_size=self.config.base_font_size,
+            render_expand=self.config.render_expand,
+            render_layouts=render_layouts,
+        )
+
+    def _vision_accepted_context_keys(self) -> set[str]:
+        return {
+            key
+            for key, context in self.page.translation_contexts.items()
+            if context.get("vision_accepted") is True
+        }
+
+    def _vision_repair_changed_state(
+        self,
+        accepted_before: set[str],
+        translations_before: dict[str, str],
+    ) -> bool:
+        accepted_after = self._vision_accepted_context_keys()
+        if accepted_after - accepted_before:
+            return True
+        return bool(accepted_after) and self.page.translations != translations_before
+
+
 def render_prepared_page(page: PreparedPage, config: PipelineConfig) -> Path:
     if config.skip_render:
         write_translation_only_debug_report(page, config)
         logger.info("Skipped translated image rendering for benchmark: %s", page.output_path)
         return page.output_path
 
-    render_layouts = plan_render_layouts(
-        page.image_bgr,
-        page.render_blocks,
-        render_expand=config.render_expand,
-    )
-    render_fits = plan_text_fits(
-        page.image_bgr,
-        page.render_blocks,
-        page.translations,
-        font_path=config.font_path,
-        base_font_size=config.base_font_size,
-        render_expand=config.render_expand,
-        render_layouts=render_layouts,
-    )
-    compact_translations_for_render(
-        page.image_bgr,
-        page.render_blocks,
-        page.translations,
-        translation_contexts=page.translation_contexts,
-        render_layouts=render_layouts,
-        render_fits=render_fits,
-        font_path=config.font_path,
-        base_font_size=config.base_font_size,
-        render_expand=config.render_expand,
-    )
-    render_fits = plan_text_fits(
-        page.image_bgr,
-        page.render_blocks,
-        page.translations,
-        font_path=config.font_path,
-        base_font_size=config.base_font_size,
-        render_expand=config.render_expand,
-        render_layouts=render_layouts,
-    )
-    page.vision_artifact = apply_vision_repair(
-        image_bgr=page.image_bgr,
-        blocks=page.render_blocks,
-        translations=page.translations,
-        translation_contexts=page.translation_contexts,
-        page_order_report=page.page_order_report,
-        render_layouts=render_layouts,
-        render_fits=render_fits,
-        output_path=page.output_path,
-        config=config,
-    )
-    if any(context.get("vision_accepted") is True for context in page.translation_contexts.values()):
-        render_fits = plan_text_fits(
-            page.image_bgr,
-            page.render_blocks,
-            page.translations,
-            font_path=config.font_path,
-            base_font_size=config.base_font_size,
-            render_expand=config.render_expand,
-            render_layouts=render_layouts,
-        )
-        compact_translations_for_render(
-            page.image_bgr,
-            page.render_blocks,
-            page.translations,
-            translation_contexts=page.translation_contexts,
-            render_layouts=render_layouts,
-            render_fits=render_fits,
-            font_path=config.font_path,
-            base_font_size=config.base_font_size,
-            render_expand=config.render_expand,
-        )
-        render_fits = plan_text_fits(
-            page.image_bgr,
-            page.render_blocks,
-            page.translations,
-            font_path=config.font_path,
-            base_font_size=config.base_font_size,
-            render_expand=config.render_expand,
-            render_layouts=render_layouts,
-        )
+    plan = RenderedPageLifecycle(page, config).plan()
+    render_layouts = plan.render_layouts
+    render_fits = plan.render_fits
     if config.debug:
         write_debug_report(
             page.image_path,
@@ -223,7 +237,7 @@ def compact_translations_for_render(
     font_path: Path | None,
     base_font_size: int,
     render_expand: float,
-) -> None:
+) -> int:
     _ = image_bgr, render_layouts, font_path, base_font_size, render_expand
     compacted = 0
     for block, fit in zip(blocks, render_fits):
@@ -250,6 +264,7 @@ def compact_translations_for_render(
         )
     if compacted:
         logger.info("Compacted %d translation(s) for render readability", compacted)
+    return compacted
 
 
 def compact_english_for_bubble(text: str) -> str:

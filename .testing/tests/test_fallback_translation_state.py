@@ -11,7 +11,7 @@ from manga_local_translator.line_identity import lookup_context, lookup_translat
 from manga_local_translator.page_cache import load_translation_cache
 from manga_local_translator.page_types import PreparedPage
 from manga_local_translator.pipeline import refresh_translation_fallback_blocks, translate_prepared_page
-from manga_local_translator.translated_state import update_translated_line_state
+from manga_local_translator.translated_state import TranslationReviewState, update_translated_line_state
 
 
 def _page_with_block(block: TextBlock) -> PreparedPage:
@@ -35,6 +35,30 @@ class EmptyTranslator:
 
 
 class FallbackTranslationStateTests(unittest.TestCase):
+    def test_translation_review_state_applies_fallback_as_one_operation(self) -> None:
+        block = TextBlock("æ¯", (1, 2, 30, 40), 91.0, "ctd", metadata={"line_id": "line-001"})
+        page = _page_with_block(block)
+        page.translations[block.text] = "legacy"
+        page.translation_contexts[block.text] = {"translator": "legacy"}
+
+        translated = TranslationReviewState.for_page(page).apply_fallback(
+            block,
+            reason="empty_translation",
+            source_translation="",
+        )
+
+        self.assertEqual(translated, "...")
+        self.assertEqual(lookup_translation(page.translations, block), "...")
+        self.assertEqual(page.translations[block.text], "legacy")
+        context = lookup_context(page.translation_contexts, block)
+        self.assertEqual(context["translator"], "legacy")
+        self.assertEqual(context["fallback_used"], True)
+        self.assertEqual(context["fallback_reason"], "empty_translation")
+        self.assertEqual(context["fallback_source_translation"], "")
+        self.assertEqual(context["fallback_translation"], "...")
+        self.assertEqual(page.translation_fallback_blocks[0]["line_id"], "line-001")
+        self.assertEqual(page.translation_fallback_blocks[0]["translated_text"], "...")
+
     def test_translated_line_state_update_uses_line_identity_for_translation_and_context(self) -> None:
         block = TextBlock("source", (1, 2, 30, 40), 91.0, "ctd", metadata={"line_id": "line-001"})
         translations = {block.text: "legacy"}

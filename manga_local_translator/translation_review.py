@@ -9,8 +9,6 @@ from .grouping import context_for_block
 from .line_identity import (
     lookup_context,
     lookup_translation,
-    set_context,
-    set_translation,
     translation_for_page_order_item,
     translation_key_for_block,
 )
@@ -18,6 +16,7 @@ from .logging_utils import shorten
 from .page_types import PreparedPage
 from .qwen_validation import source_has_bracket_term, translation_preserves_bracket_term
 from .text_filter import count_japanese_chars, suspected_bad_translation, unusable_translation_reason
+from .translated_state import TranslationReviewState
 from .translation_evidence import (
     ConsistencyMemory,
     analyze_translation_evidence,
@@ -61,11 +60,12 @@ def apply_translation_evidence(
     translation_contexts: dict[str, dict[str, object]],
     memory: ConsistencyMemory | None,
 ) -> None:
+    state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
         translated = lookup_translation(translations, block, "")
         context = lookup_context(translation_contexts, block)
         context.update(build_evidence_context(block.text, translated, memory))
-        set_context(translation_contexts, block, context)
+        state.update_line(block, context_updates=context)
 
 
 def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -> tuple[int, int]:
@@ -77,6 +77,7 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
     accepted = 0
     suspect_attempted = 0
     suspect_accepted = 0
+    state = TranslationReviewState.for_page(page)
     for block in page.render_blocks:
         context = lookup_context(page.translation_contexts, block)
         previous_translation = lookup_translation(page.translations, block, "")
@@ -119,8 +120,8 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
         if retry_debug.get("cat_retry_accepted") is True or retry_debug.get("cat_suspect_second_pass_accepted") is True:
             if retry_debug.get("cat_suspect_second_pass_accepted") is True:
                 suspect_accepted += 1
-            set_translation(page.translations, block, retry_translation)
             context.update(translation_debug_info(block.text, retry_translation, glossary_path=config.glossary_path))
+            state.update_line(block, translated_text=retry_translation, context_updates=context)
             accepted += 1
             logger.info(
                 "Accepted CAT retry translation: source=%s retry=%s",
@@ -135,7 +136,8 @@ def retry_cat_failures(page: PreparedPage, translator, config: PipelineConfig) -
                 or retry_debug.get("cat_suspect_second_pass_reject_reason")
                 or "unknown",
             )
-        set_context(page.translation_contexts, block, context)
+        if retry_debug.get("cat_retry_accepted") is not True and retry_debug.get("cat_suspect_second_pass_accepted") is not True:
+            state.update_line(block, context_updates=context)
     if attempted:
         logger.info(
             "CAT retry pass finished for %s: attempted=%d accepted=%d suspect_attempted=%d suspect_accepted=%d",
@@ -183,6 +185,7 @@ def apply_qwen_fallback_translations(
 
     attempted = 0
     accepted = 0
+    state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
         primary_translation = lookup_translation(translations, block, "")
         primary_context = lookup_context(translation_contexts, block)
@@ -265,7 +268,7 @@ def apply_qwen_fallback_translations(
         )
         if reject_reason is not None:
             primary_context["qwen_fallback_reject_reason"] = reject_reason
-            set_context(translation_contexts, block, primary_context)
+            state.update_line(block, context_updates=primary_context)
             logger.info(
                 "Rejected Qwen fallback translation: reason=%s source=%s fallback=%s",
                 reject_reason,
@@ -274,7 +277,6 @@ def apply_qwen_fallback_translations(
             )
             continue
 
-        set_translation(translations, block, fallback_translation)
         primary_context.update(
             {
                 "qwen_hybrid_used": True,
@@ -283,7 +285,7 @@ def apply_qwen_fallback_translations(
                 **translation_debug_info(block.text, fallback_translation, glossary_path=config.glossary_path),
             }
         )
-        set_context(translation_contexts, block, primary_context)
+        state.update_line(block, translated_text=fallback_translation, context_updates=primary_context)
         accepted += 1
         logger.info(
             "Accepted Qwen fallback translation: source=%s fallback=%s",
@@ -341,12 +343,13 @@ def apply_qwen_critic_reviews(
 ) -> tuple[int, int]:
     attempted = 0
     flagged = 0
+    state = TranslationReviewState(translations, translation_contexts)
     for block in blocks:
         current_translation = lookup_translation(translations, block, "")
         primary_context = lookup_context(translation_contexts, block)
         if "source_features" not in primary_context or "translation_evidence" not in primary_context:
             primary_context.update(build_evidence_context(block.text, current_translation, evidence_memory))
-            set_context(translation_contexts, block, primary_context)
+            state.update_line(block, context_updates=primary_context)
         trigger_reasons = qwen_critic_trigger_reasons(block.text, current_translation, primary_context)
         if not trigger_reasons:
             continue
@@ -394,7 +397,7 @@ def apply_qwen_critic_reviews(
                 "qwen_critic_evidence_gate_reason": repair_gate["reason"],
             }
         )
-        set_context(translation_contexts, block, primary_context)
+        state.update_line(block, context_updates=primary_context)
         logger.info(
             "Qwen critic result: severity=%s issues=%s should_repair=%s source=%s reason=%s",
             decision.severity,
