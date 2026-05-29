@@ -11,6 +11,7 @@ from manga_local_translator.line_identity import lookup_context, lookup_translat
 from manga_local_translator.page_cache import load_translation_cache
 from manga_local_translator.page_types import PreparedPage
 from manga_local_translator.pipeline import refresh_translation_fallback_blocks, translate_prepared_page
+from manga_local_translator.translated_state import update_translated_line_state
 
 
 def _page_with_block(block: TextBlock) -> PreparedPage:
@@ -34,6 +35,25 @@ class EmptyTranslator:
 
 
 class FallbackTranslationStateTests(unittest.TestCase):
+    def test_translated_line_state_update_uses_line_identity_for_translation_and_context(self) -> None:
+        block = TextBlock("source", (1, 2, 30, 40), 91.0, "ctd", metadata={"line_id": "line-001"})
+        translations = {block.text: "legacy"}
+        contexts = {block.text: {"translator": "legacy"}}
+
+        context = update_translated_line_state(
+            translations,
+            contexts,
+            block,
+            translated_text="Mom",
+            context_updates={"vision_accepted": True},
+        )
+
+        self.assertEqual(lookup_translation(translations, block), "Mom")
+        self.assertEqual(translations[block.text], "legacy")
+        self.assertEqual(lookup_context(contexts, block)["translator"], "legacy")
+        self.assertTrue(lookup_context(contexts, block)["vision_accepted"])
+        self.assertEqual(context["line_id"], "line-001")
+
     def test_direct_translation_fallback_updates_translation_report_and_context_together(self) -> None:
         block = TextBlock("母", (1, 2, 30, 40), 91.0, "ctd", metadata={"line_id": "line-001"})
         page = _page_with_block(block)
