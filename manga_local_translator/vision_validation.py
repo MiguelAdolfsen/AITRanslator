@@ -293,6 +293,16 @@ def visual_speaker_identity_is_ungrounded(text: str) -> bool:
     }
     if proper_noun_tokens(text) - anchor_words:
         return True
+    has_visual_anchor = bool(
+        re.search(
+            r"\b("
+            r"above|below|bottom|bubble|center|left|lower|middle|near|right|side|"
+            r"speech|thought|top|upper"
+            r")\b",
+            normalized,
+        )
+        or re.search(r"\b(next to|beside|behind|in front of|close to)\b", normalized)
+    )
     return bool(
         re.search(
             r"\b("
@@ -301,7 +311,7 @@ def visual_speaker_identity_is_ungrounded(text: str) -> bool:
             r")\b",
             normalized,
         )
-    )
+    ) and not has_visual_anchor
 
 
 def visual_fact_too_long(text: str) -> bool:

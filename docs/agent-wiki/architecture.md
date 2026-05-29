@@ -14,7 +14,7 @@ Use this page to find the right subsystem before editing. The orchestration cent
 | Detection/OCR | Find Japanese text boxes and recognize text. | `manga_local_translator/detect_ocr.py`, `manga_local_translator/ctd_detector.py`, `manga_local_translator/source_extraction.py` |
 | Filtering/grouping | Remove bad OCR fragments, group lines into render/translation blocks, assign reading order. | `text_filter.py`, `grouping.py`, `line_identity.py` |
 | Translation | Build selected translator and postprocess outputs. | `translate.py`, `translator_base.py`, `translation_rules.py`, `hf_translators.py`, `argos_translator.py`, `qwen_translator.py` |
-| Qwen validation/evidence | Parse Qwen output, validate translations, apply critic/fallback decisions. | `qwen_validation.py`, `qwen_types.py`, `translation_evidence.py`, `pipeline.py` |
+| Qwen validation/evidence | Parse Qwen output, validate translations, apply critic/fallback decisions. | `qwen_validation.py`, `qwen_types.py`, `translation_evidence.py`, `translation_review.py`, `pipeline.py` |
 | Vision | Create numbered artifacts, prompt vision model, validate visual facts/repairs. | `vision_artifact.py`, `vision_prompt.py`, `vision_service.py`, `vision_validation.py`, `vision_types.py`, `qwen_vision.py` |
 | Erase/render | Remove original text and typeset English translation. | `erase.py`, `render.py` |
 | Debug/review | Write overlays, JSON reports, review CSV/HTML/Markdown. | `debug_report.py`, `review_report.py`, `quality_eval.py` |
@@ -44,7 +44,7 @@ Per-page state is represented as `PreparedPage`. Individual source or render reg
 | OCR candidate generation | `detect_ocr.py`, `ctd_detector.py` | `source_extraction.py`, tests |
 | OCR skip rules | `text_filter.py` | `debug_report.py` so reports explain skips |
 | Reading order/grouping | `grouping.py`, `line_identity.py` | cache and debug report tests |
-| Translation cleanup | `translation_rules.py` | `translation_evidence.py`, translator tests |
+| Translation cleanup | `translation_rules.py` | `translation_evidence.py`, `translation_review.py`, translator tests |
 | CAT behavior | `hf_translators.py` | `cat_response_autoresearch/`, CAT tests |
 | Qwen prompts/parsing | `qwen_prompts.py`, `qwen_validation.py`, `qwen_translator.py` | Qwen tests and quality eval |
 | Vision repair/facts | `vision_*`, `qwen_vision.py` | vision tests and debug report fields |

@@ -86,6 +86,16 @@ class VisionPromptValidationTests(unittest.TestCase):
         self.assertEqual(vision_facts_acceptance_reason(request, translated), "contains_translation_field")
         self.assertEqual(vision_facts_acceptance_reason(request, invented_speaker), "ungrounded_speaker")
 
+    def test_facts_acceptance_allows_position_grounded_speaker_descriptions(self) -> None:
+        request = VisionFactsRequest("p1_001", 1, "\u306f\u3044", (0, 0, 10, 10))
+        positioned_speaker = parse_vision_facts_response(
+            '{"lines":[{"line_id":"p1_001","number":1,"source_text":"\\u306f\\u3044",'
+            '"speaker_position":"girl on right","mapping_confidence":"high",'
+            '"facts":["small bubble near the character"]}]}'
+        )[0]
+
+        self.assertIsNone(vision_facts_acceptance_reason(request, positioned_speaker))
+
     def test_facts_acceptance_rejects_text_content_descriptions(self) -> None:
         request = VisionFactsRequest("p1_001", 1, "\u4f55\u3042\u308c", (0, 0, 10, 10))
         result = parse_vision_facts_response(

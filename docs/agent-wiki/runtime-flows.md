@@ -13,7 +13,9 @@ cli.build_parser()
   -> PipelineConfig(...)
   -> pipeline.process_folder(input, output, config)
   -> build_translator(...)
-  -> process_image(...) for each page
+  -> prepare_page_for_translation(...) for each page
+  -> translate_prepared_page(...)
+  -> render_prepared_page(...)
   -> render/debug outputs
 ```
 
@@ -30,7 +32,7 @@ Keep GUI and CLI behavior aligned when adding options unless the option is inten
 `process_folder_qwen_hybrid_batch()` is selected when:
 
 - `translator == "cat"`, or
-- `translator == "qwen"` and a fallback model, critic model, or pre-translation vision facts are enabled.
+- `translator` is `qwen` or `hy-mt2`, and a fallback model, critic model, or pre-translation vision facts are enabled.
 
 The batch flow prepares all pages first, then runs translation stages:
 
@@ -47,6 +49,7 @@ prepare page cache
 ```
 
 Cache stages are named by `translation_cache_stage()`. The exact stage suffix can include translator, Qwen mode, CAT prompt versions, critic/fallback state, and vision facts.
+Translation review pass behavior lives in `translation_review.py`; `pipeline.py` decides when each pass runs.
 
 ## Render-Only Flow
 
@@ -78,4 +81,3 @@ If cache behavior changes, update:
 | `*.vision.png` / `*.vision-facts.png` | vision paths | Artifacts sent to vision model. |
 | work cache JSON | `--resume`, hybrid, render-only workflows | Prepared and translated page state. |
 | review reports | quality eval/review tools | CSV, HTML, Markdown inspection reports. |
-
