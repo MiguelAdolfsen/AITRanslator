@@ -5,8 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 from manga_local_translator.config import PipelineConfig
 from manga_local_translator.debug_report import write_debug_report
 from manga_local_translator.detect_types import TextBlock

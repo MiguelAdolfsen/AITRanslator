@@ -76,7 +76,7 @@ When adding a CLI option:
 | Tencent Hy-MT2 | Hugging Face cache, default `tencent/Hy-MT2-1.8B` | `python -m manga_local_translator.install_hy_mt2`, `--hy-mt2-model` |
 | MADLAD | Hugging Face cache | `python -m manga_local_translator.install_madlad` |
 | Argos | Argos package data | `python -m manga_local_translator.install_argos ja en` |
-| CAT | `.models/CAT-Translate/*.gguf`, then default model id | `--cat-model` |
+| CAT | `.models/CAT-Translate/*.gguf`, then default model id | `python -m manga_local_translator.install_cat`, `--cat-model` |
 | Qwen text | `.models/qwen` preferred text model | `--qwen-model`, `MANGA_QWEN_MODEL` |
 | Qwen vision | selected vision model plus projector | `--vision-model`, `--vision-projector` |
 

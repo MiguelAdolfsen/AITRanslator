@@ -11,7 +11,7 @@ Autoresearch harnesses are isolated benchmark loops. Always read the relevant ha
 | `render_autoresearch/` | Rendering/layout benchmark with frozen synthetic fixtures. | `README.md`, `PROGRAM.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
 | `translation_routing_autoresearch/` | Translation candidate routing/selection benchmark. | `README.md`, `PROGRAM.md`, `CODEX_SETUP.md`, `BENCHMARK_SCHEMA.md`, `SCORING.md` |
 
-Some local/private harness folders may exist in a developer checkout, but they are ignored and not part of the GitHub repository.
+All harness folders are local-only: they are gitignored and not part of the GitHub repository, so they may be absent in a fresh clone.
 
 ## Generated Outputs
 

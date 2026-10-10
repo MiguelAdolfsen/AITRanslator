@@ -8,12 +8,12 @@ Update this wiki whenever agent-facing behavior changes. The goal is fast orient
 
 | Change | Docs to update |
 |---|---|
-| New CLI flag | `README.md`, `AGENTS.md` if task routing changes, [configuration](configuration.md) |
+| New CLI flag | `README.md`, `CODEX.md` if task routing changes, [configuration](configuration.md) |
 | New `PipelineConfig` field | [configuration](configuration.md), [runtime flows](runtime-flows.md) if it affects orchestration |
 | GUI option added/removed | [runtime flows](runtime-flows.md), [configuration](configuration.md) |
 | Cache schema/stage changes | [data contracts](data-contracts.md), [runtime flows](runtime-flows.md) |
 | Debug `.ocr.json` fields changed | [data contracts](data-contracts.md), [debugging](debugging.md) |
-| New model backend | `README.md`, [configuration](configuration.md), [architecture](architecture.md), `AGENTS.md` |
+| New model backend | `README.md`, [configuration](configuration.md), [architecture](architecture.md), `CODEX.md` |
 | New harness | [autoresearch](autoresearch.md), [testing](testing.md), [wiki-manifest.json](wiki-manifest.json) |
 | Test command changes | [testing](testing.md), `README.md` if user-facing |
 
@@ -32,5 +32,5 @@ After wiki edits:
 1. Check Markdown links and referenced paths.
 2. Run `python -m manga_local_translator --help` if CLI/config docs changed.
 3. Verify `wiki-manifest.json` lists every wiki page.
-4. Skim `AGENTS.md` as a first-time agent: it should identify purpose, entrypoints, common tasks, and safety notes quickly.
+4. Skim `CODEX.md` as a first-time agent: it should identify purpose, entrypoints, common tasks, and safety notes quickly.
 

@@ -48,5 +48,5 @@ Per-page state is represented as `PreparedPage`. Individual source or render reg
 | CAT behavior | `hf_translators.py` | CAT tests |
 | Qwen prompts/parsing | `qwen_prompts.py`, `qwen_validation.py`, `qwen_translator.py` | Qwen tests and quality eval |
 | Vision repair/facts | `vision_*`, `qwen_vision.py` | vision tests and debug report fields |
-| Render fitting | `render.py` | `render_autoresearch/PROGRAM.md` before benchmarking |
+| Render fitting | `render.py` | `render_autoresearch/PROGRAM.md` before benchmarking (local-only harness) |
 | Debug schema | `debug_report.py` | `review_report.py`, `quality_eval.py`, [data contracts](data-contracts.md) |

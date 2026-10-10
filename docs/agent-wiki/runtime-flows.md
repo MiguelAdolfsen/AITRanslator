@@ -79,7 +79,7 @@ If cache behavior changes, update:
 | Output | Created when | Purpose |
 |---|---|---|
 | translated image | default unless `--skip-render` | Final rendered page. |
-| `*.debug.png` | `--debug` | Overlay of detected/rendered regions. |
+| `*.debug.<ext>` | `--debug` | Overlay of detected/rendered regions. |
 | `*.ocr.json` | `--debug` or debug/report paths | OCR, translation, context, warnings, and summary fields. |
 | `*.vision.png` / `*.vision-facts.png` | vision paths | Artifacts sent to vision model. |
 | work cache JSON | `--resume`, hybrid, render-only workflows | Prepared and translated page state. |

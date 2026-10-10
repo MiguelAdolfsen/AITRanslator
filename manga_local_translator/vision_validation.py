@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 
 from .qwen_validation import accept_qwen_translation, clean_qwen_output, extract_qwen_json_payloads

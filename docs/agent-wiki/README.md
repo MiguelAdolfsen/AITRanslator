@@ -43,8 +43,8 @@ The durable source is the Python package, root docs, test scripts, and harness p
 | `manga_local_translator/` | `.models/` |
 | `README.md` | `.testing/output/` |
 | `.testing/README.md` and `.testing/tests/` | `.testing/work/` |
-| `render_autoresearch/PROGRAM.md` and similar harness docs | `quality-runs/` |
-| `translation_glossary.example.json` | harness `runs/` outputs |
+| `translation_glossary.example.json` | `quality-runs/` |
+| | `*_autoresearch/` harnesses and their `runs/` outputs |
 
 ## Local Environment Assumptions
 

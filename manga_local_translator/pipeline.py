@@ -4,7 +4,6 @@ import logging
 import os
 from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from .cache_policy import TranslationCacheWorkspace, translation_cache_plan
 from .detect_types import TextBlock

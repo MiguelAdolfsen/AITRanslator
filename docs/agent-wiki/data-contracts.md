@@ -64,9 +64,9 @@ Abbreviated cache examples:
 
 ```text
 .manga-work/
-  0001_page-001.prepared.json
-  0001_page-001.primary-opus.json
-  0001_page-001.hybrid-qwen-page-critic-fallback-vision-facts.json
+  0001-page-001.prepared.json
+  0001-page-001.primary-opus.json
+  0001-page-001.hybrid-qwen-page-critic-fallback-vision-facts.json
 ```
 
 ```json

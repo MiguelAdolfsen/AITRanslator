@@ -9,7 +9,7 @@ For bad output, rerun with `--debug` and inspect the `.debug.png` and `.ocr.json
 | Artifact | Source | Use |
 |---|---|---|
 | `manga_translator_debug.log` | `logging_utils.py` | Run-level logs, model setup, stage decisions. |
-| `*.debug.png` | `debug_report.py` | Visual overlay of boxes, skipped blocks, and render diagnostics. |
+| `*.debug.<ext>` (same extension as the output image) | `debug_report.py` | Visual overlay of boxes, skipped blocks, and render diagnostics. |
 | `*.ocr.json` | `debug_report.py` | OCR text, translations, contexts, warnings, and page summary. |
 | `*.vision.png` / `*.vision-facts.png` | `vision_artifact.py` | What the vision model saw. |
 | `.manga-work/` or configured work dir | `page_cache.py` | Prepared and translated cache stages for resume/render-only. |

@@ -1,7 +1,7 @@
 {
   "title": "Agent-Readable Project Wiki",
   "entrypoints": [
-    "AGENTS.md",
+    "CODEX.md",
     "docs/agent-wiki/README.md"
   ],
   "pages": [
@@ -57,7 +57,7 @@
       "path": "docs/agent-wiki/maintenance.md",
       "title": "Wiki Maintenance",
       "purpose": "Rules for keeping the wiki synchronized with future code and workflow changes.",
-      "source_areas": ["AGENTS.md", "docs/agent-wiki", "README.md"]
+      "source_areas": ["CODEX.md", "docs/agent-wiki", "README.md"]
     }
   ]
 }

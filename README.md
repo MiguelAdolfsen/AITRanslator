@@ -773,6 +773,8 @@ Show help:
 python -m manga_local_translator.quality_eval --help
 ```
 
+`--profiles` takes a comma-separated list of Qwen sampling profiles: `quality` (translation temperature 0.4), `strict` (0.2, with a lower repair temperature), and `official` (0.7).
+
 Example run:
 
 ```powershell

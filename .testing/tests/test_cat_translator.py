@@ -11,7 +11,6 @@ from manga_local_translator.detect_types import TextBlock
 from manga_local_translator import hf_translators
 from manga_local_translator.hf_translators import (
     CAT_PROMPT_VERSION,
-    CAT_SECOND_RETRY_PROMPT_VERSION,
     CAT_VALIDATION_VERSION,
     build_cat_prompt,
     cat_bypass_reason,
