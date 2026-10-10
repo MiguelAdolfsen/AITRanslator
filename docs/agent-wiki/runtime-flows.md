@@ -23,7 +23,9 @@ This flow is used when the run does not need batched hybrid handling and is not 
 
 ## GUI Flow
 
-`gui.py` builds a Tkinter form, converts widget values into `PipelineConfig`, checks runtime dependencies, then calls `process_folder()` in a worker thread. GUI install buttons call the same installer modules used from the command line.
+`gui.py` builds a Tkinter window (sidebar pages for settings, plus a Run panel), converts widget values into `PipelineConfig`, checks runtime dependencies, then calls `process_folder()` in a worker thread. GUI install buttons call the same installer modules used from the command line. Theme, image assets, and custom widgets live in `gui_widgets.py`.
+
+While a job runs, the GUI temporarily wraps the `tqdm` name in `pipeline` and `translation_review_pass` to report stage progress, forwards `manga_local_translator` INFO+ log records and installer `print()` output to the activity log, and restores everything when the worker finishes. New `tqdm(...)` loops in those modules show up in the progress bar automatically. Settings persist in `~/.manga_local_translator/gui_settings.json`.
 
 Keep GUI and CLI behavior aligned when adding options unless the option is intentionally CLI-only.
 

@@ -33,7 +33,7 @@ Use `.\.testing\run_tests.ps1 -WithSmoke` only when local smoke inputs and requi
 | Area | Primary files | Read first | Run/check |
 |---|---|---|---|
 | CLI behavior | `manga_local_translator/cli.py`, `manga_local_translator/config.py` | [configuration](docs/agent-wiki/configuration.md) | `.\.venv\Scripts\python.exe -m manga_local_translator --help` |
-| GUI behavior | `manga_local_translator/gui.py` | [runtime flows](docs/agent-wiki/runtime-flows.md) | `.\.venv\Scripts\python.exe -m manga_local_translator.gui` |
+| GUI behavior | `manga_local_translator/gui.py`, `manga_local_translator/gui_widgets.py` | [runtime flows](docs/agent-wiki/runtime-flows.md) | `.\.venv\Scripts\python.exe -m manga_local_translator.gui` |
 | Pipeline flow | `manga_local_translator/pipeline.py` | [architecture](docs/agent-wiki/architecture.md) | targeted unit tests plus CLI smoke |
 | Detection/OCR | `detect_ocr.py`, `ctd_detector.py`, `source_extraction.py` | [data contracts](docs/agent-wiki/data-contracts.md) | `test_detect_ocr_heuristics.py`, source extraction tests |
 | Translation | `translate.py`, `hf_translators.py`, `qwen_translator.py`, `translation_rules.py` | [configuration](docs/agent-wiki/configuration.md) | translation, Qwen, CAT, Hy-MT2, and routing tests |

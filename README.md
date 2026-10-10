@@ -155,12 +155,14 @@ python -m manga_local_translator.gui
 
 In the GUI:
 
-1. Select an input image or folder.
-2. Select an output file or folder.
-3. Choose detector, OCR engine, translator, and erase mode.
-4. Install CTD / OPUS / MADLAD / Argos / CAT / Hy-MT2 from the GUI if needed.
-5. Enable debug output while tuning settings.
-6. Click **Start**.
+1. On **Project**, pick a folder of pages (or a single image). The output folder is filled in automatically.
+2. On **Translation**, choose an engine. Model, review, and glossary options appear for the engine you pick.
+3. On **Detection & OCR**, **Vision**, and **Typesetting**, adjust the detector, OCR engine, erase mode, vision passes, and text sizing.
+4. On **Setup**, install CTD / OPUS / Hy-MT2 / CAT / MADLAD / Argos if needed.
+5. Check the **Run** panel on the right. Its checklist flags anything missing, such as an uninstalled detector or Tesseract.
+6. Click **Start translation** (or press `Ctrl+Enter`). The Run panel shows progress for each stage and an activity log.
+
+Settings are remembered between sessions in `~/.manga_local_translator/gui_settings.json`.
 
 ---
 
@@ -854,6 +856,7 @@ AITRanslator/
   manga_local_translator/
     cli.py
     gui.py
+    gui_widgets.py
     pipeline.py
     config.py
     cache_policy.py
