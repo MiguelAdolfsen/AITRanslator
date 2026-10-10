@@ -824,10 +824,10 @@ Run tests plus the optional smoke test:
 .\.testing\run_tests.ps1 -WithSmoke
 ```
 
-The smoke test expects a sample image at:
+The smoke test needs one local manga page. By default it looks for `..\mangafolder\1.png` (a `mangafolder` folder next to the repo). To use a different image:
 
-```text
-..\mangafolder\1.png
+```powershell
+.\.testing\run_tests.ps1 -WithSmoke -SmokeImage path\to\page.png
 ```
 
 The test runner performs checks such as:
